@@ -170,8 +170,12 @@ const handleError = async (error: unknown) => {
         appMessage.error(`Server error: ${response.statusText}`);
         return Promise.reject(new Error(response.statusText));
     } else {
-        appMessage.error(`Request failed: ${error}`);
-        return Promise.reject(error);
+        try {
+            const errorData = await response.json();
+            appMessage.error(errorData.message || `Request failed: ${response.statusText}`);
+        } catch {
+            appMessage.error(`Request failed: ${response.statusText}`);
+        }
     }
 
     // throw error;
