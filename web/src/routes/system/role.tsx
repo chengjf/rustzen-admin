@@ -238,7 +238,7 @@ const RoleModalForm = ({
                 name="menuIds"
                 label="Permissions"
                 placeholder="Select permissions"
-                options={[{ label: "Root", value: 0 }, ...menuOptions]}
+                options={menuOptions}
                 mode="multiple"
                 rules={[
                     {
