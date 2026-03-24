@@ -30,7 +30,7 @@ export const MoreButton = ({ children, ...props }: MoreButtonProps) => {
     }
     return (
         <Dropdown placement={props.placement} trigger={props.trigger} menu={{ items }}>
-            <a>More</a>
+            <a>更多</a>
         </Dropdown>
     );
 };

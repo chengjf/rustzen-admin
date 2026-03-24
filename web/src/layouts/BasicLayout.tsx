@@ -38,11 +38,11 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
         {
             key: "logout",
             icon: <LogoutOutlined />,
-            label: "Logout",
+            label: "退出登录",
             onClick: async () => {
                 await authAPI.logout();
                 useAuthStore.getState().clearAuth();
-                appMessage.success("Logout successful");
+                appMessage.success("退出登录成功");
                 router.navigate({ to: "/login" });
                 return true;
             },
@@ -65,7 +65,7 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
                 children: [
                     {
                         path: "/",
-                        name: "Dashboard",
+                        name: "首页",
                         icon: <DashboardOutlined />,
                     },
                     ...getMenuData(),

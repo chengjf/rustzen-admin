@@ -27,7 +27,7 @@ function UserPage() {
         <ProTable<User.Item>
             rowKey="id"
             scroll={{ y: "calc(100vh - 383px)" }}
-            headerTitle="User List"
+            headerTitle="用户列表"
             columns={columns}
             request={userAPI.getTableData}
             actionRef={actionRef}
@@ -40,7 +40,7 @@ function UserPage() {
                             actionRef.current?.reload();
                         }}
                     >
-                        <Button type="primary">Create User</Button>
+                        <Button type="primary">创建用户</Button>
                     </UserModalForm>
                 </AuthWrap>,
             ]}
@@ -51,12 +51,14 @@ function UserPage() {
 const columns: ProColumns<User.Item>[] = [
     {
         title: "ID",
+        align: 'center',
         dataIndex: "id",
         width: 48,
         search: false,
     },
     {
-        title: "Avatar",
+        title: "头像",
+        align: 'center',
         dataIndex: "avatarUrl",
         width: 60,
         search: false,
@@ -67,55 +69,64 @@ const columns: ProColumns<User.Item>[] = [
             return (
                 <img
                     src={record.avatarUrl}
-                    alt="avatar"
+                    alt="头像"
                     className="object-fit mx-auto h-5 w-5 rounded-full"
                 />
             );
         },
     },
     {
-        title: "Username",
+        title: "用户名",
+        align: 'center',
         dataIndex: "username",
     },
     {
-        title: "Email",
+        title: "邮箱",
+        align: 'center',
         dataIndex: "email",
     },
     {
-        title: "Real Name",
+        title: "真实姓名",
+        align: 'center',
         dataIndex: "realName",
     },
     {
-        title: "Status",
+        title: "状态",
+        align: 'center',
         dataIndex: "status",
         valueEnum: {
-            1: { text: "Enabled", status: "Success" },
-            2: { text: "Disabled", status: "Default" },
+            1: { text: "启用", status: "Success" },
+            2: { text: "禁用", status: "Default" },
         },
     },
     {
-        title: "Roles",
+        title: "角色",
+        align: 'center',
         dataIndex: "roles",
         search: false,
         render: (_: React.ReactNode, record: User.Item) =>
             record.roles.map((role) => role.label).join(", "),
     },
     {
-        title: "Last Login",
+        title: "最后登录时间",
+        align: 'center',
         dataIndex: "lastLoginAt",
         valueType: "dateTime",
         search: false,
     },
     {
-        title: "Updated At",
+        title: "更新时间",
+        align: 'center',
         dataIndex: "updatedAt",
         valueType: "dateTime",
         search: false,
     },
     {
-        title: "Actions",
+        title: "操作",
         key: "action",
-        width: 110,
+        width: 200,
+        align: 'center',
+        fixed: 'right',
         search: false,
         render: (
             _dom: React.ReactNode,
@@ -125,9 +136,10 @@ const columns: ProColumns<User.Item>[] = [
         ) => {
             const cur = useAuthStore.getState().userInfo;
             if (entity.id === cur?.id || entity.id === 1) {
+                // 不能操作当前用户或管理员
                 return null;
             }
-            const status = entity.status === 1 ? "Disable" : "Enable";
+            const status = entity.status === 1 ? "禁用" : "启用";
             return (
                 <Space size="middle">
                     <AuthWrap code="system:user:update">
@@ -136,14 +148,14 @@ const columns: ProColumns<User.Item>[] = [
                             initialValues={entity}
                             onSuccess={action?.reload}
                         >
-                            <a>Edit</a>
+                            <a>编辑</a>
                         </UserModalForm>
                     </AuthWrap>
                     <MoreButton>
                         <AuthConfirm
                             key="status"
                             code="system:user:status"
-                            title={`Are you sure you want to ${status} this user?`}
+                            title={`确定要${status}此用户吗？`}
                             children={status}
                             onConfirm={async () => {
                                 await userAPI.updateStatus(
@@ -156,8 +168,8 @@ const columns: ProColumns<User.Item>[] = [
                         <AuthConfirm
                             key="password"
                             code="system:user:password"
-                            title="Are you sure you want to reset the password of this user?"
-                            children="Reset Password"
+                            title="确定要重置此用户的密码吗？"
+                            children="重置密码"
                             onConfirm={async () => {
                                 await userAPI.resetPassword(
                                     entity.id,
@@ -169,9 +181,9 @@ const columns: ProColumns<User.Item>[] = [
                         <AuthConfirm
                             key="delete"
                             code="system:user:delete"
-                            title="Are you sure you want to delete this user?"
+                            title="确定要删除此用户吗？"
                             className="text-red-500"
-                            children={"Delete User"}
+                            children="删除用户"
                             onConfirm={async () => {
                                 await userAPI.delete(entity.id);
                                 await action?.reload();
@@ -208,7 +220,7 @@ const UserModalForm = ({
             form={form}
             width={500}
             layout="horizontal"
-            title={mode === "create" ? "Create User" : "Edit User"}
+            title={mode === "create" ? "创建用户" : "编辑用户"}
             trigger={children}
             labelCol={{ span: 5 }}
             modalProps={{ destroyOnHidden: true, maskClosable: false }}
@@ -225,7 +237,7 @@ const UserModalForm = ({
             }}
             submitter={{
                 searchConfig: {
-                    submitText: mode === "create" ? "Create" : "Save",
+                    submitText: mode === "create" ? "创建" : "保存",
                 },
             }}
             onFinish={async (values) => {
@@ -243,60 +255,60 @@ const UserModalForm = ({
         >
             <ProFormText
                 name="username"
-                label="Username"
-                placeholder="Enter username"
+                label="用户名"
+                placeholder="请输入用户名"
                 rules={[
-                    { required: true, message: "Please enter username" },
-                    { min: 3, message: "At least 3 characters" },
+                    { required: true, message: "请输入用户名" },
+                    { min: 3, message: "至少3个字符" },
                 ]}
                 disabled={mode === "edit"}
             />
             <ProFormText
                 name="email"
-                label="Email"
-                placeholder="Enter email"
+                label="邮箱"
+                placeholder="请输入邮箱"
                 rules={[
-                    { required: true, message: "Please enter email" },
-                    { type: "email", message: "Invalid email format" },
+                    { required: true, message: "请输入邮箱" },
+                    { type: "email", message: "邮箱格式不正确" },
                 ]}
             />
             <ProFormText
                 name="realName"
-                label="Real Name"
-                placeholder="Enter real name"
-                rules={[{ required: true, message: "Please enter real name" }]}
+                label="真实姓名"
+                placeholder="请输入真实姓名"
+                rules={[{ required: true, message: "请输入真实姓名" }]}
             />
             {mode === "create" && (
                 <ProFormText.Password
                     name="password"
-                    label="Password"
-                    placeholder="Enter password"
+                    label="密码"
+                    placeholder="请输入密码"
                     rules={[
                         {
                             required: true,
-                            message: "Please enter password",
+                            message: "请输入密码",
                         },
-                        { min: 6, message: "At least 6 characters" },
+                        { min: 6, message: "至少6个字符" },
                     ]}
                 />
             )}
             <ProFormSelect
                 name="status"
-                label="Status"
-                placeholder="Select status"
+                label="状态"
+                placeholder="请选择状态"
                 options={ENABLE_OPTIONS}
-                rules={[{ required: true, message: "Please select status" }]}
+                rules={[{ required: true, message: "请选择状态" }]}
             />
             <ProFormSelect
                 name="roleIds"
-                label="Roles"
-                placeholder="Select roles"
+                label="角色"
+                placeholder="请选择角色"
                 options={roleOptions}
                 mode="multiple"
                 rules={[
                     {
                         required: true,
-                        message: "Please select at least one role",
+                        message: "请至少选择一个角色",
                     },
                 ]}
             />

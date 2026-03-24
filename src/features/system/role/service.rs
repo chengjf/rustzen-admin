@@ -85,7 +85,7 @@ impl RoleService {
         if user_count > 0 {
             tracing::warn!("Cannot delete role {} - still assigned to {} users", id, user_count);
             return Err(ServiceError::InvalidOperation(format!(
-                "Cannot delete role '{}' - it is still assigned to {} user(s). Please remove all user assignments before deleting the role.",
+                "角色 '{}' 仍被 {} 个用户分配，无法删除",
                 id, user_count
             )));
         }
@@ -98,7 +98,7 @@ impl RoleService {
             Ok(())
         } else {
             tracing::warn!("Role not found during deletion: {}", id);
-            Err(ServiceError::NotFound("Role".to_string()))
+            Err(ServiceError::NotFound("角色".to_string()))
         }
     }
 

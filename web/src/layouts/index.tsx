@@ -17,33 +17,33 @@ type AppRouter = {
 };
 
 const systemRoutes: AppRouter = {
-    name: "System",
+    name: "系统管理",
     icon: <SettingOutlined />,
     path: "/system",
     children: [
         {
             path: "/system/user",
-            name: "User",
+            name: "用户管理",
             icon: <UserOutlined />,
         },
         {
             path: "/system/role",
-            name: "Role",
+            name: "角色管理",
             icon: <TeamOutlined />,
         },
         {
             path: "/system/menu",
-            name: "Menu",
+            name: "菜单管理",
             icon: <MenuOutlined />,
         },
         {
             path: "/system/dict",
-            name: "Dictionary",
+            name: "字典管理",
             icon: <BookOutlined />,
         },
         {
             path: "/system/log",
-            name: "Log",
+            name: "操作日志",
             icon: <HistoryOutlined />,
         },
     ],

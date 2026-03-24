@@ -165,16 +165,16 @@ const handleError = async (error: unknown) => {
                 controller.abort();
             }
         });
-        appMessage.error("Invalid session or session expired, please login again.");
+        appMessage.error("会话过期，请重新登录");
     } else if (statusCode >= 500) {
-        appMessage.error(`Server error: ${response.statusText}`);
+        appMessage.error(`服务器错误：${response.statusText}`);
         return Promise.reject(new Error(response.statusText));
     } else {
         try {
             const errorData = await response.json();
-            appMessage.error(errorData.message || `Request failed: ${response.statusText}`);
+            appMessage.error(errorData.message || `请求失败：${response.statusText}`);
         } catch {
-            appMessage.error(`Request failed: ${response.statusText}`);
+            appMessage.error(`请求失败：${response.statusText}`);
         }
     }
 

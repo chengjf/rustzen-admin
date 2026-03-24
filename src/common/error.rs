@@ -10,23 +10,23 @@ use axum::{
 #[derive(Debug, thiserror::Error)]
 pub enum ServiceError {
     /// User is disabled.
-    #[error("User is disabled")]
+    #[error("用户已被禁用")]
     UserIsDisabled,
 
     /// User is pending.
-    #[error("User is pending")]
+    #[error("用户待审核")]
     UserIsPending,
 
     /// User is locked.
-    #[error("User is locked")]
+    #[error("用户已被锁定")]
     UserIsLocked,
 
     /// User status is invalid.
-    #[error("User status is invalid")]
+    #[error("用户状态非法")]
     InvalidUserStatus,
 
     /// User is admin.
-    #[error("User is admin")]
+    #[error("用户是管理员")]
     UserIsAdmin,
 
     /// Internal server error.
@@ -34,51 +34,51 @@ pub enum ServiceError {
     // InternalServerError,
 
     /// A database query failed.
-    #[error("Database query failed")]
+    #[error("数据库查询失败")]
     DatabaseQueryFailed,
 
     /// The requested resource was not found.
-    #[error("{0} not found")]
+    #[error("{0} 不存在")]
     NotFound(String),
 
     /// The user's credentials were invalid.
-    #[error("Invalid username or password")]
+    #[error("用户名或密码错误")]
     InvalidCredentials,
 
     /// The provided JWT was invalid or expired.
-    #[error("Invalid or expired token")]
+    #[error("无效或过期的令牌")]
     InvalidToken,
 
     /// Failed to generate token.
-    #[error("Failed to generate token")]
+    #[error("令牌创建失败")]
     TokenCreationFailed,
 
     /// The user does not have permission to perform this action.
-    #[error("Permission denied")]
+    #[error("权限不足")]
     PermissionDenied,
 
     /// A username that was provided already exists.
-    #[error("Username already exists")]
+    #[error("用户名已存在")]
     UsernameConflict,
 
     /// An email that was provided already exists.
-    #[error("Email already exists")]
+    #[error("邮箱已存在")]
     EmailConflict,
 
     /// An operation was attempted that is invalid given the current state.
-    #[error("Invalid operation: {0}")]
+    #[error("非法操作: {0}")]
     InvalidOperation(String),
 
     /// Password hashing failed.
-    #[error("Password hashing failed")]
+    #[error("密码处理失败")]
     PasswordHashingFailed,
 
     /// Failed to upload file.
-    #[error("Failed to create avatar folder")]
+    #[error("创建头像文件夹失败")]
     CreateAvatarFolderFailed,
 
     /// Failed to create avatar file.
-    #[error("Failed to create avatar file")]
+    #[error("创建头像文件失败")]
     CreateAvatarFileFailed,
 }
 
@@ -109,47 +109,37 @@ impl From<ServiceError> for AppError {
             ServiceError::NotFound(resource) => (
                 StatusCode::NOT_FOUND,
                 10001, // Business-Common-01
-                format!("{} not found.", resource),
+                format!("{} 不存在.", resource),
             ),
             ServiceError::InvalidOperation(reason) => (
                 StatusCode::BAD_REQUEST,
                 10002, // Business-Common-02
                 reason,
             ),
-            ServiceError::PasswordHashingFailed => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                10003,
-                "Password processing failed. Please try again.".into(),
-            ),
-            ServiceError::UserIsDisabled => {
-                (StatusCode::FORBIDDEN, 10004, "User account is disabled.".into())
+            ServiceError::PasswordHashingFailed => {
+                (StatusCode::INTERNAL_SERVER_ERROR, 10003, "密码处理失败，请重试。".into())
             }
-            ServiceError::UserIsPending => {
-                (StatusCode::BAD_REQUEST, 10005, "User account is pending approval.".into())
-            }
-            ServiceError::UserIsLocked => {
-                (StatusCode::BAD_REQUEST, 10006, "User account is locked.".into())
-            }
+            ServiceError::UserIsDisabled => (StatusCode::FORBIDDEN, 10004, "用户已被禁用".into()),
+            ServiceError::UserIsPending => (StatusCode::BAD_REQUEST, 10005, "用户待审核".into()),
+            ServiceError::UserIsLocked => (StatusCode::BAD_REQUEST, 10006, "用户已被锁定".into()),
             ServiceError::InvalidUserStatus => {
-                (StatusCode::BAD_REQUEST, 10007, "User status is invalid.".into())
+                (StatusCode::BAD_REQUEST, 10007, "用户状态非法".into())
             }
-            ServiceError::UserIsAdmin => {
-                (StatusCode::BAD_REQUEST, 10008, "Cannot update admin user.".into())
-            }
+            ServiceError::UserIsAdmin => (StatusCode::BAD_REQUEST, 10008, "用户是管理员".into()),
             ServiceError::InvalidCredentials => (
                 StatusCode::UNAUTHORIZED,
                 10101, // Business-Auth-01
-                "Invalid username or password.".to_string(),
+                "用户名或密码错误".into(),
             ),
             ServiceError::TokenCreationFailed => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 10103, // Business-Auth-03
-                "Failed to generate login token. Please try again.".to_string(),
+                "令牌创建失败".into(),
             ),
             ServiceError::UsernameConflict => (
                 StatusCode::CONFLICT,
                 10201, // Business-User-01
-                "Username already exists.".to_string(),
+                "用户名已存在".into(),
             ),
             ServiceError::EmailConflict => (
                 StatusCode::CONFLICT,
@@ -160,17 +150,17 @@ impl From<ServiceError> for AppError {
             ServiceError::DatabaseQueryFailed => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20001, // System-Common-01
-                "Service is temporarily unavailable. Please try again later.".to_string(),
+                "数据库查询失败".into(),
             ),
             ServiceError::CreateAvatarFolderFailed => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20002, // System-Common-02
-                "Failed to create avatar folder. Please try again later.".to_string(),
+                "创建头像文件夹失败".into(),
             ),
             ServiceError::CreateAvatarFileFailed => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20003, // System-Common-03
-                "Failed to create avatar file. Please try again later.".to_string(),
+                "创建头像文件失败".into(),
             ),
             // ServiceError::InternalServerError => (
             //     StatusCode::INTERNAL_SERVER_ERROR,
@@ -181,12 +171,12 @@ impl From<ServiceError> for AppError {
             ServiceError::InvalidToken => (
                 StatusCode::UNAUTHORIZED,
                 30000, // System-Auth-01
-                "Invalid or expired token. Please log in again.".to_string(),
+                "令牌无效或已期，请重新登录".into(),
             ),
             ServiceError::PermissionDenied => (
                 StatusCode::FORBIDDEN,
                 30001, // System-Auth-02
-                "You do not have permission to perform this action.".to_string(),
+                "您没有权限执行此操作".into(),
             ),
         };
         AppError((status, code, message))

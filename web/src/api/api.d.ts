@@ -33,4 +33,23 @@ declare namespace Api {
         value: string | number;
         [key: string]: unknown;
     }
+
+    // Menu option item with code for permission grouping
+    interface MenuOptionItem {
+        label: string;
+        value: number;
+        code: string;
+        parentId: number;
+        menuType: number;
+    }
+
+    // Menu tree option item for permission selection
+    interface MenuTreeOption {
+        label: string;
+        value: number;
+        code: string;
+        parentId: number;
+        menuType: number;
+        children?: MenuTreeOption[];
+    }
 }

@@ -67,3 +67,12 @@ pub struct DictOptionsQuery {
     pub q: Option<String>,
     pub limit: Option<i64>,
 }
+
+/// Query parameters for options with code endpoints
+#[derive(Debug, Deserialize)]
+pub struct OptionsWithCodeQuery {
+    pub q: Option<String>,
+    pub limit: Option<i64>,
+    /// Whether to filter out button menus
+    pub btn_filter: Option<bool>,
+}

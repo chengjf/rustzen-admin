@@ -5,13 +5,14 @@ import { Button, Segmented, Tag } from "antd";
 
 import { logAPI } from "@/api/system/log";
 import { useLocalStore } from "@/stores/useLocalStore";
+import { AuthWrap } from "@/components/auth";
 
 export const Route = createFileRoute("/system/log")({
     component: LogPage,
 });
 const actionOptions = [
-    { label: "All", value: "" },
-    { label: "Login", value: "AUTH_LOGIN" },
+    { label: "全部", value: "" },
+    { label: "登录", value: "AUTH_LOGIN" },
     { label: "GET", value: "HTTP_GET" },
     { label: "POST", value: "HTTP_POST" },
     { label: "PUT", value: "HTTP_PUT" },
@@ -36,15 +37,17 @@ function LogPage() {
                 />
             }
             toolBarRender={() => [
-                <Button
-                    key="export"
-                    type="primary"
-                    onClick={() => {
-                        logAPI.exportLogList();
-                    }}
-                >
-                    Export
-                </Button>,
+                <AuthWrap code="system:log:export">
+                    <Button
+                        key="export"
+                        type="primary"
+                        onClick={() => {
+                            logAPI.exportLogList();
+                        }}
+                    >
+                        导出
+                    </Button>
+                </AuthWrap>,
             ]}
         />
     );
@@ -63,15 +66,18 @@ const columns: ProColumns<Log.Item>[] = [
         dataIndex: "id",
         width: 80,
         hideInSearch: true,
+        align: "center",
     },
     {
-        title: "User",
+        title: "用户",
+        align: "center",
         dataIndex: "username",
         width: 120,
-        render: (_, record) => record.username || "Anonymous User",
+        render: (_, record) => record.username || "匿名用户",
     },
     {
-        title: "Action",
+        title: "操作",
+        align: "center",
         dataIndex: "action",
         width: 150,
         hideInSearch: true,
@@ -86,12 +92,14 @@ const columns: ProColumns<Log.Item>[] = [
         },
     },
     {
-        title: "Description",
+        title: "描述",
+        align: "center",
         dataIndex: "description",
         ellipsis: true,
     },
     {
-        title: "Status",
+        title: "状态",
+        align: "center",
         dataIndex: "status",
         width: 100,
         hideInSearch: true,
@@ -106,13 +114,15 @@ const columns: ProColumns<Log.Item>[] = [
         },
     },
     {
-        title: "IP Address",
+        title: "IP地址",
+        align: "center",
         dataIndex: "ipAddress",
         width: 120,
         render: (_, record) => record.ipAddress || "-",
     },
     {
-        title: "Duration",
+        title: "耗时",
+        align: "center",
         dataIndex: "durationMs",
         width: 80,
         hideInSearch: true,
@@ -122,9 +132,10 @@ const columns: ProColumns<Log.Item>[] = [
         },
     },
     {
-        title: "Created At",
+        title: "创建时间",
+        align: "center",
         dataIndex: "createdAt",
-        width: 180,
+        width: 200,
         valueType: "dateTime",
         hideInSearch: true,
     },

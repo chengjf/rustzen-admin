@@ -29,14 +29,17 @@ export const Route = createRootRoute({
             throw redirect({ to: "/" });
         }
 
-        // Redirect to home skip permissions check
-        if (curPath === "/") {
+        // Skip permissions check for these pages
+        const skipPaths = ["/", "/403", "/404", "/login"];
+        if (skipPaths.includes(curPath)) {
             return null;
         }
+
+        // Check menu permissions
         const isPermission = checkMenuPermissions(curPath);
 
         // Redirect to 403 if no permission
-        if (token && !isPermission) {
+        if (!isPermission) {
             throw redirect({ to: "/403" });
         }
     },

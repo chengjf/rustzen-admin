@@ -37,4 +37,10 @@ declare namespace Menu {
         sortOrder: number;
         status: Status;
     }
+
+    interface OptionsWithCodeQuery {
+        q?: string;
+        limit?: number;
+        btn_filter?: boolean;
+    }
 }

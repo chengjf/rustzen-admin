@@ -21,7 +21,7 @@ function DictPage() {
             rowKey="id"
             search={false}
             scroll={{ y: "calc(100vh - 287px)" }}
-            headerTitle="Dictionary Management"
+            headerTitle="字典管理"
             columns={columns}
             request={dictAPI.getTableData}
             actionRef={actionRef}
@@ -33,7 +33,7 @@ function DictPage() {
                             actionRef.current?.reload();
                         }}
                     >
-                        <Button type="primary">Create Dictionary</Button>
+                        <Button type="primary">创建字典</Button>
                     </DictModalForm>
                 </AuthWrap>,
             ]}
@@ -48,13 +48,15 @@ const columns: ProColumns<Dict.Item>[] = [
         width: 48,
     },
     {
-        title: "Dict Type",
+        title: "字典类型",
+        align: "center",
         dataIndex: "dictType",
         ellipsis: true,
         render: (text) => <Tag color="blue">{text}</Tag>,
     },
     {
-        title: "Label",
+        title: "标签",
+        align: "center",
         dataIndex: "label",
         ellipsis: true,
         search: {
@@ -62,19 +64,22 @@ const columns: ProColumns<Dict.Item>[] = [
         },
     },
     {
-        title: "Value",
+        title: "值",
+        align: "center",
         dataIndex: "value",
         ellipsis: true,
     },
     {
-        title: "Description",
+        title: "描述",
+        align: "center",
         dataIndex: "description",
         ellipsis: true,
     },
     {
-        title: "Actions",
+        title: "操作",
+        align: "center",
         key: "action",
-        width: 110,
+        width: 200,
         fixed: "right",
         render: (_dom: React.ReactNode, entity: Dict.Item, _index, action?: ActionType) => (
             <Space size="middle">
@@ -86,19 +91,19 @@ const columns: ProColumns<Dict.Item>[] = [
                             action?.reload();
                         }}
                     >
-                        <a>Edit</a>
+                        <a>编辑</a>
                     </DictModalForm>
                 </AuthWrap>
                 <AuthPopconfirm
                     code="system:dict:delete"
-                    title="Are you sure you want to delete this dictionary?"
-                    description="This action cannot be undone."
+                    title="确定要删除此字典吗？"
+                    description="此操作不可撤销。"
                     onConfirm={async () => {
                         await dictAPI.delete(entity.id);
                         action?.reload();
                     }}
                 >
-                    <span className="cursor-pointer text-red-500">Delete</span>
+                    <span className="cursor-pointer text-red-500">删除</span>
                 </AuthPopconfirm>
             </Space>
         ),
@@ -125,15 +130,15 @@ const DictModalForm = ({
             form={form}
             width={500}
             layout="horizontal"
-            title={mode === "create" ? "Create Dictionary" : "Edit Dictionary"}
+            title={mode === "create" ? "创建字典" : "编辑字典"}
             trigger={children}
             labelCol={{ span: 6 }}
             wrapperCol={{ span: 18 }}
             modalProps={{
                 destroyOnHidden: true,
                 maskClosable: false,
-                okText: mode === "create" ? "Create" : "Save",
-                cancelText: "Cancel",
+                okText: mode === "create" ? "创建" : "保存",
+                cancelText: "取消",
             }}
             onOpenChange={(open) => {
                 if (open) {
@@ -154,36 +159,36 @@ const DictModalForm = ({
         >
             <ProFormText
                 name="dictType"
-                label="Dict Type"
-                placeholder="Enter dictionary type (e.g., user_status)"
+                label="字典类型"
+                placeholder="请输入字典类型（如 user_status）"
                 rules={[
                     {
                         required: true,
-                        message: "Please enter dictionary type",
+                        message: "请输入字典类型",
                     },
                     {
                         pattern: /^[a-z_]+$/,
                         message:
-                            "Dictionary type can only contain lowercase letters and underscores",
+                            "字典类型只能包含小写字母和下划线",
                     },
                 ]}
             />
             <ProFormText
                 name="label"
-                label="Label"
-                placeholder="Enter display label (e.g., Active)"
-                rules={[{ required: true, message: "Please enter label" }]}
+                label="标签"
+                placeholder="请输入显示标签（如 启用）"
+                rules={[{ required: true, message: "请输入标签" }]}
             />
             <ProFormText
                 name="value"
-                label="Value"
-                placeholder="Enter value (e.g., 1)"
-                rules={[{ required: true, message: "Please enter value" }]}
+                label="值"
+                placeholder="请输入值（如 1）"
+                rules={[{ required: true, message: "请输入值" }]}
             />
             <ProFormTextArea
                 name="description"
-                label="Description"
-                placeholder="Enter description"
+                label="描述"
+                placeholder="请输入描述"
             />
         </ModalForm>
     );

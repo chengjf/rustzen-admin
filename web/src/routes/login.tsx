@@ -40,8 +40,8 @@ function LoginPage() {
                     autoComplete="off"
                     size="large"
                     initialValues={{
-                        username: "admin",
-                        password: "rustzen@2025",
+                        username: "superadmin",
+                        password: "rustzen@123",
                     }}
                 >
                     <Form.Item
@@ -49,18 +49,18 @@ function LoginPage() {
                         rules={[
                             {
                                 required: true,
-                                message: "Please enter your username",
+                                message: "请输入用户名",
                             },
                             {
                                 min: 3,
                                 message:
-                                    "Username must be at least 3 characters",
+                                    "用户名至少包含3个字符",
                             },
                         ]}
                     >
                         <Input
                             prefix={<UserOutlined />}
-                            placeholder="Username"
+                            placeholder="用户名"
                         />
                     </Form.Item>
                     <Form.Item
@@ -68,18 +68,18 @@ function LoginPage() {
                         rules={[
                             {
                                 required: true,
-                                message: "Please enter your password",
+                                message: "请输入密码",
                             },
                             {
                                 min: 6,
                                 message:
-                                    "Password must be at least 6 characters",
+                                    "密码至少包含6个字符",
                             },
                         ]}
                     >
                         <Input.Password
                             prefix={<LockOutlined />}
-                            placeholder="Password"
+                            placeholder="密码"
                         />
                     </Form.Item>
                     <Form.Item>
@@ -89,7 +89,7 @@ function LoginPage() {
                             loading={isPending}
                             className="w-full"
                         >
-                            Login
+                            登录
                         </Button>
                     </Form.Item>
                 </Form>

@@ -43,7 +43,7 @@ const StatsCard = () => {
         <div className="grid grid-cols-4 gap-4">
             <Card>
                 <Statistic
-                    title="Total users"
+                    title="总用户数"
                     value={stats?.totalUsers}
                     prefix={<UserOutlined />}
                     valueStyle={{ color: "#3f8600" }}
@@ -51,7 +51,7 @@ const StatsCard = () => {
             </Card>
             <Card>
                 <Statistic
-                    title="Active users"
+                    title="活跃用户数"
                     value={stats?.activeUsers}
                     prefix={<TeamOutlined />}
                     valueStyle={{ color: "#1890ff" }}
@@ -59,7 +59,7 @@ const StatsCard = () => {
             </Card>
             <Card>
                 <Statistic
-                    title="Today logins"
+                    title="今日登录数"
                     value={stats?.todayLogins}
                     prefix={<ClockCircleOutlined />}
                     valueStyle={{ color: "#722ed1" }}
@@ -68,7 +68,7 @@ const StatsCard = () => {
 
             <Card>
                 <Statistic
-                    title="System uptime"
+                    title="系统运行时间"
                     value={stats?.systemUptime}
                     prefix={<CheckCircleOutlined />}
                     valueStyle={{ color: "#52c41a" }}
@@ -86,11 +86,11 @@ const HealthCard = () => {
     const diskUsage = calculatePercent(health?.diskUsed, health?.diskTotal);
 
     return (
-        <Card title="System health status" extra={<ExclamationCircleOutlined />}>
+        <Card title="系统健康状态" extra={<ExclamationCircleOutlined />}>
             <div className="flex flex-col gap-5">
                 <div>
                     <div className="mb-2 flex justify-between">
-                        <span>Memory usage</span>
+                        <span>内存使用量</span>
                         <span>
                             {convertUnit(health?.memoryUsed)} / {convertUnit(health?.memoryTotal)}
                         </span>
@@ -102,7 +102,7 @@ const HealthCard = () => {
                 </div>
                 <div>
                     <div className="mb-2 flex justify-between">
-                        <span>CPU usage</span>
+                        <span>CPU 使用量</span>
                         <span>
                             {health?.cpuUsed.toFixed(1)} / {health?.cpuTotal}
                         </span>
@@ -111,7 +111,7 @@ const HealthCard = () => {
                 </div>
                 <div>
                     <div className="mb-2 flex justify-between">
-                        <span>Disk usage</span>
+                        <span>磁盘使用量</span>
                         <span>
                             {convertUnit(health?.diskUsed)} / {convertUnit(health?.diskTotal)}
                         </span>
@@ -131,7 +131,7 @@ const MetricsCard = () => {
     const { data: metrics } = useApiQuery("dashboard/metrics", dashboardAPI.getMetrics);
     return (
         <Card
-            title="7 days performance metrics"
+            title="7天性能指标"
             rootClassName="flex flex-col"
             classNames={{
                 body: "flex-1 place-content-center",
@@ -142,19 +142,19 @@ const MetricsCard = () => {
                     <div className="text-2xl font-bold text-blue-600">
                         {metrics?.avgResponseTime}ms
                     </div>
-                    <div className="text-gray-500">Average response time</div>
+                    <div className="text-gray-500">平均响应时间</div>
                 </div>
                 <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
                         {metrics?.errorRate?.toFixed(1)}%
                     </div>
-                    <div className="text-gray-500">Error rate</div>
+                    <div className="text-gray-500">错误率</div>
                 </div>
                 <div className="text-center">
                     <div className="text-2xl font-bold text-purple-600">
-                        {metrics?.totalRequests} times
+                        {metrics?.totalRequests} 次请求
                     </div>
-                    <div className="text-gray-500">Total requests</div>
+                    <div className="text-gray-500">总请求次数</div>
                 </div>
             </div>
         </Card>
@@ -166,7 +166,7 @@ const UserActivityTrendCard = () => {
     const { data } = useApiQuery("dashboard/trends", dashboardAPI.getTrends);
     return (
         <div className="grid grid-cols-2 gap-4">
-            <Card title="30 days user login trend">
+            <Card title="30天用户登录趋势图">
                 <Line
                     data={data?.dailyLogins || []}
                     xField="date"
@@ -179,7 +179,7 @@ const UserActivityTrendCard = () => {
                     }}
                 />
             </Card>
-            <Card title="24 hours active users">
+            <Card title="24小时活跃用户趋势图">
                 <Column
                     data={data?.hourlyActive || []}
                     xField="date"

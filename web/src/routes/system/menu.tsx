@@ -1,5 +1,5 @@
 import type { ActionType, ProColumns } from "@ant-design/pro-components";
-import { ProTable } from "@ant-design/pro-components";
+import { ProFormTreeSelect, ProTable } from "@ant-design/pro-components";
 import { ModalForm, ProFormDigit, ProFormSelect, ProFormText } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Space, Tag } from "antd";
@@ -22,7 +22,7 @@ function MenuPage() {
             rowKey="id"
             search={false}
             scroll={{ y: "calc(100vh - 287px)" }}
-            headerTitle="Menu Management"
+            headerTitle="菜单管理"
             columns={columns}
             request={menuAPI.getTableData}
             actionRef={actionRef}
@@ -31,11 +31,12 @@ function MenuPage() {
                 <AuthWrap code="system:menu:create">
                     <MenuModalForm
                         mode={"create"}
+                        initialValues={{ sortOrder: 0 }}
                         onSuccess={() => {
                             actionRef.current?.reload();
                         }}
                     >
-                        <Button type="primary">Create Menu</Button>
+                        <Button type="primary">创建菜单</Button>
                     </MenuModalForm>
                 </AuthWrap>,
             ]}
@@ -44,9 +45,9 @@ function MenuPage() {
 }
 
 const menuTypeEnum: Record<number, { text: string; color: string }> = {
-    1: { text: "Directory", color: "cyan" },
-    2: { text: "Menu", color: "purple" },
-    3: { text: "Button", color: "warning" },
+    1: { text: "目录", color: "cyan" },
+    2: { text: "菜单", color: "purple" },
+    3: { text: "按钮", color: "warning" },
 };
 
 const columns: ProColumns<Menu.Item>[] = [
@@ -56,17 +57,22 @@ const columns: ProColumns<Menu.Item>[] = [
         width: 60,
     },
     {
-        title: "Name",
+        title: "名称",
+        align: "center",
+        width: 120,
         dataIndex: "name",
         ellipsis: true,
     },
     {
-        title: "Code",
+        title: "编码",
+        align: "center",
+        width: 120,
         dataIndex: "code",
         ellipsis: true,
     },
     {
-        title: "Menu Type",
+        title: "菜单类型",
+        align: "center",
         dataIndex: "menuType",
         width: 120,
         ellipsis: true,
@@ -76,22 +82,36 @@ const columns: ProColumns<Menu.Item>[] = [
         },
     },
     {
-        title: "Sort Order",
+        title: "状态",
+        align: 'center',
+        dataIndex: "status",
+        width: 120,
+        ellipsis: true,
+        valueEnum: {
+            1: { text: "启用", status: "Success" },
+            2: { text: "禁用", status: "Default" },
+        },
+    },
+    {
+        title: "排序",
+        align: "center",
         dataIndex: "sortOrder",
         width: 120,
         ellipsis: true,
     },
     {
-        title: "Updated At",
+        title: "更新时间",
+        align: "center",
         dataIndex: "updatedAt",
         valueType: "dateTime",
-        width: 160,
+        width: 200,
         hideInSearch: true,
     },
     {
-        title: "Actions",
+        title: "操作",
+        align: "center",
         key: "action",
-        width: 120,
+        width: 200,
         fixed: "right",
         render: (_dom: React.ReactNode, entity: Menu.Item, _index, action?: ActionType) => (
             <Space size="middle">
@@ -103,20 +123,20 @@ const columns: ProColumns<Menu.Item>[] = [
                             action?.reload();
                         }}
                     >
-                        <a>Edit</a>
+                        <a>编辑</a>
                     </MenuModalForm>
                 </AuthWrap>
                 <AuthPopconfirm
                     code="system:menu:delete"
-                    title="Are you sure you want to delete this menu?"
-                    description="This action cannot be undone."
+                    title="确定要删除此菜单吗？"
+                    description="此操作不可撤销。"
                     hidden={entity.isSystem}
                     onConfirm={async () => {
                         await menuAPI.delete(entity.id);
                         action?.reload();
                     }}
                 >
-                    <span className="cursor-pointer text-red-500">Delete</span>
+                    <span className="cursor-pointer text-red-500">删除</span>
                 </AuthPopconfirm>
             </Space>
         ),
@@ -143,15 +163,15 @@ const MenuModalForm = ({
             form={form}
             width={600}
             layout="horizontal"
-            title={mode === "create" ? "Create Menu" : "Edit Menu"}
+            title={mode === "create" ? "创建菜单" : "编辑菜单"}
             trigger={children}
             labelCol={{ span: 6 }}
             wrapperCol={{ span: 18 }}
             modalProps={{
                 destroyOnHidden: true,
                 maskClosable: false,
-                okText: mode === "create" ? "Create" : "Save",
-                cancelText: "Cancel",
+                okText: mode === "create" ? "创建" : "保存",
+                cancelText: "取消",
             }}
             onOpenChange={(open) => {
                 if (open) {
@@ -170,46 +190,60 @@ const MenuModalForm = ({
                 return true;
             }}
         >
-            <ProFormSelect
+            <ProFormTreeSelect
                 name="parentId"
-                label="Parent Menu"
-                placeholder="Select parent menu (optional)"
-                request={menuAPI.getOptions}
-                fieldProps={{
-                    // showSearch: true,
-                    optionFilterProp: "label",
+                label="上级菜单"
+                placeholder="请选择上级菜单"
+                request={async () => {
+                    const res = await menuAPI.getOptionsWithCode({ btn_filter: true });
+                    // 添加默认根节点id为0
+                    console.log(res);
+                    let root = { label: "根菜单", value: 0, children: [] as Api.MenuTreeOption[] };
+                    // 过滤点menuType为3的，递归children
+
+                    // 将res中的parentId为0的项添加到root的children中
+                    let rootChild = res.filter((item) => item.parentId === 0);
+                    root.children = rootChild;
+                    return [root];
                 }}
-                rules={[{ required: true, message: "Please select parent menu" }]}
+                fieldProps={{
+                    showSearch: true,
+                    // 关键配置：指定搜索时过滤哪一个字段
+                    treeNodeFilterProp: "label", 
+                    // 建议同时开启此项，支持搜索子节点时展示层级
+                    treeDefaultExpandAll: true,
+                }}
+                rules={[{ required: true, message: "请选择上级菜单" }]}
             />
             <ProFormText
                 name="name"
-                label="Menu Name"
-                placeholder="Enter menu name"
-                rules={[{ required: true, message: "Please enter menu name" }]}
+                label="菜单名称"
+                placeholder="请输入菜单名称"
+                rules={[{ required: true, message: "请输入菜单名称" }]}
             />
             <ProFormText
                 name="code"
-                label="Permission Code"
-                placeholder="Enter permission code (e.g., system:menu:list)"
-                rules={[{ required: true, message: "Please enter permission code" }]}
+                label="权限编码"
+                placeholder="请输入权限编码（如 system:menu:list）"
+                rules={[{ required: true, message: "请输入权限编码" }]}
             />
             <ProFormSelect
-                label="Type"
+                label="类型"
                 name="menuType"
                 options={MENU_TYPE_OPTIONS}
-                rules={[{ required: true, message: "Please select menu type" }]}
+                rules={[{ required: true, message: "请选择菜单类型" }]}
             />
             <ProFormSelect
                 name="status"
-                label="Status"
-                placeholder="Select status"
+                label="状态"
+                placeholder="请选择状态"
                 options={ENABLE_OPTIONS}
-                rules={[{ required: true, message: "Please select status" }]}
+                rules={[{ required: true, message: "请选择状态" }]}
             />
             <ProFormDigit
                 name="sortOrder"
-                label="Sort Order"
-                placeholder="Enter sort order"
+                label="排序"
+                placeholder="请输入排序"
                 min={0}
                 fieldProps={{ precision: 0 }}
             />

@@ -48,6 +48,8 @@ export const AuthPopconfirm: React.FC<AuthPopconfirmProps> = ({
                 description={description}
                 onConfirm={onConfirm}
                 onCancel={onCancel}
+                okText="确认"
+                cancelText="取消"
             >
                 {children}
             </Popconfirm>
@@ -66,6 +68,8 @@ export const AuthConfirm: React.FC<AuthConfirmProps> = (props) => {
             content: props.description,
             onOk: props.onConfirm,
             onCancel: props.onCancel,
+            okText: "确认",
+            cancelText: "取消",
         });
     };
 

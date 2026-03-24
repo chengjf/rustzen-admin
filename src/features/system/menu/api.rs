@@ -1,10 +1,10 @@
 use super::{
     dto::{CreateMenuDto, MenuItemResp, MenuQuery, UpdateMenuPayload},
-    service::MenuService,
+    service::{MenuService, MenuTreeOption},
 };
 use crate::{
     common::{
-        api::{ApiResponse, AppResult, OptionsQuery},
+        api::{ApiResponse, AppResult, OptionsQuery, OptionsWithCodeQuery},
         router_ext::RouterExt,
     },
     core::permission::PermissionsCheck,
@@ -44,6 +44,18 @@ pub fn menu_routes() -> Router<PgPool> {
             "/options",
             get(get_menu_options),
             PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:options"]),
+        )
+        .route_with_permission(
+            "/options-with-code",
+            get(get_menu_options_with_code),
+            PermissionsCheck::Any(vec![
+                "system:*",
+                "system:menu:*",
+                "system:menu:create",
+                "system:menu:update",
+                "system:menu:delete",
+                "system:menu:options",
+            ]),
         )
 }
 
@@ -96,5 +108,14 @@ async fn get_menu_options(
     Query(query): Query<OptionsQuery>,
 ) -> AppResult<Vec<crate::common::api::OptionItem<i64>>> {
     let options = MenuService::get_menu_options(&pool, query).await?;
+    Ok(ApiResponse::success(options))
+}
+
+/// Get menu options with code for permission tree
+async fn get_menu_options_with_code(
+    State(pool): State<PgPool>,
+    Query(query): Query<OptionsWithCodeQuery>,
+) -> AppResult<Vec<MenuTreeOption>> {
+    let options = MenuService::get_menu_options_with_code(&pool, query).await?;
     Ok(ApiResponse::success(options))
 }

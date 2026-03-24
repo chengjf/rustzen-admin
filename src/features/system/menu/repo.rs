@@ -2,7 +2,7 @@ use super::model::MenuEntity;
 use crate::common::error::ServiceError;
 
 use chrono::Utc;
-use sqlx::{PgPool, QueryBuilder};
+use sqlx::{PgPool, QueryBuilder, pool};
 
 /// Menu data access layer
 pub struct MenuRepository;
@@ -30,9 +30,44 @@ impl MenuRepository {
             if let Ok(status_num) = status.parse::<i16>() {
                 query_builder.push(" AND status = ").push_bind(status_num);
             }
-        } else {
-            query_builder.push(" AND status = 1");
         }
+    }
+
+    /// Queries a menu by ID
+    /// Returns None if the menu is deleted
+    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<MenuEntity>, ServiceError> {
+        let menu = sqlx::query_as::<_, MenuEntity>(
+            "SELECT id, parent_id, name, code, menu_type, status, is_system, sort_order, created_at, updated_at FROM menus WHERE id = $1 AND deleted_at IS NULL",
+        )
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding menu by ID: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok(Some(menu))
+    }
+
+    /// Queries menus by parent ID
+    /// Returns None if the parent menu is deleted
+    pub async fn find_by_parent_id(
+        pool: &PgPool,
+        parent_id: i64,
+    ) -> Result<Vec<MenuEntity>, ServiceError> {
+        let menus = sqlx::query_as::<_, MenuEntity>(
+            "SELECT id, parent_id, name, code, menu_type, status, is_system, sort_order, created_at, updated_at FROM menus WHERE parent_id = $1 AND deleted_at IS NULL",
+        )
+        .bind(parent_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding menus by parent ID: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok(menus)
     }
 
     /// Queries menus based on conditions
@@ -166,6 +201,41 @@ impl MenuRepository {
 
         let menus = sqlx::query_as(&query).fetch_all(pool).await.map_err(|e| {
             tracing::error!("Database error finding menu options: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok(menus)
+    }
+
+    /// Retrieves menu options with code for permission grouping
+    pub async fn find_options_with_code(
+        pool: &PgPool,
+        search_query: Option<&str>,
+        limit: Option<i64>,
+        btn_filter: Option<bool>,
+    ) -> Result<Vec<(i64, String, Option<String>, i64, i16)>, ServiceError> {
+        let mut query = String::from(
+            "SELECT id, name, code, parent_id, menu_type FROM menus WHERE status = 1 AND deleted_at IS NULL",
+        );
+
+        if let Some(keyword) = search_query {
+            query.push_str(&format!(" AND name ILIKE '%{}%'", keyword.replace("'", "''")));
+        }
+
+        if let Some(btn_filter) = btn_filter {
+            if btn_filter {
+                query.push_str(" AND menu_type <> 3");
+            }
+        }
+
+        query.push_str(" ORDER BY parent_id ASC, sort_order ASC, name ASC");
+
+        if let Some(limit) = limit {
+            query.push_str(&format!(" LIMIT {}", limit));
+        }
+
+        let menus = sqlx::query_as(&query).fetch_all(pool).await.map_err(|e| {
+            tracing::error!("Database error finding menu options with code: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
 
