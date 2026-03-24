@@ -83,8 +83,8 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
          * 1. you need to cancel comment in the core/mod.rs file
          * 2. you need to cancel comment next line
          */
-        // .fallback(crate::core::web_embed::web_embed_file_handler)
-        .fallback_service(ServeDir::new("web/dist").append_index_html_on_directories(true))
+        .fallback(crate::core::web_embed::web_embed_file_handler)
+        // .fallback_service(ServeDir::new("web/dist").append_index_html_on_directories(true))
         .into_make_service_with_connect_info::<SocketAddr>();
 
     // get server address

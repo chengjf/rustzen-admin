@@ -25,6 +25,8 @@ pub struct Config {
     pub jwt_secret: String,
     /// JWT expiration time    
     pub jwt_expiration: i64,
+    /// web embed enabled
+    pub web_embed_enabled: bool,
 }
 
 impl Default for Config {
@@ -39,6 +41,7 @@ impl Default for Config {
             db_idle_timeout: 0,
             jwt_secret: "rustzen-admin-secret-key".into(),
             jwt_expiration: 60 * 60, // 1 hour
+            web_embed_enabled: true,
         }
     }
 }
