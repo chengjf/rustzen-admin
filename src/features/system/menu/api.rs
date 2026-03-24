@@ -53,8 +53,8 @@ pub fn menu_routes() -> Router<PgPool> {
                 "system:menu:*",
                 "system:menu:create",
                 "system:menu:update",
-                "system:menu:delete",
-                "system:menu:options",
+                "system:role:create",
+                "system:role:update",
             ]),
         )
 }
