@@ -48,7 +48,6 @@ declare namespace User {
     interface UpdateRequest {
         email?: string;
         realName?: string;
-        status?: number;
         roleIds?: number[];
     }
 }

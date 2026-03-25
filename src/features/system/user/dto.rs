@@ -25,7 +25,7 @@ pub struct CreateUserDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateUserPayload {
     pub email: String,
-    pub real_name: String,
+    pub real_name: Option<String>,
     /// A list of role IDs to assign to the user. If provided, replaces all existing roles.
     pub role_ids: Vec<i64>,
 }
@@ -61,11 +61,13 @@ pub struct UserOptionsQuery {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateUserPasswordPayload {
     pub password: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateUserStatusPayload {
     pub status: i16,
 }

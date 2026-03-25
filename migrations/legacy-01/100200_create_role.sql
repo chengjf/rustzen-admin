@@ -9,7 +9,7 @@
 
 CREATE TABLE roles (
     id BIGSERIAL PRIMARY KEY, -- Unique role ID
-    role_name VARCHAR(50) UNIQUE NOT NULL, -- Role display name
+    role_name VARCHAR(50) NOT NULL, -- Role display name
     role_code VARCHAR(50) NOT NULL, -- Role code for programmatic access
     description TEXT, -- Role description
     status SMALLINT DEFAULT 1 CHECK (status IN (1, 2)), -- 1: active, 2: disabled

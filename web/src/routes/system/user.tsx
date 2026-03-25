@@ -1,10 +1,6 @@
 import type { ActionType, ProColumns } from "@ant-design/pro-components";
 import { ProTable } from "@ant-design/pro-components";
-import {
-    ModalForm,
-    ProFormSelect,
-    ProFormText,
-} from "@ant-design/pro-components";
+import { ModalForm, ProFormSelect, ProFormText } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Space, Form } from "antd";
 import React, { useRef } from "react";
@@ -39,6 +35,9 @@ function UserPage() {
                         onSuccess={() => {
                             actionRef.current?.reload();
                         }}
+                        initialValues={{
+                            status: 1,
+                        }}
                     >
                         <Button type="primary">创建用户</Button>
                     </UserModalForm>
@@ -51,14 +50,14 @@ function UserPage() {
 const columns: ProColumns<User.Item>[] = [
     {
         title: "ID",
-        align: 'center',
+        align: "center",
         dataIndex: "id",
         width: 48,
         search: false,
     },
     {
         title: "头像",
-        align: 'center',
+        align: "center",
         dataIndex: "avatarUrl",
         width: 60,
         search: false,
@@ -77,22 +76,22 @@ const columns: ProColumns<User.Item>[] = [
     },
     {
         title: "用户名",
-        align: 'center',
+        align: "center",
         dataIndex: "username",
     },
     {
         title: "邮箱",
-        align: 'center',
+        align: "center",
         dataIndex: "email",
     },
     {
         title: "真实姓名",
-        align: 'center',
+        align: "center",
         dataIndex: "realName",
     },
     {
         title: "状态",
-        align: 'center',
+        align: "center",
         dataIndex: "status",
         valueEnum: {
             1: { text: "启用", status: "Success" },
@@ -101,7 +100,7 @@ const columns: ProColumns<User.Item>[] = [
     },
     {
         title: "角色",
-        align: 'center',
+        align: "center",
         dataIndex: "roles",
         search: false,
         render: (_: React.ReactNode, record: User.Item) =>
@@ -109,14 +108,14 @@ const columns: ProColumns<User.Item>[] = [
     },
     {
         title: "最后登录时间",
-        align: 'center',
+        align: "center",
         dataIndex: "lastLoginAt",
         valueType: "dateTime",
         search: false,
     },
     {
         title: "更新时间",
-        align: 'center',
+        align: "center",
         dataIndex: "updatedAt",
         valueType: "dateTime",
         search: false,
@@ -125,15 +124,10 @@ const columns: ProColumns<User.Item>[] = [
         title: "操作",
         key: "action",
         width: 200,
-        align: 'center',
-        fixed: 'right',
+        align: "center",
+        fixed: "right",
         search: false,
-        render: (
-            _dom: React.ReactNode,
-            entity: User.Item,
-            _index,
-            action?: ActionType,
-        ) => {
+        render: (_dom: React.ReactNode, entity: User.Item, _index, action?: ActionType) => {
             const cur = useAuthStore.getState().userInfo;
             if (entity.id === cur?.id || entity.id === 1) {
                 // 不能操作当前用户或管理员
@@ -158,10 +152,7 @@ const columns: ProColumns<User.Item>[] = [
                             title={`确定要${status}此用户吗？`}
                             children={status}
                             onConfirm={async () => {
-                                await userAPI.updateStatus(
-                                    entity.id,
-                                    entity.status === 1 ? 2 : 1,
-                                );
+                                await userAPI.updateStatus(entity.id, entity.status === 1 ? 2 : 1);
                                 action?.reload();
                             }}
                         />
@@ -171,9 +162,10 @@ const columns: ProColumns<User.Item>[] = [
                             title="确定要重置此用户的密码吗？"
                             children="重置密码"
                             onConfirm={async () => {
+                                const randomPassword = Math.random().toString(36).slice(-8);
                                 await userAPI.resetPassword(
                                     entity.id,
-                                    `${entity.username}@123456`,
+                                    `${entity.username}${randomPassword}`,
                                 );
                                 action?.reload();
                             }}
@@ -210,10 +202,7 @@ const UserModalForm = ({
     onSuccess,
 }: UserModalFormProps) => {
     const [form] = Form.useForm();
-    const { data: roleOptions } = useApiQuery(
-        "system/roles/options",
-        roleAPI.getOptions,
-    );
+    const { data: roleOptions } = useApiQuery("system/roles/options", roleAPI.getOptions);
 
     return (
         <ModalForm<User.CreateRequest | User.UpdateRequest>
@@ -226,9 +215,8 @@ const UserModalForm = ({
             modalProps={{ destroyOnHidden: true, maskClosable: false }}
             onOpenChange={(open) => {
                 if (open) {
-                    const roleIds = initialValues?.roles?.map(
-                        (role) => role.value,
-                    );
+                    form.resetFields();
+                    const roleIds = initialValues?.roles?.map((role) => role.value);
                     form.setFieldsValue({
                         ...initialValues,
                         roleIds,
@@ -244,12 +232,10 @@ const UserModalForm = ({
                 if (mode === "create") {
                     await userAPI.create(values as User.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await userAPI.update(
-                        initialValues.id,
-                        values as User.UpdateRequest,
-                    );
+                    await userAPI.update(initialValues.id, values as User.UpdateRequest);
                 }
                 onSuccess?.();
+                form.resetFields();
                 return true;
             }}
         >
@@ -272,12 +258,7 @@ const UserModalForm = ({
                     { type: "email", message: "邮箱格式不正确" },
                 ]}
             />
-            <ProFormText
-                name="realName"
-                label="真实姓名"
-                placeholder="请输入真实姓名"
-                rules={[{ required: true, message: "请输入真实姓名" }]}
-            />
+            <ProFormText name="realName" label="真实姓名" placeholder="请输入真实姓名" />
             {mode === "create" && (
                 <ProFormText.Password
                     name="password"
@@ -292,13 +273,6 @@ const UserModalForm = ({
                     ]}
                 />
             )}
-            <ProFormSelect
-                name="status"
-                label="状态"
-                placeholder="请选择状态"
-                options={ENABLE_OPTIONS}
-                rules={[{ required: true, message: "请选择状态" }]}
-            />
             <ProFormSelect
                 name="roleIds"
                 label="角色"

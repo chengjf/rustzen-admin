@@ -22,14 +22,14 @@ pub struct ApiResponse<T> {
 impl<T: Serialize> ApiResponse<T> {
     /// Creates a success response.
     pub fn success(data: T) -> Json<Self> {
-        Json(Self { code: 0, message: "Success".to_string(), data, total: None })
+        Json(Self { code: 0, message: "操作成功".to_string(), data, total: None })
     }
 }
 
 // 为 Vec 类型提供特殊实现
 impl<T: Serialize> ApiResponse<Vec<T>> {
     pub fn page(data: Vec<T>, total: i64) -> Json<Self> {
-        Json(Self { code: 0, message: "Success".to_string(), data, total: Some(total) })
+        Json(Self { code: 0, message: "操作成功".to_string(), data, total: Some(total) })
     }
 }
 

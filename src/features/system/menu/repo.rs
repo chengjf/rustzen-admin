@@ -241,4 +241,30 @@ impl MenuRepository {
 
         Ok(menus)
     }
+
+    /// Retrieves menu IDs for a role
+    pub async fn find_by_ids(
+        pool: &PgPool,
+        menu_ids: Vec<i64>,
+    ) -> Result<Vec<MenuEntity>, ServiceError> {
+        // 1. 使用 = ANY($1) 语法，这在 Postgres 中等价于 IN，但支持数组绑定
+        // 2. 注意 query_scalar 直接返回单列数据，不需要定义临时结构体
+        let ids = sqlx::query_as::<_, MenuEntity>(
+            "SELECT id, parent_id, name, code, menu_type, status, is_system, sort_order, created_at, updated_at FROM menus WHERE id = ANY($1) AND deleted_at IS NULL",
+        )
+        .bind(&menu_ids) // 绑定 Vec<i64>
+        .fetch_all(pool)
+        .await
+        .map_err(|e| {
+            // 这里的日志参数位置修正一下，先打印错误信息
+            tracing::error!(
+                "Database error finding menu IDs. Input: {:?}, Error: {:?}",
+                menu_ids,
+                e
+            );
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok(ids)
+    }
 }

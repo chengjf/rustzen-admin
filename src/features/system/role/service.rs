@@ -1,11 +1,16 @@
+use std::collections::HashSet;
+
 use super::{
     dto::{CreateRoleDto, RoleItemResp, RoleQuery, UpdateRolePayload},
     repo::{RoleListQuery, RoleRepository},
 };
-use crate::common::{
-    api::{OptionItem, OptionsQuery},
-    error::ServiceError,
-    pagination::Pagination,
+use crate::{
+    common::{
+        api::{OptionItem, OptionsQuery},
+        error::ServiceError,
+        pagination::Pagination,
+    },
+    features::system::menu::repo::MenuRepository,
 };
 
 use sqlx::PgPool;
@@ -38,7 +43,17 @@ impl RoleService {
     /// Create new role with validation
     pub async fn create_role(pool: &PgPool, request: CreateRoleDto) -> Result<(), ServiceError> {
         tracing::info!("Creating role: {}", request.name);
+        // 检查角色编码是否已被占用
+        let count = RoleRepository::count_by_code(pool, &request.code).await?;
+        if count > 0 {
+            tracing::warn!("Role code {} already exists", request.code);
+            return Err(ServiceError::InvalidOperation(format!(
+                "角色编码 {} 已存在",
+                request.code
+            )));
+        }
 
+        Self::validate_menu_ids(pool, request.menu_ids.clone()).await?;
         let id: i64 = RoleRepository::create(
             pool,
             &request.name,
@@ -60,6 +75,7 @@ impl RoleService {
         request: UpdateRolePayload,
     ) -> Result<(), ServiceError> {
         tracing::info!("Updating role: {}", id);
+        Self::validate_menu_ids(pool, request.menu_ids.clone()).await?;
 
         let new_id: i64 = RoleRepository::update(
             pool,
@@ -85,7 +101,7 @@ impl RoleService {
         if user_count > 0 {
             tracing::warn!("Cannot delete role {} - still assigned to {} users", id, user_count);
             return Err(ServiceError::InvalidOperation(format!(
-                "角色 '{}' 仍被 {} 个用户分配，无法删除",
+                "角色ID {} 仍被 {} 个用户分配，无法删除",
                 id, user_count
             )));
         }
@@ -116,5 +132,51 @@ impl RoleService {
 
         tracing::info!("Retrieved {} role options", options.len());
         Ok(options)
+    }
+
+    /// 检查新建和修改角色时，菜单ID是否合理
+    /// 1、是否有重复菜单ID
+    /// 2、是否有不存在的菜单ID
+    /// 3、路径是否完整，即是否有缺失的父菜单ID
+    async fn validate_menu_ids(pool: &PgPool, menu_ids: Vec<i64>) -> Result<(), ServiceError> {
+        if menu_ids.is_empty() {
+            return Ok(());
+        }
+
+        // 1. 检查重复 (利用 HashSet)
+        let unique_ids: HashSet<i64> = menu_ids.iter().cloned().collect();
+        if unique_ids.len() != menu_ids.len() {
+            return Err(ServiceError::InvalidOperation("菜单ID重复".to_string()));
+        }
+
+        // 2. 检查 ID 是否存在，并同时获取它们的 parent_id
+        // 建议修改 Repository 接口，返回包含 id 和 parent_id 的结构体
+        let menus = MenuRepository::find_by_ids(pool, menu_ids.clone()).await?;
+
+        if menus.len() != menu_ids.len() {
+            let found_ids: HashSet<i64> = menus.iter().map(|m| m.id).collect();
+            let missing: Vec<String> = menu_ids
+                .iter()
+                .filter(|id| !found_ids.contains(id))
+                .map(|id| id.to_string())
+                .collect();
+            return Err(ServiceError::InvalidOperation(format!(
+                "菜单ID {} 不存在",
+                missing.join(",")
+            )));
+        }
+
+        // 3. 检查路径完整性（核心改进）
+        // 逻辑：遍历每个选中的菜单，如果它的 parent_id 不是 0，那么这个 parent_id 必须也在 unique_ids 中
+        for menu in menus {
+            if menu.parent_id != 0 && !unique_ids.contains(&menu.parent_id) {
+                return Err(ServiceError::InvalidOperation(format!(
+                    "菜单路径不完整：缺少 ID 为 {} 的父级菜单",
+                    menu.parent_id
+                )));
+            }
+        }
+
+        Ok(())
     }
 }

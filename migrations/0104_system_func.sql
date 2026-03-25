@@ -144,15 +144,25 @@ RETURNS BIGINT AS $$
 DECLARE
     log_id BIGINT;
 BEGIN
-    -- Ensure current month partition exists
-    PERFORM create_log_partition(CURRENT_DATE::DATE);
-    -- Insert log record
+    -- 核心：直接执行插入。不再调用 create_log_partition。
+    -- 这样可以避免 Access Exclusive Lock，彻底消除死锁诱因。
     INSERT INTO operation_logs (
         user_id, username, action, description, data, status, duration_ms, ip_address, user_agent, created_at
     ) VALUES (
         p_user_id, p_username, p_action, p_description, p_data, p_status, p_duration_ms, p_ip_address, p_user_agent, CURRENT_TIMESTAMP
     ) RETURNING id INTO log_id;
+
     RETURN log_id;
+
+EXCEPTION 
+    -- 容错处理：如果因为某种原因分区不存在（比如忘记预创建）
+    WHEN check_violation OR undefined_table THEN
+        RAISE WARNING '日志写入失败：目标分区不存在。请检查分区预创建任务。';
+        RETURN NULL;
+    -- 容错处理：如果依然发生死锁（极低概率）
+    WHEN deadlock_detected THEN
+        RAISE WARNING '日志写入由于死锁被取消。';
+        RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 

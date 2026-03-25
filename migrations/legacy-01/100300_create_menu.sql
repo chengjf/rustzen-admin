@@ -22,9 +22,10 @@ CREATE TABLE menus (
     menu_type SMALLINT DEFAULT 2 CHECK (menu_type IN (1, 2, 3)), -- 1=directory, 2=menu, 3=button
     is_system BOOLEAN DEFAULT FALSE, -- System built-in menu flag
     meta_data JSONB, -- Extended metadata
-    permission_code VARCHAR(100) UNIQUE -- Unique permission code for menu/button
+    permission_code VARCHAR(100) -- Unique permission code for menu/button
 );
 
+CREATE UNIQUE INDEX idx_menus_permission_code ON menus(permission_code) WHERE deleted_at IS NULL;
 CREATE INDEX idx_menus_parent_id ON menus(parent_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_menus_sort_order ON menus(sort_order) WHERE deleted_at IS NULL;
 CREATE INDEX idx_menus_status ON menus(status) WHERE deleted_at IS NULL;

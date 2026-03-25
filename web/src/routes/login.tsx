@@ -53,15 +53,11 @@ function LoginPage() {
                             },
                             {
                                 min: 3,
-                                message:
-                                    "用户名至少包含3个字符",
+                                message: "用户名至少包含3个字符",
                             },
                         ]}
                     >
-                        <Input
-                            prefix={<UserOutlined />}
-                            placeholder="用户名"
-                        />
+                        <Input prefix={<UserOutlined />} placeholder="用户名" />
                     </Form.Item>
                     <Form.Item
                         name="password"
@@ -72,15 +68,11 @@ function LoginPage() {
                             },
                             {
                                 min: 6,
-                                message:
-                                    "密码至少包含6个字符",
+                                message: "密码至少包含6个字符",
                             },
                         ]}
                     >
-                        <Input.Password
-                            prefix={<LockOutlined />}
-                            placeholder="密码"
-                        />
+                        <Input.Password prefix={<LockOutlined />} placeholder="密码" />
                     </Form.Item>
                     <Form.Item>
                         <Button

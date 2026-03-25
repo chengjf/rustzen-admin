@@ -10,20 +10,18 @@ function RouteComponent() {
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-gray-900 px-4">
             <div className="text-center">
                 {/* 醒目的 403 状态码 */}
-                <h1 className="text-6xl font-extrabold text-red-600 sm:text-7xl">
-                    403
-                </h1>
-                
+                <h1 className="text-6xl font-extrabold text-red-600 sm:text-7xl">403</h1>
+
                 {/* 主要错误信息 */}
                 <p className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl text-gray-900">
                     访问被拒绝
                 </p>
-                
+
                 {/* 详细描述信息 */}
                 <p className="mt-6 text-base leading-7 text-gray-600 max-w-md mx-auto">
                     抱歉，您没有权限访问该资源或执行此操作。如果您认为这是一个错误，请联系系统管理员。
                 </p>
-                
+
                 {/* 操作按钮区域 */}
                 <div className="mt-10 flex items-center justify-center gap-x-6">
                     <Link

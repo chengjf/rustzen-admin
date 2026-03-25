@@ -251,4 +251,16 @@ impl RoleRepository {
                 })?;
         Ok(result)
     }
+
+    pub async fn count_by_code(pool: &PgPool, role_code: &str) -> Result<i64, ServiceError> {
+        let result = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM roles WHERE code = $1")
+            .bind(role_code)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error counting roles: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
+        Ok(result)
+    }
 }

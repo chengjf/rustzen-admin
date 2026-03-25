@@ -159,10 +159,7 @@ impl UserRepository {
     }
 
     /// Get user by ID (returns NotFound error if not found)
-    pub async fn get_by_id(
-        pool: &PgPool,
-        id: i64,
-    ) -> Result<UserWithRolesEntity, ServiceError> {
+    pub async fn get_by_id(pool: &PgPool, id: i64) -> Result<UserWithRolesEntity, ServiceError> {
         Self::find_by_id(pool, id)
             .await?
             .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))
@@ -209,7 +206,7 @@ impl UserRepository {
         pool: &PgPool,
         id: i64,
         email: &str,
-        real_name: &str,
+        real_name: Option<&str>,
         role_ids: &[i64],
     ) -> Result<i64, ServiceError> {
         let mut tx = pool.begin().await.map_err(|e| {
@@ -219,12 +216,13 @@ impl UserRepository {
 
         let user_id = sqlx::query_scalar::<_, i64>(
             "UPDATE users
-             SET email = $1, real_name = $2
-             WHERE id = $3 AND deleted_at IS NULL
+             SET email = $1, real_name = $2, updated_at = $3
+             WHERE id = $4 AND deleted_at IS NULL
              RETURNING id",
         )
         .bind(email)
         .bind(real_name)
+        .bind(Utc::now().naive_utc())
         .bind(id)
         .fetch_optional(&mut *tx)
         .await
@@ -280,15 +278,12 @@ impl UserRepository {
             return Ok(());
         }
         let now = Utc::now().naive_utc();
-        let mut query_builder =
-            String::from("INSERT INTO user_roles (user_id, role_id, created_at) VALUES ");
-        for (i, role_id) in role_ids.iter().enumerate() {
-            if i > 0 {
-                query_builder.push_str(", ");
-            }
-            query_builder.push_str(&format!("({}, {}, '{}')", user_id, role_id, now));
-        }
-        sqlx::query(&query_builder).execute(&mut **tx).await.map_err(|e| {
+        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+            QueryBuilder::new("INSERT INTO user_roles (user_id, role_id, created_at) ");
+        query_builder.push_values(role_ids, |mut b, role_id| {
+            b.push_bind(user_id).push_bind(role_id).push_bind(now);
+        });
+        query_builder.build().execute(&mut **tx).await.map_err(|e| {
             tracing::error!("Database error inserting user_roles: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
@@ -305,6 +300,31 @@ impl UserRepository {
         .await
         .map_err(|e| {
             tracing::error!("Database error checking email existence '{}': {:?}", email, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok(exists)
+    }
+
+    /// Check if email exists for another user
+    pub async fn email_exists_exclude_self(
+        pool: &PgPool,
+        email: &str,
+        exclude_id: i64,
+    ) -> Result<bool, ServiceError> {
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND id != $2 AND deleted_at IS NULL)",
+        )
+        .bind(email)
+        .bind(exclude_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(
+                "Database error checking email existence (exclude self) '{}': {:?}",
+                email,
+                e
+            );
             ServiceError::DatabaseQueryFailed
         })?;
 
@@ -332,15 +352,17 @@ impl UserRepository {
         id: i64,
         password_hash: &str,
     ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2")
-            .bind(password_hash)
-            .bind(id)
-            .execute(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error updating user password for ID {}: {:?}", id, e);
-                ServiceError::DatabaseQueryFailed
-            })?;
+        let result =
+            sqlx::query("UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3")
+                .bind(password_hash)
+                .bind(Utc::now().naive_utc())
+                .bind(id)
+                .execute(pool)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Database error updating user password for ID {}: {:?}", id, e);
+                    ServiceError::DatabaseQueryFailed
+                })?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -350,8 +372,9 @@ impl UserRepository {
         id: i64,
         status: i16,
     ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET status = $1 WHERE id = $2")
+        let result = sqlx::query("UPDATE users SET status = $1, updated_at = $2 WHERE id = $3")
             .bind(status)
+            .bind(Utc::now().naive_utc())
             .bind(id)
             .execute(pool)
             .await

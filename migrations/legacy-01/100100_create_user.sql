@@ -9,8 +9,8 @@
 
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY, -- Unique user ID
-    username VARCHAR(50) UNIQUE NOT NULL, -- Unique username
-    email VARCHAR(100) UNIQUE NOT NULL, -- Unique email address
+    username VARCHAR(50) NOT NULL, -- Unique username
+    email VARCHAR(100) NOT NULL, -- Unique email address
     password_hash VARCHAR(255) NOT NULL, -- Hashed password
     real_name VARCHAR(50), -- Real name
     avatar_url VARCHAR(255), -- Avatar image URL

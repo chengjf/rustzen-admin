@@ -168,8 +168,7 @@ const DictModalForm = ({
                     },
                     {
                         pattern: /^[a-z_]+$/,
-                        message:
-                            "字典类型只能包含小写字母和下划线",
+                        message: "字典类型只能包含小写字母和下划线",
                     },
                 ]}
             />
@@ -185,11 +184,7 @@ const DictModalForm = ({
                 placeholder="请输入值（如 1）"
                 rules={[{ required: true, message: "请输入值" }]}
             />
-            <ProFormTextArea
-                name="description"
-                label="描述"
-                placeholder="请输入描述"
-            />
+            <ProFormTextArea name="description" label="描述" placeholder="请输入描述" />
         </ModalForm>
     );
 };

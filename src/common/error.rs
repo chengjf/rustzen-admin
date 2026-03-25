@@ -29,6 +29,10 @@ pub enum ServiceError {
     #[error("用户是管理员")]
     UserIsAdmin,
 
+    /// Cannot operate on self.
+    #[error("不能操作自己的账号")]
+    CannotOperateSelf,
+
     /// Internal server error.
     // #[error("Internal server error")]
     // InternalServerError,
@@ -126,6 +130,9 @@ impl From<ServiceError> for AppError {
                 (StatusCode::BAD_REQUEST, 10007, "用户状态非法".into())
             }
             ServiceError::UserIsAdmin => (StatusCode::BAD_REQUEST, 10008, "用户是管理员".into()),
+            ServiceError::CannotOperateSelf => {
+                (StatusCode::BAD_REQUEST, 10009, "不能操作自己的账号".into())
+            }
             ServiceError::InvalidCredentials => (
                 StatusCode::UNAUTHORIZED,
                 10101, // Business-Auth-01
@@ -144,7 +151,7 @@ impl From<ServiceError> for AppError {
             ServiceError::EmailConflict => (
                 StatusCode::CONFLICT,
                 10202, // Business-User-02
-                "Email already exists.".to_string(),
+                "邮箱已存在".into(),
             ),
             // 2xxxx: System Errors
             ServiceError::DatabaseQueryFailed => (

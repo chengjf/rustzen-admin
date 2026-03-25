@@ -83,7 +83,7 @@ const columns: ProColumns<Menu.Item>[] = [
     },
     {
         title: "状态",
-        align: 'center',
+        align: "center",
         dataIndex: "status",
         width: 120,
         ellipsis: true,
@@ -209,7 +209,7 @@ const MenuModalForm = ({
                 fieldProps={{
                     showSearch: true,
                     // 关键配置：指定搜索时过滤哪一个字段
-                    treeNodeFilterProp: "label", 
+                    treeNodeFilterProp: "label",
                     // 建议同时开启此项，支持搜索子节点时展示层级
                     treeDefaultExpandAll: true,
                 }}

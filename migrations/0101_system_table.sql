@@ -5,8 +5,8 @@
 
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY, -- Unique user ID
-    username VARCHAR(50) UNIQUE NOT NULL, -- Unique username
-    email VARCHAR(100) UNIQUE NOT NULL, -- Unique email address
+    username VARCHAR(50) NOT NULL, -- Unique username
+    email VARCHAR(100) NOT NULL, -- Unique email address
     password_hash VARCHAR(255) NOT NULL, -- Hashed password
     real_name VARCHAR(50), -- Real name
     avatar_url VARCHAR(255), -- Avatar image URL
@@ -38,8 +38,8 @@ COMMENT ON COLUMN users.is_system IS 'System built-in user flag: TRUE for system
 
 CREATE TABLE roles (
     id BIGSERIAL PRIMARY KEY, -- Unique role ID
-    name VARCHAR(50) UNIQUE NOT NULL, -- Role display name
-    code VARCHAR(50) UNIQUE NOT NULL, -- Role code for programmatic access
+    name VARCHAR(50) NOT NULL, -- Role display name
+    code VARCHAR(50) NOT NULL, -- Role code for programmatic access
     description TEXT, -- Role description
     status SMALLINT DEFAULT 1 CHECK (status IN (1, 2)), -- 1: active, 2: disabled
     is_system BOOLEAN DEFAULT FALSE, -- System built-in role flag
@@ -73,8 +73,8 @@ COMMENT ON COLUMN roles.deleted_at IS 'Soft delete timestamp, NULL means not del
 CREATE TABLE menus (
     id BIGSERIAL PRIMARY KEY, -- Unique menu ID
     parent_id BIGINT DEFAULT 0, -- Parent menu ID (0 for root)
-    name VARCHAR(100) UNIQUE NOT NULL, -- Menu title
-    code VARCHAR(100) UNIQUE NOT NULL, -- Unique permission code for menu/button
+    name VARCHAR(100) NOT NULL, -- Menu title
+    code VARCHAR(100) NOT NULL, -- Unique permission code for menu/button
     menu_type SMALLINT DEFAULT 2 CHECK (menu_type IN (1, 2, 3)), -- 1=directory, 2=menu, 3=button
     status SMALLINT DEFAULT 1 CHECK (status IN (1, 2)), -- 1: visible, 2: hidden
     is_system BOOLEAN DEFAULT FALSE, -- System built-in resource flag
@@ -84,6 +84,8 @@ CREATE TABLE menus (
     deleted_at TIMESTAMP -- Soft delete timestamp
 );
 
+CREATE UNIQUE INDEX idx_menus_name ON menus(name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_menus_code ON menus(code) WHERE deleted_at IS NULL;
 CREATE INDEX idx_resources_parent_id ON menus(parent_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_resources_sort_order ON menus(sort_order) WHERE deleted_at IS NULL;
 CREATE INDEX idx_resources_status ON menus(status) WHERE deleted_at IS NULL;

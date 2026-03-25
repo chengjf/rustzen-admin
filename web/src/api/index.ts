@@ -115,6 +115,17 @@ const coreRequest = async <T, P>(options: RequestOptions<P>): Promise<Api.ApiRes
         if (result.code !== 0) {
             return Promise.reject(result);
         }
+        const isMutation = ["post", "put", "delete", "patch"].includes(
+            config.method?.toLowerCase() || "",
+        );
+
+        // 2. 允许单个接口通过配置“跳过”自动提示
+        // 在调用时传：menuAPI.create(data, { skipSuccessMsg: true })
+        const skipMsg = (config as any).skipSuccessMsg;
+
+        if (isMutation && !skipMsg) {
+            appMessage.success(result.message || "操作成功");
+        }
         return result;
     } catch (error) {
         return handleError(error);

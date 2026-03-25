@@ -4,8 +4,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button, Segmented, Tag } from "antd";
 
 import { logAPI } from "@/api/system/log";
-import { useLocalStore } from "@/stores/useLocalStore";
 import { AuthWrap } from "@/components/auth";
+import { useLocalStore } from "@/stores/useLocalStore";
 
 export const Route = createFileRoute("/system/log")({
     component: LogPage,

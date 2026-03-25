@@ -24,18 +24,21 @@ pub async fn get_stats(State(pool): State<PgPool>) -> AppResult<StatsResp> {
     Ok(ApiResponse::success(stats))
 }
 
+#[instrument]
 pub async fn get_health() -> AppResult<SystemInfo> {
     tracing::info!("Getting health");
     let system_info = SystemUtils::get_system_info();
     Ok(ApiResponse::success(system_info))
 }
 
+#[instrument(skip(pool))]
 pub async fn get_metrics(State(pool): State<PgPool>) -> AppResult<SystemMetricsDataResp> {
     tracing::info!("Getting metrics");
     let metrics = DashboardService::get_metrics(&pool).await?;
     Ok(ApiResponse::success(metrics))
 }
 
+#[instrument(skip(pool))]
 pub async fn get_trends(State(pool): State<PgPool>) -> AppResult<UserTrendsResp> {
     tracing::info!("Getting trends");
     let operations = DashboardService::get_trends(&pool).await?;

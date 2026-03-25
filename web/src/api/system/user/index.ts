@@ -35,7 +35,7 @@ export const userAPI = {
 
     resetPassword: (id: number, password: string) =>
         apiRequest<void>({
-            url: `/api/system/users/${id}/reset-password`,
+            url: `/api/system/users/${id}/password`,
             method: "PUT",
             params: { password },
         }),

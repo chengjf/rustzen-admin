@@ -38,7 +38,10 @@ export const menuAPI = {
             ...res,
         ]),
     getOptionsWithCode: (params?: Menu.OptionsWithCodeQuery) =>
-        apiRequest<Api.MenuTreeOption[], Menu.OptionsWithCodeQuery>({ url: "/api/system/menus/options-with-code", params }),
+        apiRequest<Api.MenuTreeOption[], Menu.OptionsWithCodeQuery>({
+            url: "/api/system/menus/options-with-code",
+            params,
+        }),
 };
 
 function buildMenuTree(list: Menu.Item[], parentId = 0): Menu.Item[] {

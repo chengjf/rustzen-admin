@@ -70,7 +70,7 @@ export const PermissionGroupSelect: React.FC<PermissionGroupSelectProps> = ({
                 items: group.items.filter(
                     (item) =>
                         item.label.toLowerCase().includes(lowerSearch) ||
-                        item.code.toLowerCase().includes(lowerSearch)
+                        item.code.toLowerCase().includes(lowerSearch),
                 ),
             }))
             .filter((group) => group.items.length > 0);

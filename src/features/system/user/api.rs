@@ -1,7 +1,7 @@
 use super::{
     dto::{
-        CreateUserDto, UpdateUserPayload, UpdateUserPasswordPayload, UpdateUserStatusPayload, UserItemResp,
-        UserOptionResp, UserOptionsQuery, UserQuery,
+        CreateUserDto, UpdateUserPasswordPayload, UpdateUserPayload, UpdateUserStatusPayload,
+        UserItemResp, UserOptionResp, UserOptionsQuery, UserQuery,
     },
     service::UserService,
 };
@@ -11,6 +11,7 @@ use crate::{
         error::ServiceError,
         router_ext::RouterExt,
     },
+    core::extractor::CurrentUser,
     core::permission::PermissionsCheck,
 };
 
@@ -96,16 +97,21 @@ pub async fn create_user(
 }
 
 /// Update user
-#[instrument(skip(pool, id, dto))]
+#[instrument(skip(pool, id, dto, current_user))]
 pub async fn update_user(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
+    current_user: CurrentUser,
     Json(dto): Json<UpdateUserPayload>,
 ) -> AppResult<i64> {
     tracing::info!("Updating user ID: {}", id);
 
     if id == 1 {
         return Err(ServiceError::UserIsAdmin.into());
+    }
+
+    if id == current_user.user_id {
+        return Err(ServiceError::CannotOperateSelf.into());
     }
 
     let user_id = UserService::update_user(&pool, id, dto).await?;
@@ -115,9 +121,21 @@ pub async fn update_user(
 }
 
 /// Delete user
-#[instrument(skip(pool, id))]
-pub async fn delete_user(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
+#[instrument(skip(pool, id, current_user))]
+pub async fn delete_user(
+    State(pool): State<PgPool>,
+    Path(id): Path<i64>,
+    current_user: CurrentUser,
+) -> AppResult<()> {
     tracing::info!("Deleting user ID: {}", id);
+
+    if id == 1 {
+        return Err(ServiceError::UserIsAdmin.into());
+    }
+
+    if id == current_user.user_id {
+        return Err(ServiceError::CannotOperateSelf.into());
+    }
 
     UserService::delete_user(&pool, id).await?;
 
@@ -150,13 +168,22 @@ pub async fn get_user_options(
     Ok(ApiResponse::success(result))
 }
 
-#[instrument(skip(pool, id, dto))]
+#[instrument(skip(pool, id, dto, current_user))]
 pub async fn update_user_password(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
+    current_user: CurrentUser,
     Json(dto): Json<UpdateUserPasswordPayload>,
 ) -> AppResult<bool> {
     tracing::info!("Updating user password for user: {}", id);
+
+    if id == 1 {
+        return Err(ServiceError::UserIsAdmin.into());
+    }
+
+    if id == current_user.user_id {
+        return Err(ServiceError::CannotOperateSelf.into());
+    }
 
     let result = UserService::update_user_password(&pool, id, dto).await?;
 
@@ -164,13 +191,22 @@ pub async fn update_user_password(
     Ok(ApiResponse::success(result))
 }
 
-#[instrument(skip(pool, id, dto))]
+#[instrument(skip(pool, id, dto, current_user))]
 pub async fn update_user_status(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
+    current_user: CurrentUser,
     Json(dto): Json<UpdateUserStatusPayload>,
 ) -> AppResult<bool> {
     tracing::info!("Updating user status for user: {}", id);
+
+    if id == 1 {
+        return Err(ServiceError::UserIsAdmin.into());
+    }
+
+    if id == current_user.user_id {
+        return Err(ServiceError::CannotOperateSelf.into());
+    }
 
     let result = UserService::update_user_status(&pool, id, dto).await?;
 

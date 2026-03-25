@@ -1,7 +1,7 @@
 use super::{
     dto::{
-        CreateUserDto, UpdateUserPayload, UpdateUserPasswordPayload, UpdateUserStatusPayload, UserItemResp,
-        UserOptionResp, UserOptionsQuery, UserQuery,
+        CreateUserDto, UpdateUserPasswordPayload, UpdateUserPayload, UpdateUserStatusPayload,
+        UserItemResp, UserOptionResp, UserOptionsQuery, UserQuery,
     },
     repo::{CreateUserCommand, UserListQuery, UserRepository},
 };
@@ -80,12 +80,17 @@ impl UserService {
     ) -> Result<i64, ServiceError> {
         tracing::debug!("Updating user ID: {}", id);
 
+        // Check if email already exists for another user
+        if UserRepository::email_exists_exclude_self(pool, &request.email, id).await? {
+            return Err(ServiceError::EmailConflict);
+        }
+
         // Update user
         let user_id = UserRepository::update_user(
             pool,
             id,
             &request.email,
-            &request.real_name,
+            request.real_name.as_deref(),
             &request.role_ids,
         )
         .await?;
