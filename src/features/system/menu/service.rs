@@ -9,6 +9,7 @@ use crate::common::{
     error::ServiceError,
 };
 
+use chrono::Utc;
 use serde::Serialize;
 use sqlx::PgPool;
 
@@ -133,14 +134,45 @@ impl MenuService {
             return Err(ServiceError::InvalidOperation(format!("当前菜单有子菜单，不能删除")));
         }
 
-        let success = MenuRepository::soft_delete(pool, id).await?;
+        let mut tx = pool.begin().await.map_err(|e| {
+            tracing::error!("Database error starting transaction for menu deletion: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
-        if success {
-            tracing::info!("Successfully deleted menu: {}", id);
-            Ok(())
-        } else {
-            Err(ServiceError::NotFound("Menu".to_string()))
+        // Clean up role-menu associations
+        sqlx::query("DELETE FROM role_menus WHERE menu_id = $1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| {
+            tracing::error!("Database error deleting role_menus for menu {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        // Soft delete menu (only the specific menu, not children)
+        let result = sqlx::query(
+            "UPDATE menus SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND is_system = false AND deleted_at IS NULL"
+        )
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error soft deleting menu {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        if result.rows_affected() == 0 {
+            return Err(ServiceError::NotFound("Menu".to_string()));
         }
+
+        tx.commit().await.map_err(|e| {
+            tracing::error!("Database error committing menu deletion transaction: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        tracing::info!("Successfully deleted menu: {}", id);
+        Ok(())
     }
 
     /// Get menu options for dropdowns

@@ -13,6 +13,7 @@ use crate::{
     features::system::menu::repo::MenuRepository,
 };
 
+use chrono::Utc;
 use sqlx::PgPool;
 
 pub struct RoleService;
@@ -118,16 +119,45 @@ impl RoleService {
             )));
         }
 
-        // Perform the deletion
-        let success = RoleRepository::soft_delete(pool, id).await?;
+        let mut tx = pool.begin().await.map_err(|e| {
+            tracing::error!("Database error starting transaction for role deletion: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
-        if success {
-            tracing::info!("Successfully deleted role: {}", id);
-            Ok(())
-        } else {
-            tracing::warn!("Role not found during deletion: {}", id);
-            Err(ServiceError::NotFound("角色".to_string()))
+        // Clean up role-menu associations
+        sqlx::query("DELETE FROM role_menus WHERE role_id = $1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| {
+            tracing::error!("Database error deleting role_menus for role {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        // Soft delete role
+        let result = sqlx::query(
+            "UPDATE roles SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL"
+        )
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error soft deleting role {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        if result.rows_affected() == 0 {
+            return Err(ServiceError::NotFound("角色".to_string()));
         }
+
+        tx.commit().await.map_err(|e| {
+            tracing::error!("Database error committing role deletion transaction: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        tracing::info!("Successfully deleted role: {}", id);
+        Ok(())
     }
 
     /// Get role options for dropdowns

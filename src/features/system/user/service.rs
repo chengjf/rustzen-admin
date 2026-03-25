@@ -10,6 +10,7 @@ use crate::{
     core::password::PasswordUtils,
 };
 
+use chrono::Utc;
 use sqlx::PgPool;
 
 /// User service for business operations
@@ -105,7 +106,42 @@ impl UserService {
         // Ensure user exists (get_by_id returns NotFound if missing)
         let _ = UserRepository::get_by_id(pool, id).await?;
 
-        UserRepository::soft_delete(pool, id).await?;
+        let mut tx = pool.begin().await.map_err(|e| {
+            tracing::error!("Database error starting transaction for user deletion: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        // Clean up user-role associations
+        sqlx::query("DELETE FROM user_roles WHERE user_id = $1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| {
+            tracing::error!("Database error deleting user_roles for user {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        // Soft delete user
+        let result = sqlx::query(
+            "UPDATE users SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL"
+        )
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error soft deleting user ID {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        if result.rows_affected() == 0 {
+            return Err(ServiceError::NotFound(format!("User id: {}", id)));
+        }
+
+        tx.commit().await.map_err(|e| {
+            tracing::error!("Database error committing user deletion transaction: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(())
     }
