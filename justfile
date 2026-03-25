@@ -34,3 +34,9 @@ build-web:
 # Clean build outputs
 clean:
     rm -rf /target web/dist
+
+# reset and init database
+init-db:
+    sqlx database drop -y
+    sqlx database create
+    sqlx migrate run

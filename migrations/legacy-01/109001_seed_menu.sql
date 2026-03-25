@@ -16,4 +16,4 @@ VALUES
     (1, 'Menu Management', '/system/menus', 'MenuList', 'menu', 3, 1, 2, TRUE, 'system:menu:list'),
     (1, 'Dictionary Management', '/system/dicts', 'DictList', 'book', 4, 1, 2, TRUE, 'system:dict:list'),
     (1, 'Operation Logs', '/system/logs', 'LogList', 'file-text', 5, 1, 2, TRUE, 'system:log:list')
-ON CONFLICT (permission_code) DO NOTHING;
+ON CONFLICT (permission_code) WHERE deleted_at IS NULL DO NOTHING;

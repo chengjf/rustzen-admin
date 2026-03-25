@@ -14,4 +14,4 @@ VALUES
     ('user_status', 'pending', 'Pending', 1, 3),
     ('role_type', 'system', 'System Role', 1, 1),
     ('role_type', 'custom', 'Custom Role', 1, 2)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (type, key) WHERE deleted_at IS NULL DO NOTHING;

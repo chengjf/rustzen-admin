@@ -73,6 +73,7 @@ SELECT
     r.updated_at,
     r.deleted_at,
     r.is_system,
+    r.sort_order,
     COALESCE(
         JSON_AGG(
             JSON_BUILD_OBJECT(
@@ -86,6 +87,6 @@ FROM roles r
 LEFT JOIN role_menus rm ON r.id = rm.role_id
 LEFT JOIN menus m ON rm.menu_id = m.id AND m.deleted_at IS NULL
 WHERE r.deleted_at IS NULL
-GROUP BY r.id, r.name, r.code, r.description, r.status, r.created_at, r.updated_at, r.deleted_at, r.is_system;
+GROUP BY r.id, r.name, r.code, r.description, r.status, r.created_at, r.updated_at, r.deleted_at, r.is_system, r.sort_order;
 
 COMMENT ON VIEW role_with_menus IS 'Aggregated role info with menus as JSON array.';

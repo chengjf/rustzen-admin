@@ -35,7 +35,7 @@ declare namespace Role {
         description?: string;
         status?: number;
         sortOrder?: number;
-        menuIds: Api.OptionItem<number>[];
+        menuIds: number[];
     }
 
     // 更新角色请求 - 更新为与后端一致

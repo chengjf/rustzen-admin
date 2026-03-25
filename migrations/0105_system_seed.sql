@@ -13,7 +13,7 @@ VALUES (
     1,
     TRUE
 )
-ON CONFLICT (username) DO NOTHING;
+ON CONFLICT (username) WHERE deleted_at IS NULL DO NOTHING;
 
 -- ============================================================================
 -- Module: Seed initial roles.
@@ -22,7 +22,7 @@ ON CONFLICT (username) DO NOTHING;
 INSERT INTO roles (name, code, description, status, is_system, sort_order)
 VALUES
     ('系统管理员', 'SYSTEM_ADMIN', '系统管理员，具有所有系统功能的完全访问权限', 1, TRUE, 1)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted_at IS NULL DO NOTHING;
 
 -- ============================================================================
 -- Module: Seed initial system menu structure.
@@ -101,7 +101,7 @@ VALUES
     ('user_status', 'Locked', '4', 1, 4),
     ('role_type', 'System Role', '1', 1, 1),
     ('role_type', 'Custom Role', '2', 1, 2)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (dict_type, label) WHERE deleted_at IS NULL DO NOTHING;
 
 
 -- ============================================================================

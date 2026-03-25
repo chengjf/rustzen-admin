@@ -12,6 +12,7 @@ pub struct CreateRoleDto {
     pub name: String,
     pub code: String,
     pub status: i16,
+    pub sort_order: Option<i32>,
     pub menu_ids: Vec<i64>,
     pub description: Option<String>,
 }
@@ -23,6 +24,7 @@ pub struct UpdateRolePayload {
     pub name: String,
     pub code: String,
     pub status: i16,
+    pub sort_order: Option<i32>,
     pub menu_ids: Vec<i64>,
     pub description: Option<String>,
 }
@@ -52,6 +54,7 @@ pub struct RoleItemResp {
     pub code: String,
     pub description: Option<String>,
     pub status: i16,
+    pub sort_order: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub menus: Vec<OptionItem<i64>>,
@@ -65,6 +68,7 @@ impl From<RoleWithMenuEntity> for RoleItemResp {
             code: role.code,
             description: role.description,
             status: role.status,
+            sort_order: role.sort_order,
             created_at: role.created_at,
             updated_at: role.updated_at,
             menus: serde_json::from_value::<Vec<OptionItem<i64>>>(role.menus).unwrap_or_default(),

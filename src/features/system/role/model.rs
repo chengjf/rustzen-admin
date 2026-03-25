@@ -8,6 +8,7 @@ pub struct RoleWithMenuEntity {
     pub code: String,
     pub description: Option<String>,
     pub status: i16,
+    pub sort_order: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub is_system: Option<bool>,

@@ -60,6 +60,7 @@ impl RoleService {
             &request.code,
             request.description.as_deref(),
             request.status,
+            request.sort_order.unwrap_or(0),
             &request.menu_ids,
         )
         .await?;
@@ -75,6 +76,16 @@ impl RoleService {
         request: UpdateRolePayload,
     ) -> Result<(), ServiceError> {
         tracing::info!("Updating role: {}", id);
+
+        // 检查角色编码是否已被其他角色占用
+        if RoleRepository::code_exists_exclude_self(pool, &request.code, id).await? {
+            tracing::warn!("Role code {} already exists", request.code);
+            return Err(ServiceError::InvalidOperation(format!(
+                "角色编码 {} 已存在",
+                request.code
+            )));
+        }
+
         Self::validate_menu_ids(pool, request.menu_ids.clone()).await?;
 
         let new_id: i64 = RoleRepository::update(
@@ -84,6 +95,7 @@ impl RoleService {
             &request.code,
             request.description.as_deref(),
             request.status,
+            request.sort_order.unwrap_or(0),
             &request.menu_ids,
         )
         .await?;

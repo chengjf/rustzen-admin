@@ -63,7 +63,7 @@ impl RoleRepository {
 
         Self::format_query(&query, &mut query_builder);
 
-        query_builder.push(" ORDER BY created_at DESC");
+        query_builder.push(" ORDER BY sort_order ASC, created_at DESC");
         query_builder.push(" LIMIT ").push_bind(limit);
         query_builder.push(" OFFSET ").push_bind(offset);
 
@@ -82,6 +82,7 @@ impl RoleRepository {
         role_code: &str,
         description: Option<&str>,
         status: i16,
+        sort_order: i32,
         menu_ids: &[i64],
     ) -> Result<i64, ServiceError> {
         let mut tx = pool.begin().await.map_err(|e| {
@@ -90,14 +91,15 @@ impl RoleRepository {
         })?;
 
         let role_id = sqlx::query_scalar::<_, i64>(
-            "INSERT INTO roles (name, code, description, status, created_at)
-             VALUES ($1, $2, $3, $4, $5)
+            "INSERT INTO roles (name, code, description, status, sort_order, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id",
         )
         .bind(role_name)
         .bind(role_code)
         .bind(description)
         .bind(status)
+        .bind(sort_order)
         .bind(Utc::now().naive_utc())
         .fetch_one(&mut *tx)
         .await
@@ -124,6 +126,7 @@ impl RoleRepository {
         role_code: &str,
         description: Option<&str>,
         status: i16,
+        sort_order: i32,
         menu_ids: &[i64],
     ) -> Result<i64, ServiceError> {
         let mut tx = pool.begin().await.map_err(|e| {
@@ -134,14 +137,15 @@ impl RoleRepository {
         // update role
         let id_opt = sqlx::query_scalar::<_, i64>(
             "UPDATE roles
-                 SET name = $1, code = $2, description = $3, status = $4
-                 WHERE id = $5 AND deleted_at IS NULL
+                 SET name = $1, code = $2, description = $3, status = $4, sort_order = $5
+                 WHERE id = $6 AND deleted_at IS NULL
                  RETURNING id",
         )
         .bind(role_name)
         .bind(role_code)
         .bind(description)
         .bind(status)
+        .bind(sort_order)
         .bind(id)
         .fetch_optional(&mut *tx)
         .await
@@ -253,14 +257,40 @@ impl RoleRepository {
     }
 
     pub async fn count_by_code(pool: &PgPool, role_code: &str) -> Result<i64, ServiceError> {
-        let result = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM roles WHERE code = $1")
-            .bind(role_code)
-            .fetch_one(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error counting roles: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?;
+        let result = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM roles WHERE code = $1 AND deleted_at IS NULL",
+        )
+        .bind(role_code)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error counting roles: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
         Ok(result)
+    }
+
+    pub async fn code_exists_exclude_self(
+        pool: &PgPool,
+        code: &str,
+        exclude_id: i64,
+    ) -> Result<bool, ServiceError> {
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM roles WHERE code = $1 AND id != $2 AND deleted_at IS NULL)",
+        )
+        .bind(code)
+        .bind(exclude_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(
+                "Database error checking role code existence (exclude self) '{}': {:?}",
+                code,
+                e
+            );
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok(exists)
     }
 }

@@ -12,4 +12,4 @@ VALUES
     ('System Administrator', 'SYSTEM_ADMIN', 'System administrator with full access to all system functions', 1, TRUE, 1),
     ('User Manager', 'USER_MANAGER', 'Manages users, roles, and basic system configuration', 1, TRUE, 2),
     ('Auditor', 'AUDITOR', 'Read-only access for auditing and monitoring', 1, TRUE, 3)
-ON CONFLICT (role_name) DO NOTHING;
+ON CONFLICT (role_name) WHERE deleted_at IS NULL DO NOTHING;

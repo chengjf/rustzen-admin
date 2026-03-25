@@ -4,6 +4,7 @@ import {
     ProFormText,
     ProFormTextArea,
     ProFormSelect,
+    ProFormDigit,
     type ActionType,
     type ProColumns,
 } from "@ant-design/pro-components";
@@ -68,6 +69,7 @@ function RolePage() {
             { title: "ID", dataIndex: "id", width: 60, align: "center", search: false },
             { title: "角色名称", dataIndex: "name", width: 150, align: "center" },
             { title: "角色编码", dataIndex: "code", width: 150, align: "center" },
+            { title: "排序", dataIndex: "sortOrder", width: 80, align: "center", search: false },
             {
                 title: "状态",
                 dataIndex: "status",
@@ -351,13 +353,16 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: any) => {
             }}
         >
             <Row gutter={24}>
-                <Col span={8}>
+                <Col span={6}>
                     <ProFormText name="name" label="角色名称" rules={[{ required: true }]} />
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
                     <ProFormText name="code" label="角色编码" rules={[{ required: true }]} />
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
+                    <ProFormDigit name="sortOrder" label="排序" initialValue={0} />
+                </Col>
+                <Col span={6}>
                     <ProFormSelect name="status" label="状态" options={ENABLE_OPTIONS} />
                 </Col>
             </Row>
