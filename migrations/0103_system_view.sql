@@ -50,7 +50,7 @@ FROM users u
 JOIN user_roles ur ON u.id = ur.user_id
 JOIN roles r ON ur.role_id = r.id AND r.status = 1 AND r.deleted_at IS NULL
 JOIN role_menus rm ON r.id = rm.role_id
-JOIN menus m ON rm.menu_id = m.id AND m.deleted_at IS NULL
+JOIN menus m ON rm.menu_id = m.id AND m.deleted_at IS NULL AND m.status = 1
 WHERE u.deleted_at IS NULL
   AND u.status = 1
   AND m.code IS NOT NULL;
