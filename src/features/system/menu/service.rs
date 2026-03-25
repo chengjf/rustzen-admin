@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::{
-    dto::{CreateMenuDto, MenuItemResp, MenuQuery, UpdateMenuPayload},
+    dto::{CreateMenuDto, MenuItemResp, MenuQuery, MenuType, UpdateMenuPayload},
     repo::{MenuListQuery, MenuRepository},
 };
 use crate::common::{
@@ -19,17 +19,53 @@ impl MenuService {
     pub async fn get_menu_list(
         pool: &PgPool,
         query: MenuQuery,
-    ) -> Result<(Vec<MenuItemResp>, i64), ServiceError> {
+    ) -> Result<Vec<MenuItemResp>, ServiceError> {
         tracing::info!("Fetching menu list with query: {:?}", query);
 
-        let repo_query = MenuListQuery { name: query.name, code: query.code, status: query.status };
+        let repo_query = MenuListQuery {
+            name: query.name,
+            code: query.code,
+            status: query.status,
+            menu_type: query.menu_type,
+        };
 
         let menus = MenuRepository::find_all(pool, repo_query).await?;
 
         let menu_responses: Vec<MenuItemResp> = menus.into_iter().map(MenuItemResp::from).collect();
-        let count = menu_responses.len() as i64;
 
-        Ok((menu_responses, count))
+        let tree = Self::build_response_tree(menu_responses);
+
+        Ok(tree)
+    }
+
+    /// Build menu response tree from flat list
+    fn build_response_tree(items: Vec<MenuItemResp>) -> Vec<MenuItemResp> {
+        let mut grouping: HashMap<i64, Vec<MenuItemResp>> = HashMap::new();
+
+        for item in items {
+            grouping.entry(item.parent_id).or_default().push(item);
+        }
+
+        fn recursive_build(
+            parent_id: i64,
+            grouping: &mut HashMap<i64, Vec<MenuItemResp>>,
+        ) -> Vec<MenuItemResp> {
+            if let Some(children_list) = grouping.remove(&parent_id) {
+                children_list
+                    .into_iter()
+                    .map(|mut item| {
+                        let sub_children = recursive_build(item.id, grouping);
+                        item.children =
+                            if sub_children.is_empty() { None } else { Some(sub_children) };
+                        item
+                    })
+                    .collect()
+            } else {
+                vec![]
+            }
+        }
+
+        recursive_build(0, &mut grouping)
     }
 
     /// Create new menu with validation
@@ -60,7 +96,17 @@ impl MenuService {
     ) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to update menu: {}", id);
 
-        Self::validate_menu_type_update(pool, id, &request).await?;
+        // 检查当前id对应的菜单是否存在
+        let menu = MenuRepository::find_by_id(pool, id)
+            .await?
+            .ok_or_else(|| ServiceError::NotFound(format!("菜单不存在: {}", id)))?;
+
+        // 系统菜单保护
+        if menu.is_system {
+            return Err(ServiceError::InvalidOperation("系统内置菜单不能修改".into()));
+        }
+
+        Self::validate_menu_type_update(pool, id, &request, &menu).await?;
 
         let menu_id = MenuRepository::update(
             pool,
@@ -197,7 +243,9 @@ impl MenuService {
             Self::check_type_constraint(parent.menu_type, request.menu_type)?;
         } else {
             // 如果父级菜单是0，那么当前菜单只能是目录或菜单
-            if request.menu_type != 1 && request.menu_type != 2 {
+            if request.menu_type != MenuType::Directory as i16
+                && request.menu_type != MenuType::Menu as i16
+            {
                 return Err(ServiceError::InvalidOperation(format!(
                     "父级菜单是根目录，当前菜单类型必须是目录或菜单"
                 )));
@@ -211,29 +259,25 @@ impl MenuService {
         pool: &PgPool,
         id: i64,
         request: &UpdateMenuPayload,
+        menu: &super::model::MenuEntity,
     ) -> Result<(), ServiceError> {
         // 我的父节点不能是我
         if request.parent_id == id {
-            return Err(ServiceError::InvalidOperation(format!("父级菜单不能是自己",)));
+            return Err(ServiceError::InvalidOperation(format!("父级菜单不能是自己")));
         }
-        // 检查当前id对应的菜单是否存在
-        let menu = MenuRepository::find_by_id(pool, id)
-            .await?
-            .ok_or_else(|| ServiceError::NotFound(format!("菜单不存在: {}", id)))?;
+
         // 检查父节点和子节点的类型约束
         if request.parent_id != 0 {
             let parent =
                 MenuRepository::find_by_id(pool, request.parent_id).await?.ok_or_else(|| {
                     ServiceError::NotFound(format!("父级菜单不存在: {}", request.parent_id))
                 })?;
-            // 如果父级是目录，那么当前菜单只能是目录或菜单
-            // 1: 目录
-            // 2: 菜单
-            // 3: 按钮
             Self::check_type_constraint(parent.menu_type, request.menu_type)?;
         } else {
             // 如果父级菜单是0，那么当前菜单只能是目录或菜单
-            if request.menu_type != 1 && request.menu_type != 2 {
+            if request.menu_type != MenuType::Directory as i16
+                && request.menu_type != MenuType::Menu as i16
+            {
                 return Err(ServiceError::InvalidOperation(format!(
                     "父级菜单是根目录，当前菜单类型必须是目录或菜单"
                 )));
@@ -254,28 +298,20 @@ impl MenuService {
 
     /// 抽离公共的类型匹配逻辑
     fn check_type_constraint(parent_type: i16, child_type: i16) -> Result<(), ServiceError> {
-        match parent_type {
-            1 => {
-                // 目录
-                if child_type != 1 && child_type != 2 {
-                    return Err(ServiceError::InvalidOperation(
-                        "父级是目录，子级必须是目录或菜单".into(),
-                    ));
-                }
+        if parent_type == MenuType::Directory as i16 {
+            if child_type != MenuType::Directory as i16 && child_type != MenuType::Menu as i16 {
+                return Err(ServiceError::InvalidOperation(
+                    "父级是目录，子级必须是目录或菜单".into(),
+                ));
             }
-            2 => {
-                // 菜单
-                if child_type != 3 {
-                    return Err(ServiceError::InvalidOperation(
-                        "父级是菜单，子级必须是按钮".into(),
-                    ));
-                }
+        } else if parent_type == MenuType::Menu as i16 {
+            if child_type != MenuType::Button as i16 {
+                return Err(ServiceError::InvalidOperation("父级是菜单，子级必须是按钮".into()));
             }
-            3 => {
-                // 按钮
-                return Err(ServiceError::InvalidOperation("按钮不能作为父级".into()));
-            }
-            _ => return Err(ServiceError::InvalidOperation("未知的父级类型".into())),
+        } else if parent_type == MenuType::Button as i16 {
+            return Err(ServiceError::InvalidOperation("按钮不能作为父级".into()));
+        } else {
+            return Err(ServiceError::InvalidOperation("未知的父级类型".into()));
         }
         Ok(())
     }

@@ -68,11 +68,11 @@ async fn get_menu_list(
 ) -> AppResult<Vec<MenuItemResp>> {
     tracing::info!("Menu list request: {:?}", params);
 
-    let (menu_list, total) = MenuService::get_menu_list(&pool, params).await?;
+    let menu_tree = MenuService::get_menu_list(&pool, params).await?;
 
-    tracing::info!("Menu list retrieved: total={}, items={}", total, menu_list.len());
+    tracing::info!("Menu list retrieved: items={}", menu_tree.len());
 
-    Ok(ApiResponse::page(menu_list, total))
+    Ok(ApiResponse::success(menu_tree))
 }
 
 /// Create new menu

@@ -12,6 +12,7 @@ pub struct MenuListQuery {
     pub name: Option<String>,
     pub code: Option<String>,
     pub status: Option<String>,
+    pub menu_type: Option<i16>,
 }
 
 impl MenuRepository {
@@ -30,6 +31,9 @@ impl MenuRepository {
             if let Ok(status_num) = status.parse::<i16>() {
                 query_builder.push(" AND status = ").push_bind(status_num);
             }
+        }
+        if let Some(menu_type) = query.menu_type {
+            query_builder.push(" AND menu_type = ").push_bind(menu_type);
         }
     }
 
@@ -166,7 +170,7 @@ impl MenuRepository {
     /// Soft deletes a menu
     pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
         let result = sqlx::query(
-            "UPDATE menus SET deleted_at = $1, updated_at = $1 WHERE (id = $2 OR parent_id = $2) AND is_system = false AND deleted_at IS NULL"
+            "UPDATE menus SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND is_system = false AND deleted_at IS NULL"
         )
         .bind(Utc::now().naive_utc())
         .bind(id)

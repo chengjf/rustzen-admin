@@ -5,14 +5,9 @@ import { apiRequest, proTableRequest } from "@/api";
  */
 export const menuAPI = {
     getTableData: (params?: Menu.QueryParams) => {
-        return proTableRequest<Menu.Item, Menu.QueryParams>({
+        return apiRequest<Menu.Item[], Menu.QueryParams>({
             url: "/api/system/menus",
             params,
-        }).then((res) => {
-            return {
-                ...res,
-                data: buildMenuTree(res.data),
-            };
         });
     },
 
@@ -43,15 +38,3 @@ export const menuAPI = {
             params,
         }),
 };
-
-function buildMenuTree(list: Menu.Item[], parentId = 0): Menu.Item[] {
-    return list
-        .filter((item) => item.parentId === parentId)
-        .map((item) => {
-            const child = buildMenuTree(list, item.id);
-            return {
-                ...item,
-                children: child.length > 0 ? child : null,
-            };
-        });
-}

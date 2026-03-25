@@ -20,11 +20,19 @@ function MenuPage() {
     return (
         <ProTable<Menu.Item>
             rowKey="id"
-            search={false}
+            search={{
+                labelWidth: "auto",
+            }}
             scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="菜单管理"
             columns={columns}
-            request={menuAPI.getTableData}
+            request={async (params) => {
+                const res = await menuAPI.getTableData(params);
+                return {
+                    data: res,
+                    success: true,
+                };
+            }}
             actionRef={actionRef}
             pagination={false}
             toolBarRender={() => [
@@ -55,6 +63,7 @@ const columns: ProColumns<Menu.Item>[] = [
         title: "",
         dataIndex: "",
         width: 60,
+        hideInSearch: true,
     },
     {
         title: "名称",
@@ -76,6 +85,11 @@ const columns: ProColumns<Menu.Item>[] = [
         dataIndex: "menuType",
         width: 120,
         ellipsis: true,
+        valueEnum: {
+            1: { text: "目录", color: "cyan" },
+            2: { text: "菜单", color: "purple" },
+            3: { text: "按钮", color: "warning" },
+        },
         render: (_, record) => {
             const item = menuTypeEnum[record.menuType];
             return <Tag color={item.color}>{item.text}</Tag>;
@@ -98,6 +112,7 @@ const columns: ProColumns<Menu.Item>[] = [
         dataIndex: "sortOrder",
         width: 120,
         ellipsis: true,
+        hideInSearch: true,
     },
     {
         title: "更新时间",

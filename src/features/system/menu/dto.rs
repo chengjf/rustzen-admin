@@ -3,6 +3,21 @@ use serde::{Deserialize, Serialize};
 
 use super::model::MenuEntity;
 
+/// Menu type enum constants
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i16)]
+pub enum MenuType {
+    Directory = 1,
+    Menu = 2,
+    Button = 3,
+}
+
+impl From<MenuType> for i16 {
+    fn from(t: MenuType) -> Self {
+        t as i16
+    }
+}
+
 /// Create menu request parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +52,8 @@ pub struct MenuQuery {
     pub code: Option<String>,
     /// The status of the menu.
     pub status: Option<String>,
+    /// The type of the menu.
+    pub menu_type: Option<i16>,
 }
 
 /// Menu item for tree list display
