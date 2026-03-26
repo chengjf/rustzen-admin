@@ -99,6 +99,11 @@ interface RequestOptions<P = Api.BaseParams> extends RequestInit {
      * If true, disables all messages
      */
     silent?: boolean;
+
+    /**
+     * If true, skip success message
+     */
+    skipSuccessMsg?: boolean;
 }
 
 /**
@@ -119,9 +124,9 @@ const coreRequest = async <T, P>(options: RequestOptions<P>): Promise<Api.ApiRes
             config.method?.toLowerCase() || "",
         );
 
-        // 2. 允许单个接口通过配置“跳过”自动提示
+        // 2. 允许单个接口通过配置"跳过"自动提示
         // 在调用时传：menuAPI.create(data, { skipSuccessMsg: true })
-        const skipMsg = (config as any).skipSuccessMsg;
+        const skipMsg = options.skipSuccessMsg;
 
         if (isMutation && !skipMsg) {
             appMessage.success(result.message || "操作成功");

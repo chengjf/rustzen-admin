@@ -28,10 +28,9 @@ declare namespace Api {
     }
 
     // Option type
-    interface OptionItem {
+    interface OptionItem<T = number> {
         label: string;
-        value: string | number;
-        [key: string]: unknown;
+        value: T;
     }
 
     // Menu option item with code for permission grouping

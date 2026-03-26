@@ -25,12 +25,15 @@ export const useAuthStore = create<AuthState>()(
                 set({ token: params });
             },
             updateAvatar: (avatarUrl: string) => {
-                set({
-                    userInfo: {
-                        ...(get().userInfo as Auth.UserInfoResponse),
-                        avatarUrl,
-                    },
-                });
+                const currentUserInfo = get().userInfo;
+                if (currentUserInfo) {
+                    set({
+                        userInfo: {
+                            ...currentUserInfo,
+                            avatarUrl,
+                        },
+                    });
+                }
             },
             updateUserInfo: (params: Auth.UserInfoResponse) => {
                 set({ userInfo: params });

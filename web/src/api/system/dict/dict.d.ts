@@ -6,7 +6,10 @@ declare namespace Dict {
         dictType: string;
         label: string;
         value: string;
-        isDefault: boolean;
+        status: number;
+        description: string;
+        sortOrder: number;
+        updatedAt: string;
     }
 
     // 查询参数

@@ -17,10 +17,10 @@ declare namespace User {
         id: number;
         username: string;
         email: string;
-        realName?: string;
-        avatarUrl?: string;
+        realName: string | null;
+        avatarUrl: string | null;
         status: Status;
-        lastLoginAt?: string;
+        lastLoginAt: string | null;
         createdAt: string;
         updatedAt: string;
         roles: Api.OptionItem<number>[];

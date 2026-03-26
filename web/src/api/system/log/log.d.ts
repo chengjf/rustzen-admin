@@ -6,8 +6,8 @@ declare namespace Log {
         userId: number;
         username: string;
         action: Action;
-        description?: string;
-        data?: string;
+        description: string | null;
+        data: unknown;
         status: string;
         durationMs: number;
         ipAddress: string;

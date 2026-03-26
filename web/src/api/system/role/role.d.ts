@@ -6,17 +6,18 @@ declare namespace Role {
         Disabled = 2,
     }
 
-    // 角色基本信息 - 更新为与后端一致
+    // 角色基本信息 - 与后端一致
     interface Item {
         id: number;
         name: string;
         code: string;
-        description?: string;
+        description: string | null;
         status: Status;
-        sortOrder?: number;
+        sortOrder: number;
         createdAt: string;
         updatedAt: string;
         menus: Api.OptionItem<number>[];
+        isSystem: boolean;
     }
 
     // 查询参数

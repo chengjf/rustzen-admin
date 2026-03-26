@@ -9,19 +9,7 @@ import {
     type ProColumns,
 } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-    Form,
-    Space,
-    Tree,
-    Typography,
-    Checkbox,
-    Card,
-    Empty,
-    Row,
-    Col,
-    Spin,
-    Button,
-} from "antd";
+import { Form, Space, Tree, Typography, Checkbox, Card, Empty, Row, Col, Spin, Button } from "antd";
 import { useRef, useMemo, useState } from "react";
 
 import { menuAPI } from "@/api/system/menu";

@@ -197,9 +197,9 @@ const MenuModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await menuAPI.create(values as Menu.CreateAndUpdateRequest);
+                    await menuAPI.create(values);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await menuAPI.update(initialValues.id, values as Menu.CreateAndUpdateRequest);
+                    await menuAPI.update(initialValues.id, values);
                 }
                 onSuccess?.();
                 return true;

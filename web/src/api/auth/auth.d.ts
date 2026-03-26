@@ -17,8 +17,9 @@ declare namespace Auth {
     interface UserInfoResponse {
         id: number;
         username: string;
-        realName?: string;
-        avatarUrl?: string;
+        realName: string | null;
+        avatarUrl: string | null;
+        email: string | null;
         permissions: string[];
         isSystem: boolean;
     }
