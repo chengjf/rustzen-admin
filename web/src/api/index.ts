@@ -173,13 +173,22 @@ const handleError = async (error: unknown) => {
     if (error instanceof DOMException && error.name === "AbortError") {
         console.warn("Request aborted");
     } else if (statusCode === 401) {
+        let errorMsg = "会话过期，请重新登录";
+        try {
+            const errorData = await response.json();
+            if (errorData.message) {
+                errorMsg = errorData.message;
+            }
+        } catch {
+            // 无法解析，使用默认消息
+        }
         useAuthStore.getState().clearAuth();
         requestPool.forEach((controller) => {
             if (!controller.signal.aborted) {
                 controller.abort();
             }
         });
-        appMessage.error("会话过期，请重新登录");
+        appMessage.error(errorMsg);
     } else if (statusCode >= 500) {
         appMessage.error(`服务器错误：${response.statusText}`);
         return Promise.reject(new Error(response.statusText));

@@ -178,7 +178,7 @@ impl From<ServiceError> for AppError {
             ServiceError::InvalidToken => (
                 StatusCode::UNAUTHORIZED,
                 30000, // System-Auth-01
-                "令牌无效或已期，请重新登录".into(),
+                "令牌无效或过期，请重新登录".into(),
             ),
             ServiceError::PermissionDenied => (
                 StatusCode::FORBIDDEN,

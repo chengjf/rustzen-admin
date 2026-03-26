@@ -42,3 +42,11 @@ pub struct UserInfoResp {
     /// List of permission codes the user has access to
     pub permissions: Vec<String>,
 }
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ChangePasswordPayload {
+    pub old_password: String,
+    pub new_password: String,
+}

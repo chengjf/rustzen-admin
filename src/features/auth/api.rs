@@ -8,14 +8,17 @@ use crate::{
         files::save_avatar,
     },
     core::{extractor::CurrentUser, permission::PermissionService},
-    features::system::log::service::LogService,
+    features::{
+        auth::dto::ChangePasswordPayload,
+        system::{log::service::LogService, user::service::UserService},
+    },
 };
 
 use axum::{
     Json, Router,
     extract::{ConnectInfo, Multipart, State},
     http::HeaderMap,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use sqlx::PgPool;
 use std::{net::SocketAddr, time::Instant};
@@ -31,6 +34,7 @@ pub fn protected_auth_routes() -> Router<PgPool> {
         .route("/me", get(get_login_info_handler))
         .route("/logout", get(logout_handler))
         .route("/avatar", post(update_avatar))
+        .route("/self/password", put(change_password_self))
 }
 
 /// Login with username/password
@@ -133,4 +137,18 @@ async fn update_avatar(
     AuthService::update_avatar(&pool, current_user.user_id, &avatar_url).await?;
 
     Ok(ApiResponse::success(avatar_url))
+}
+
+#[tracing::instrument(name = "change_password_self", skip(pool, dto, current_user))]
+pub async fn change_password_self(
+    State(pool): State<PgPool>,
+    current_user: CurrentUser,
+    Json(dto): Json<ChangePasswordPayload>,
+) -> AppResult<()> {
+    tracing::info!("User {} changing password", current_user.user_id);
+
+    AuthService::change_password(&pool, current_user.user_id, dto).await?;
+
+    tracing::info!("Password changed successfully for user {}", current_user.user_id);
+    Ok(ApiResponse::success(()))
 }

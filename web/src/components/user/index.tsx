@@ -8,6 +8,7 @@ import { UserAvatar } from "./avatar";
 export const UserProfileModal = () => {
     const { userInfo } = useAuthStore();
     const [form] = Form.useForm();
+
     return (
         <ModalForm
             readonly

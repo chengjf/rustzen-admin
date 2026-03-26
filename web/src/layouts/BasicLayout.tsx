@@ -1,4 +1,4 @@
-import { DashboardOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
+import { DashboardOutlined, DownOutlined, KeyOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { ProLayout } from "@ant-design/pro-components";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import type { MenuProps } from "antd";
@@ -6,7 +6,8 @@ import { Dropdown } from "antd";
 
 import { appMessage } from "@/api";
 import { authAPI } from "@/api/auth";
-import { UserProfileModal } from "@/components/user";
+import { ChangePasswordModal } from "@/components/user/ChangePasswordModal";
+import { UserProfileModal } from "@/components/user/index";
 import { getMenuData } from "@/layouts";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -31,6 +32,11 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
             key: "profile",
             icon: <UserOutlined />,
             label: <UserProfileModal />,
+        },
+        {
+            key: "changePassword",
+            icon: <KeyOutlined />,
+            label: <ChangePasswordModal />,
         },
         {
             type: "divider",
@@ -74,9 +80,19 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
             avatarProps={{
                 src: userInfo?.avatarUrl,
                 size: "small",
-                title: userInfo?.realName || userInfo?.username,
+                title: null,
                 render: (_props, dom) => {
-                    return <Dropdown menu={{ items: userMenuItems }}>{dom}</Dropdown>;
+                    return (
+                        <Dropdown menu={{ items: userMenuItems }}>
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors">
+                                {dom}
+                                <span className="text-sm font-medium text-gray-700">
+                                    {userInfo?.realName || userInfo?.username}
+                                </span>
+                                <DownOutlined className="text-xs text-gray-500" />
+                            </div>
+                        </Dropdown>
+                    );
                 },
             }}
         >

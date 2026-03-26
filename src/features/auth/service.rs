@@ -10,6 +10,7 @@ use crate::{
         password::PasswordUtils,
         permission::PermissionService,
     },
+    features::{auth::dto::ChangePasswordPayload, system::user::repo::UserRepository},
 };
 
 use sqlx::PgPool;
@@ -223,6 +224,26 @@ impl AuthService {
         tracing::info!("Updating avatar for user_id: {}", user_id);
         AuthRepository::update_avatar(pool, user_id, avatar_url).await?;
         tracing::info!("Avatar updated successfully for user_id: {}", user_id);
+        Ok(())
+    }
+
+    pub async fn change_password(
+        pool: &PgPool,
+        user_id: i64,
+        dto: ChangePasswordPayload,
+    ) -> Result<(), ServiceError> {
+        tracing::debug!("Changing password for user ID: {}", user_id);
+
+        let user = UserRepository::get_by_id(pool, user_id).await?;
+
+        if !PasswordUtils::verify_password(&dto.old_password, &user.password_hash) {
+            return Err(ServiceError::InvalidOperation("旧密码错误".to_string()));
+        }
+
+        let new_password_hash = PasswordUtils::hash_password(&dto.new_password)?;
+        UserRepository::update_user_password(pool, user_id, &new_password_hash).await?;
+
+        tracing::info!("Password changed successfully for user ID: {}", user_id);
         Ok(())
     }
 }
