@@ -1,37 +1,44 @@
 import { apiRequest, proTableRequest } from "@/api";
+import type {
+    DictItemResp,
+    DictQuery,
+    CreateDictDto,
+    UpdateDictPayload,
+    OptionItem,
+} from "@/api/types";
 
 /**
  * 字典管理API服务
  */
 export const dictAPI = {
-    getTableData: (params?: Dict.QueryParams) =>
-        proTableRequest<Dict.Item, Dict.QueryParams>({
+    getTableData: (params?: Partial<DictQuery>) =>
+        proTableRequest<DictItemResp, Partial<DictQuery>>({
             url: "/api/system/dicts",
             params,
         }),
 
-    create: (data: Dict.CreateRequest) =>
-        apiRequest<Dict.Item, Dict.CreateRequest>({
+    create: (data: CreateDictDto) =>
+        apiRequest<DictItemResp, CreateDictDto>({
             url: "/api/system/dicts",
             method: "POST",
             params: data,
         }),
 
-    update: (id: number, data: Dict.UpdateRequest) =>
-        apiRequest<Dict.Item, Dict.UpdateRequest>({
+    update: (id: number, data: UpdateDictPayload) =>
+        apiRequest<DictItemResp, UpdateDictPayload>({
             url: `/api/system/dicts/${id}`,
             method: "PUT",
             params: data,
         }),
 
     delete: (id: number) =>
-        apiRequest<void, Dict.QueryParams>({
+        apiRequest<void>({
             url: `/api/system/dicts/${id}`,
             method: "DELETE",
         }),
 
-    getOptions: () => apiRequest<Api.OptionItem[]>({ url: "/api/system/dicts/options" }),
+    getOptions: () => apiRequest<OptionItem<string>[]>({ url: "/api/system/dicts/options" }),
 
     getOptionsByType: (type: string) =>
-        apiRequest<Dict.Item[]>({ url: `/api/system/dicts/type/${type}` }),
+        apiRequest<DictItemResp[]>({ url: `/api/system/dicts/type/${type}` }),
 };

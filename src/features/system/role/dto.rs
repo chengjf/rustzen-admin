@@ -1,13 +1,15 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::common::api::OptionItem;
 
 use super::model::RoleWithMenuEntity;
 
 /// Create and update role request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct CreateRoleDto {
     pub name: String,
     pub code: String,
@@ -18,8 +20,9 @@ pub struct CreateRoleDto {
 }
 
 /// Update role request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UpdateRolePayload {
     pub name: String,
     pub code: String,
@@ -30,8 +33,9 @@ pub struct UpdateRolePayload {
 }
 
 /// Role list query parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct RoleQuery {
     /// The page number to retrieve. Defaults to 1.
     pub current: Option<i64>,
@@ -46,8 +50,9 @@ pub struct RoleQuery {
 }
 
 /// Role item for list display
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct RoleItemResp {
     pub id: i64,
     pub name: String,

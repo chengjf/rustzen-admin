@@ -1,13 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { UserInfoResp } from "@/api/types";
 
 interface AuthState {
-    userInfo: Auth.UserInfoResponse | null;
+    userInfo: UserInfoResp | null;
     token: string | null;
-    handleLogin: (token: string, userInfo: Auth.UserInfoResponse) => void;
+    handleLogin: (token: string, userInfo: UserInfoResp) => void;
     updateToken: (params: string) => void;
     updateAvatar: (avatarUrl: string) => void;
-    updateUserInfo: (params: Auth.UserInfoResponse) => void;
+    updateUserInfo: (params: UserInfoResp) => void;
     clearAuth: () => void;
     checkPermissions: (code: string) => boolean;
     checkMenuPermissions: (path: string) => boolean;
@@ -35,7 +36,7 @@ export const useAuthStore = create<AuthState>()(
                     });
                 }
             },
-            updateUserInfo: (params: Auth.UserInfoResponse) => {
+            updateUserInfo: (params: UserInfoResp) => {
                 set({ userInfo: params });
             },
 

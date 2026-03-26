@@ -1,11 +1,12 @@
 import { apiDownload, proTableRequest } from "@/api";
+import type { LogItemResp, LogQuery } from "@/api/types";
 
 /**
  * 日志管理API服务
  */
 export const logAPI = {
-    getTableData: (params?: Log.QueryParams) =>
-        proTableRequest<Log.Item, Log.QueryParams>({
+    getTableData: (params?: Partial<LogQuery>) =>
+        proTableRequest<LogItemResp, Partial<LogQuery>>({
             url: "/api/system/logs",
             params,
         }),

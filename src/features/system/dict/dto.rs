@@ -1,11 +1,13 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use super::model::DictEntity;
 
 /// Create dictionary item request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct CreateDictDto {
     /// The type of the dictionary, used to group related items (e.g., "user_status").
     pub dict_type: String,
@@ -22,8 +24,9 @@ pub struct CreateDictDto {
 }
 
 /// Update dictionary item request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UpdateDictPayload {
     pub dict_type: String,
     pub label: String,
@@ -33,8 +36,9 @@ pub struct UpdateDictPayload {
     pub sort_order: Option<i32>,
 }
 /// Dictionary query parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct DictQuery {
     /// The page number to retrieve. Defaults to 1.
     pub current: Option<i64>,
@@ -51,14 +55,16 @@ pub struct DictQuery {
 }
 
 /// Updates the status of a dictionary item.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
+#[ts(export)]
 pub struct UpdateDictStatusPayload {
     pub status: i16,
 }
 
 /// Dictionary item for list display
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct DictItemResp {
     pub id: i64,
     /// The type of the dictionary, used to group related items (e.g., "user_status").

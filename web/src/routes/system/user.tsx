@@ -7,6 +7,7 @@ import React, { useRef } from "react";
 
 import { roleAPI } from "@/api/system/role";
 import { userAPI } from "@/api/system/user";
+import type { UserItemResp, CreateUserDto, UpdateUserPayload } from "@/api/types";
 import { AuthConfirm, AuthWrap } from "@/components/auth";
 import { MoreButton } from "@/components/button";
 import { useApiQuery } from "@/integrations/react-query";
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/system/user")({
 function UserPage() {
     const actionRef = useRef<ActionType>(null);
     return (
-        <ProTable<User.Item>
+        <ProTable<UserItemResp>
             rowKey="id"
             scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle="用户列表"
@@ -46,7 +47,7 @@ function UserPage() {
     );
 }
 
-const columns: ProColumns<User.Item>[] = [
+const columns: ProColumns<UserItemResp>[] = [
     {
         title: "ID",
         align: "center",
@@ -102,7 +103,7 @@ const columns: ProColumns<User.Item>[] = [
         align: "center",
         dataIndex: "roles",
         search: false,
-        render: (_: React.ReactNode, record: User.Item) =>
+        render: (_: React.ReactNode, record: UserItemResp) =>
             record.roles.map((role) => role.label).join(", "),
     },
     {
@@ -126,7 +127,7 @@ const columns: ProColumns<User.Item>[] = [
         align: "center",
         fixed: "right",
         search: false,
-        render: (_dom: React.ReactNode, entity: User.Item, _index, action?: ActionType) => {
+        render: (_dom: React.ReactNode, entity: UserItemResp, _index, action?: ActionType) => {
             const cur = useAuthStore.getState().userInfo;
             if (entity.id === cur?.id || entity.id === 1) {
                 // 不能操作当前用户或管理员
@@ -188,7 +189,7 @@ const columns: ProColumns<User.Item>[] = [
 ];
 
 interface UserModalFormProps {
-    initialValues?: Partial<User.Item>;
+    initialValues?: Partial<UserItemResp>;
     mode?: "create" | "edit";
     children: React.ReactNode;
     onSuccess?: () => void;
@@ -204,7 +205,7 @@ const UserModalForm = ({
     const { data: roleOptions } = useApiQuery("system/roles/options", roleAPI.getOptions);
 
     return (
-        <ModalForm<User.CreateRequest | User.UpdateRequest>
+        <ModalForm<CreateUserDto | UpdateUserPayload>
             form={form}
             width={500}
             layout="horizontal"
@@ -229,9 +230,9 @@ const UserModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await userAPI.create(values as User.CreateRequest);
+                    await userAPI.create(values as CreateUserDto);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await userAPI.update(initialValues.id, values as User.UpdateRequest);
+                    await userAPI.update(initialValues.id, values as UpdateUserPayload);
                 }
                 onSuccess?.();
                 form.resetFields();

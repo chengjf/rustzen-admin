@@ -12,6 +12,7 @@ use crate::common::{
 use chrono::Utc;
 use serde::Serialize;
 use sqlx::PgPool;
+use ts_rs::TS;
 
 pub struct MenuService;
 
@@ -350,8 +351,9 @@ impl MenuService {
 }
 
 /// Menu tree option item for permission selection
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct MenuTreeOption {
     pub label: String,
     pub value: i64,

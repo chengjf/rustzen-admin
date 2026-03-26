@@ -45,3 +45,6 @@ tokio-stream = "0.1.17"
 futures = "0.3.31"
 include_dir = "0.7.4"
 figment = { version = "0.10.19", features = ["env"] }
+
+# TypeScript type generation
+ts-rs = { version = "12.0", features = ["chrono-impl", "serde-json-impl"] }

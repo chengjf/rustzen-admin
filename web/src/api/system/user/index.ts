@@ -1,24 +1,33 @@
 import { apiRequest, proTableRequest } from "@/api";
+import type {
+    UserItemResp,
+    UserQuery,
+    CreateUserDto,
+    UpdateUserPayload,
+    UpdateUserPasswordPayload,
+    UpdateUserStatusPayload,
+    OptionItem,
+} from "@/api/types";
 
 /**
  * 用户管理API服务
  */
 export const userAPI = {
-    getTableData: (params?: User.QueryParams) =>
-        proTableRequest<User.Item, User.QueryParams>({
+    getTableData: (params?: Partial<UserQuery>) =>
+        proTableRequest<UserItemResp, Partial<UserQuery>>({
             url: "/api/system/users",
             params,
         }),
 
-    create: (data: User.CreateRequest) =>
-        apiRequest<User.Item, User.CreateRequest>({
+    create: (data: CreateUserDto) =>
+        apiRequest<UserItemResp, CreateUserDto>({
             url: "/api/system/users",
             method: "POST",
             params: data,
         }),
 
-    update: (id: number, data: User.UpdateRequest) =>
-        apiRequest<User.Item, User.UpdateRequest>({
+    update: (id: number, data: UpdateUserPayload) =>
+        apiRequest<UserItemResp, UpdateUserPayload>({
             url: `/api/system/users/${id}`,
             method: "PUT",
             params: data,
@@ -26,22 +35,22 @@ export const userAPI = {
 
     delete: (id: number) => apiRequest<void>({ url: `/api/system/users/${id}`, method: "DELETE" }),
 
-    updateStatus: (id: number, status: number) =>
-        apiRequest<void>({
+    updateStatus: (id: number, data: UpdateUserStatusPayload) =>
+        apiRequest<void, UpdateUserStatusPayload>({
             url: `/api/system/users/${id}/status`,
             method: "PUT",
-            params: { status },
+            params: data,
         }),
 
-    resetPassword: (id: number, password: string) =>
-        apiRequest<void>({
+    resetPassword: (id: number, data: UpdateUserPasswordPayload) =>
+        apiRequest<void, UpdateUserPasswordPayload>({
             url: `/api/system/users/${id}/password`,
             method: "PUT",
-            params: { password },
+            params: data,
         }),
 
     getStatusOptions: () =>
-        apiRequest<Api.OptionItem[]>({
+        apiRequest<OptionItem<string>[]>({
             url: "/api/system/users/status-options",
         }),
 };

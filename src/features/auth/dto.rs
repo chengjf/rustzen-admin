@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Request payload for user authentication.
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export)]
 pub struct LoginRequest {
     /// Username or email for authentication
     pub username: String,
@@ -10,8 +12,9 @@ pub struct LoginRequest {
 }
 
 /// Response payload for successful user login.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct LoginResp {
     /// JWT token for authenticating subsequent requests
     pub token: String,
@@ -20,8 +23,9 @@ pub struct LoginResp {
 }
 
 /// Comprehensive user information for authenticated sessions.
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UserInfoResp {
     /// Unique identifier of the user
     pub id: i64,

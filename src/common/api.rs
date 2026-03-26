@@ -3,11 +3,13 @@ use crate::common::error::AppError;
 
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 // --- API Response Structures ---
 /// A unified structure for successful API responses.
-#[derive(Debug, Serialize)]
-pub struct ApiResponse<T> {
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+pub struct ApiResponse<T: TS> {
     /// Business status code. 0 for success.
     pub code: i32,
     /// Response message.
@@ -19,7 +21,7 @@ pub struct ApiResponse<T> {
     pub total: Option<i64>,
 }
 
-impl<T: Serialize> ApiResponse<T> {
+impl<T: Serialize + TS> ApiResponse<T> {
     /// Creates a success response.
     pub fn success(data: T) -> Json<Self> {
         Json(Self { code: 0, message: "操作成功".to_string(), data, total: None })
@@ -27,7 +29,7 @@ impl<T: Serialize> ApiResponse<T> {
 }
 
 // 为 Vec 类型提供特殊实现
-impl<T: Serialize> ApiResponse<Vec<T>> {
+impl<T: Serialize + TS> ApiResponse<Vec<T>> {
     pub fn page(data: Vec<T>, total: i64) -> Json<Self> {
         Json(Self { code: 0, message: "操作成功".to_string(), data, total: Some(total) })
     }
@@ -47,21 +49,24 @@ pub type AppResult<T> = Result<Json<ApiResponse<T>>, AppError>;
 // }
 
 /// A generic structure for dropdown options.
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct OptionItem<T> {
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, TS)]
+#[ts(export)]
+pub struct OptionItem<T: TS> {
     pub label: String,
     pub value: T,
 }
 
 /// Query parameters for options endpoints
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
+#[ts(export)]
 pub struct OptionsQuery {
     pub q: Option<String>,
     pub limit: Option<i64>,
 }
 
 /// Query parameters for dict options endpoints
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
+#[ts(export)]
 pub struct DictOptionsQuery {
     pub dict_type: Option<String>,
     pub q: Option<String>,
@@ -69,7 +74,8 @@ pub struct DictOptionsQuery {
 }
 
 /// Query parameters for options with code endpoints
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
+#[ts(export)]
 pub struct OptionsWithCodeQuery {
     pub q: Option<String>,
     pub limit: Option<i64>,

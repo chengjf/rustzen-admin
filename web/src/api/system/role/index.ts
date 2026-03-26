@@ -1,24 +1,31 @@
 import { apiRequest, proTableRequest } from "@/api";
+import type {
+    RoleItemResp,
+    RoleQuery,
+    CreateRoleDto,
+    UpdateRolePayload,
+    OptionItem,
+} from "@/api/types";
 
 /**
  * 角色管理API服务
  */
 export const roleAPI = {
-    getTableData: (params?: Role.QueryParams) =>
-        proTableRequest<Role.Item, Role.QueryParams>({
+    getTableData: (params?: Partial<RoleQuery>) =>
+        proTableRequest<RoleItemResp, Partial<RoleQuery>>({
             url: "/api/system/roles",
             params,
         }),
 
-    create: (data: Role.CreateRequest) =>
-        apiRequest<Role.Item, Role.CreateRequest>({
+    create: (data: CreateRoleDto) =>
+        apiRequest<RoleItemResp, CreateRoleDto>({
             url: "/api/system/roles",
             method: "POST",
             params: data,
         }),
 
-    update: (id: number, data: Role.UpdateRequest) =>
-        apiRequest<Role.Item, Role.UpdateRequest>({
+    update: (id: number, data: UpdateRolePayload) =>
+        apiRequest<RoleItemResp, UpdateRolePayload>({
             url: `/api/system/roles/${id}`,
             method: "PUT",
             params: data,
@@ -26,5 +33,5 @@ export const roleAPI = {
 
     delete: (id: number) => apiRequest<void>({ url: `/api/system/roles/${id}`, method: "DELETE" }),
 
-    getOptions: () => apiRequest<Api.OptionItem[]>({ url: "/api/system/roles/options" }),
+    getOptions: () => apiRequest<OptionItem<number>[]>({ url: "/api/system/roles/options" }),
 };

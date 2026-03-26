@@ -40,3 +40,8 @@ init-db:
     sqlx database drop -y
     sqlx database create
     sqlx migrate run
+
+# Export TypeScript types from Rust
+export-types:
+    cargo test export_bindings
+    @echo "✅ TypeScript types exported to web/src/api/types/"

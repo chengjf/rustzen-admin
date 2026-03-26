@@ -1,11 +1,13 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use super::model::MenuEntity;
 
 /// Menu type enum constants
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, TS)]
 #[repr(i16)]
+#[ts(export)]
 pub enum MenuType {
     Directory = 1,
     Menu = 2,
@@ -19,8 +21,9 @@ impl From<MenuType> for i16 {
 }
 
 /// Create menu request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct CreateMenuDto {
     pub parent_id: i64,
     pub name: String,
@@ -31,8 +34,9 @@ pub struct CreateMenuDto {
 }
 
 /// Update menu request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UpdateMenuPayload {
     pub parent_id: i64,
     pub name: String,
@@ -43,8 +47,9 @@ pub struct UpdateMenuPayload {
 }
 
 /// Menu query parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct MenuQuery {
     /// The name of the menu.
     pub name: Option<String>,
@@ -57,8 +62,9 @@ pub struct MenuQuery {
 }
 
 /// Menu item for tree list display
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct MenuItemResp {
     pub id: i64,
     pub parent_id: i64,

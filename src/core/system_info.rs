@@ -2,9 +2,11 @@ use serde::Serialize;
 use std::collections::HashSet;
 use std::path::Path;
 use sysinfo::{Disk, Disks, System};
+use ts_rs::TS;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SystemInfo {
     pub memory_total: u64,
     pub memory_used: u64,

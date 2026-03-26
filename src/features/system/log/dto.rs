@@ -1,12 +1,14 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ts_rs::TS;
 
 use super::model::LogEntity;
 
 /// Log query parameters
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct LogQuery {
     pub current: Option<i64>,
     pub page_size: Option<i64>,
@@ -17,8 +19,9 @@ pub struct LogQuery {
 }
 
 /// Log item for list display
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct LogItemResp {
     pub id: i64,
     pub user_id: i64,

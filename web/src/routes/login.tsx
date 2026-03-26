@@ -5,6 +5,7 @@ import { Button, Card, Form, Input, Typography } from "antd";
 import { useTransition } from "react";
 
 import { authAPI } from "@/api/auth";
+import type { LoginRequest } from "@/api/types";
 import { useAuthStore } from "@/stores/useAuthStore";
 export const Route = createFileRoute("/login")({
     component: () => <LoginPage />,
@@ -14,7 +15,7 @@ function LoginPage() {
     const navigate = useNavigate();
     const [isPending, startTransition] = useTransition();
     const { handleLogin } = useAuthStore();
-    const onLogin = async (values: Auth.LoginRequest) => {
+    const onLogin = async (values: LoginRequest) => {
         startTransition(async () => {
             try {
                 const res = await authAPI.login(values);

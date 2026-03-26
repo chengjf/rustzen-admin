@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button, Segmented, Tag } from "antd";
 
 import { logAPI } from "@/api/system/log";
+import type { LogItemResp } from "@/api/types";
 import { AuthWrap } from "@/components/auth";
 import { useLocalStore } from "@/stores/useLocalStore";
 
@@ -21,7 +22,7 @@ const actionOptions = [
 function LogPage() {
     const [actionType, setActionType] = useLocalStore("log-action");
     return (
-        <ProTable<Log.Item>
+        <ProTable<LogItemResp>
             rowKey="id"
             scroll={{ y: "calc(100vh - 383px)" }}
             columns={columns}
@@ -53,14 +54,14 @@ function LogPage() {
     );
 }
 
-const actionColorMap: Record<Log.Action, string> = {
+const actionColorMap: Record<string, string> = {
     HTTP_GET: "default",
     HTTP_POST: "processing",
     HTTP_PUT: "warning",
     HTTP_DELETE: "error",
     AUTH_LOGIN: "success",
 };
-const columns: ProColumns<Log.Item>[] = [
+const columns: ProColumns<LogItemResp>[] = [
     {
         title: "ID",
         dataIndex: "id",

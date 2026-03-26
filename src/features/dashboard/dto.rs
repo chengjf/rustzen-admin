@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct StatsResp {
     pub total_users: i64,
     pub active_users: i64,
@@ -10,23 +12,26 @@ pub struct StatsResp {
     pub pending_users: i64,
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SystemMetricsDataResp {
     pub avg_response_time: i64,
     pub error_rate: f64,
     pub total_requests: i64,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Default, Serialize, Deserialize, sqlx::FromRow, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct TrendResp {
     pub date: Option<String>,
     pub count: Option<i64>,
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UserTrendsResp {
     pub daily_logins: Vec<TrendResp>,
     pub hourly_active: Vec<TrendResp>,

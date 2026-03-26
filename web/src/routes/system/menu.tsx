@@ -7,6 +7,7 @@ import { Form } from "antd";
 import React, { useRef } from "react";
 
 import { menuAPI } from "@/api/system/menu";
+import type { MenuItemResp, MenuQuery, CreateMenuDto, UpdateMenuPayload, MenuTreeOption } from "@/api/types";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/constant/options";
 
@@ -18,7 +19,7 @@ function MenuPage() {
     const actionRef = useRef<ActionType>(null);
 
     return (
-        <ProTable<Menu.Item>
+        <ProTable<MenuItemResp>
             rowKey="id"
             search={{
                 labelWidth: "auto",
@@ -27,7 +28,7 @@ function MenuPage() {
             headerTitle="菜单管理"
             columns={columns}
             request={async (params) => {
-                const res = await menuAPI.getTableData(params as Menu.QueryParams);
+                const res = await menuAPI.getTableData(params as Partial<MenuQuery>);
                 return {
                     data: res,
                     success: true,
@@ -58,7 +59,7 @@ const menuTypeEnum: Record<number, { text: string; color: string }> = {
     3: { text: "按钮", color: "warning" },
 };
 
-const columns: ProColumns<Menu.Item>[] = [
+const columns: ProColumns<MenuItemResp>[] = [
     {
         title: "",
         dataIndex: "",
@@ -128,7 +129,7 @@ const columns: ProColumns<Menu.Item>[] = [
         key: "action",
         width: 200,
         fixed: "right",
-        render: (_dom: React.ReactNode, entity: Menu.Item, _index, action?: ActionType) => (
+        render: (_dom: React.ReactNode, entity: MenuItemResp, _index, action?: ActionType) => (
             <Space size="middle">
                 <AuthWrap code="system:menu:update">
                     <MenuModalForm
@@ -159,7 +160,7 @@ const columns: ProColumns<Menu.Item>[] = [
 ];
 
 interface MenuModalFormProps {
-    initialValues?: Partial<Menu.Item>;
+    initialValues?: Partial<MenuItemResp>;
     mode?: "create" | "edit";
     children: React.ReactNode;
     onSuccess?: () => void;
@@ -174,7 +175,7 @@ const MenuModalForm = ({
     const [form] = Form.useForm();
 
     return (
-        <ModalForm<Menu.CreateAndUpdateRequest>
+        <ModalForm<CreateMenuDto | UpdateMenuPayload>
             form={form}
             width={600}
             layout="horizontal"
@@ -213,7 +214,7 @@ const MenuModalForm = ({
                     const res = await menuAPI.getOptionsWithCode({ btn_filter: true });
                     // 添加默认根节点id为0
                     console.log(res);
-                    let root = { label: "根菜单", value: 0, children: [] as Api.MenuTreeOption[] };
+                    let root = { label: "根菜单", value: 0, children: [] as MenuTreeOption[] };
                     // 过滤点menuType为3的，递归children
 
                     // 将res中的parentId为0的项添加到root的children中

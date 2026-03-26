@@ -1,13 +1,15 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::common::api::OptionItem;
 
 use super::model::UserWithRolesEntity;
 
 /// Create user request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct CreateUserDto {
     pub username: String,
     pub email: String,
@@ -21,8 +23,9 @@ pub struct CreateUserDto {
 }
 
 /// Update user request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UpdateUserPayload {
     pub email: String,
     pub real_name: Option<String>,
@@ -31,8 +34,9 @@ pub struct UpdateUserPayload {
 }
 
 /// User list query parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UserQuery {
     /// The page number to retrieve. Defaults to 1.
     pub current: Option<i64>,
@@ -49,8 +53,9 @@ pub struct UserQuery {
 }
 
 /// User options query parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UserOptionsQuery {
     /// Search keyword
     pub q: Option<String>,
@@ -60,21 +65,24 @@ pub struct UserOptionsQuery {
     pub status: Option<i16>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UpdateUserPasswordPayload {
     pub password: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UpdateUserStatusPayload {
     pub status: i16,
 }
 
 /// User item for list display
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct UserItemResp {
     pub id: i64,
     pub username: String,

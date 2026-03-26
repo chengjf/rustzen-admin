@@ -14,6 +14,7 @@ import { useRef, useMemo, useState } from "react";
 
 import { menuAPI } from "@/api/system/menu";
 import { roleAPI } from "@/api/system/role";
+import type { RoleItemResp } from "@/api/types";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 import { ENABLE_OPTIONS } from "@/constant/options";
 
@@ -51,7 +52,7 @@ const calculateFinalIds = (checkedIds: number[], flatMap: Map<number, any>) => {
 
 function RolePage() {
     const actionRef = useRef<ActionType>(null);
-    const columns: ProColumns<Role.Item>[] = useMemo(
+    const columns: ProColumns<RoleItemResp>[] = useMemo(
         () => [
             { title: "ID", dataIndex: "id", width: 60, align: "center", search: false },
             { title: "角色名称", dataIndex: "name", width: 150, align: "center" },
@@ -100,7 +101,7 @@ function RolePage() {
     );
 
     return (
-        <ProTable<Role.Item>
+        <ProTable<RoleItemResp>
             rowKey="id"
             columns={columns}
             request={roleAPI.getTableData}

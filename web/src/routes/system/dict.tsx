@@ -7,6 +7,7 @@ import { Button, Space, Tag } from "antd";
 import React, { useRef } from "react";
 
 import { dictAPI } from "@/api/system/dict";
+import type { DictItemResp, CreateDictDto, UpdateDictPayload } from "@/api/types";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 
 export const Route = createFileRoute("/system/dict")({
@@ -17,7 +18,7 @@ function DictPage() {
     const actionRef = useRef<ActionType>(null);
 
     return (
-        <ProTable<Dict.Item>
+        <ProTable<DictItemResp>
             rowKey="id"
             search={false}
             scroll={{ y: "calc(100vh - 287px)" }}
@@ -41,7 +42,7 @@ function DictPage() {
     );
 }
 
-const columns: ProColumns<Dict.Item>[] = [
+const columns: ProColumns<DictItemResp>[] = [
     {
         title: "ID",
         dataIndex: "id",
@@ -81,7 +82,7 @@ const columns: ProColumns<Dict.Item>[] = [
         key: "action",
         width: 200,
         fixed: "right",
-        render: (_dom: React.ReactNode, entity: Dict.Item, _index, action?: ActionType) => (
+        render: (_dom: React.ReactNode, entity: DictItemResp, _index, action?: ActionType) => (
             <Space size="middle">
                 <AuthWrap code="system:dict:update">
                     <DictModalForm
@@ -111,7 +112,7 @@ const columns: ProColumns<Dict.Item>[] = [
 ];
 
 interface DictModalFormProps {
-    initialValues?: Partial<Dict.Item>;
+    initialValues?: Partial<DictItemResp>;
     mode?: "create" | "edit";
     children: React.ReactNode;
     onSuccess?: () => void;
@@ -126,7 +127,7 @@ const DictModalForm = ({
     const [form] = Form.useForm();
 
     return (
-        <ModalForm<Dict.CreateRequest | Dict.UpdateRequest>
+        <ModalForm<CreateDictDto | UpdateDictPayload>
             form={form}
             width={500}
             layout="horizontal"
@@ -149,9 +150,9 @@ const DictModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await dictAPI.create(values as Dict.CreateRequest);
+                    await dictAPI.create(values as CreateDictDto);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await dictAPI.update(initialValues.id, values as Dict.UpdateRequest);
+                    await dictAPI.update(initialValues.id, values as UpdateDictPayload);
                 }
                 onSuccess?.();
                 return true;
