@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button, Segmented, Tag } from "antd";
 
 import { logAPI } from "@/api/system/log";
-import type { LogItemResp } from "@/api/types";
+import type { LogItemResp } from "@/api/types/LogItemResp";
 import { AuthWrap } from "@/components/auth";
 import { useLocalStore } from "@/stores/useLocalStore";
 
@@ -22,35 +22,37 @@ const actionOptions = [
 function LogPage() {
     const [actionType, setActionType] = useLocalStore("log-action");
     return (
-        <ProTable<LogItemResp>
-            rowKey="id"
-            scroll={{ y: "calc(100vh - 383px)" }}
-            columns={columns}
-            params={{ action: actionType }}
-            request={logAPI.getTableData}
-            headerTitle={
-                <Segmented
-                    value={actionType}
-                    options={actionOptions}
-                    onChange={(val) => {
-                        setActionType(val);
-                    }}
-                />
-            }
-            toolBarRender={() => [
-                <AuthWrap code="system:log:export">
-                    <Button
-                        key="export"
-                        type="primary"
-                        onClick={() => {
-                            logAPI.exportLogList();
+        <AuthWrap code="system:log:list">
+            <ProTable<LogItemResp>
+                rowKey="id"
+                scroll={{ y: "calc(100vh - 383px)" }}
+                columns={columns}
+                params={{ action: actionType }}
+                request={logAPI.getTableData}
+                headerTitle={
+                    <Segmented
+                        value={actionType}
+                        options={actionOptions}
+                        onChange={(val) => {
+                            setActionType(val);
                         }}
-                    >
-                        导出
-                    </Button>
-                </AuthWrap>,
-            ]}
-        />
+                    />
+                }
+                toolBarRender={() => [
+                    <AuthWrap code="system:log:export">
+                        <Button
+                            key="export"
+                            type="primary"
+                            onClick={() => {
+                                logAPI.exportLogList();
+                            }}
+                        >
+                            导出
+                        </Button>
+                    </AuthWrap>,
+                ]}
+            />
+        </AuthWrap>
     );
 }
 

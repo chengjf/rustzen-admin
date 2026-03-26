@@ -2,12 +2,14 @@ import type { ActionType, ProColumns } from "@ant-design/pro-components";
 import { ProTable } from "@ant-design/pro-components";
 import { ModalForm, ProFormSelect, ProFormText } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Space, Form } from "antd";
-import React, { useRef } from "react";
+import { Button, Form, Modal, Space, Typography } from "antd";
+import React, { useMemo, useRef, useState } from "react";
 
 import { roleAPI } from "@/api/system/role";
 import { userAPI } from "@/api/system/user";
-import type { UserItemResp, CreateUserDto, UpdateUserPayload } from "@/api/types";
+import type { UserItemResp } from "@/api/types/UserItemResp";
+import type { CreateUserDto } from "@/api/types/CreateUserDto";
+import type { UpdateUserPayload } from "@/api/types/UpdateUserPayload";
 import { AuthConfirm, AuthWrap } from "@/components/auth";
 import { MoreButton } from "@/components/button";
 import { useApiQuery } from "@/integrations/react-query";
@@ -19,174 +21,196 @@ export const Route = createFileRoute("/system/user")({
 
 function UserPage() {
     const actionRef = useRef<ActionType>(null);
+    const [passwordModal, setPasswordModal] = useState({ open: false, password: "" });
+
+    const columns: ProColumns<UserItemResp>[] = useMemo(
+        () => [
+            {
+                title: "ID",
+                align: "center",
+                dataIndex: "id",
+                width: 48,
+                search: false,
+            },
+            {
+                title: "头像",
+                align: "center",
+                dataIndex: "avatarUrl",
+                width: 60,
+                search: false,
+                render: (_: unknown, record: UserItemResp) => {
+                    if (!record.avatarUrl) {
+                        return null;
+                    }
+                    return (
+                        <img
+                            src={record.avatarUrl}
+                            alt="头像"
+                            className="object-fit mx-auto h-5 w-5 rounded-full"
+                        />
+                    );
+                },
+            },
+            {
+                title: "用户名",
+                align: "center",
+                dataIndex: "username",
+            },
+            {
+                title: "邮箱",
+                align: "center",
+                dataIndex: "email",
+            },
+            {
+                title: "真实姓名",
+                align: "center",
+                dataIndex: "realName",
+            },
+            {
+                title: "状态",
+                align: "center",
+                dataIndex: "status",
+                valueEnum: {
+                    1: { text: "启用", status: "Success" },
+                    2: { text: "禁用", status: "Default" },
+                },
+            },
+            {
+                title: "角色",
+                align: "center",
+                dataIndex: "roles",
+                search: false,
+                render: (_: React.ReactNode, record: UserItemResp) =>
+                    record.roles.map((role: { label: string }) => role.label).join(", "),
+            },
+            {
+                title: "最后登录时间",
+                align: "center",
+                dataIndex: "lastLoginAt",
+                valueType: "dateTime",
+                search: false,
+            },
+            {
+                title: "更新时间",
+                align: "center",
+                dataIndex: "updatedAt",
+                valueType: "dateTime",
+                search: false,
+            },
+            {
+                title: "操作",
+                key: "action",
+                width: 200,
+                align: "center",
+                fixed: "right",
+                search: false,
+                render: (_dom: React.ReactNode, entity: UserItemResp, _index: number, action?: ActionType) => {
+                    const cur = useAuthStore.getState().userInfo;
+                    if (entity.id === cur?.id || entity.id === 1) {
+                        return null;
+                    }
+                    const status = entity.status === 1 ? "禁用" : "启用";
+                    return (
+                        <Space size="middle">
+                            <AuthWrap code="system:user:update">
+                                <UserModalForm
+                                    mode={"edit"}
+                                    initialValues={entity}
+                                    onSuccess={action?.reload}
+                                >
+                                    <a>编辑</a>
+                                </UserModalForm>
+                            </AuthWrap>
+                            <MoreButton>
+                                <AuthConfirm
+                                    key="status"
+                                    code="system:user:status"
+                                    title={`确定要${status}此用户吗？`}
+                                    children={status}
+                                    onConfirm={async () => {
+                                        await userAPI.updateStatus(entity.id, { status: entity.status === 1 ? 2 : 1 });
+                                        void action?.reload();
+                                    }}
+                                />
+                                <AuthConfirm
+                                    key="password"
+                                    code="system:user:password"
+                                    title="确定要重置此用户的密码吗？"
+                                    children="重置密码"
+                                    onConfirm={async () => {
+                                        const res = await userAPI.resetPassword(entity.id);
+                                        void action?.reload();
+                                        setPasswordModal({ open: true, password: res.password });
+                                    }}
+                                />
+                                <AuthConfirm
+                                    key="delete"
+                                    code="system:user:delete"
+                                    title="确定要删除此用户吗？"
+                                    className="text-red-500"
+                                    children="删除用户"
+                                    onConfirm={async () => {
+                                        await userAPI.delete(entity.id);
+                                        await action?.reload();
+                                    }}
+                                />
+                            </MoreButton>
+                        </Space>
+                    );
+                },
+            },
+        ],
+        [],
+    );
+
     return (
-        <ProTable<UserItemResp>
-            rowKey="id"
-            scroll={{ y: "calc(100vh - 383px)" }}
-            headerTitle="用户列表"
-            columns={columns}
-            request={userAPI.getTableData}
-            actionRef={actionRef}
-            search={{ span: 6 }}
-            toolBarRender={() => [
-                <AuthWrap code="system:user:create">
-                    <UserModalForm
-                        mode={"create"}
-                        onSuccess={() => {
-                            void actionRef.current?.reload();
-                        }}
-                        initialValues={{
-                            status: 1,
-                        }}
-                    >
-                        <Button type="primary">创建用户</Button>
-                    </UserModalForm>
-                </AuthWrap>,
-            ]}
-        />
+        <>
+            <AuthWrap code="system:user:list">
+                <ProTable<UserItemResp>
+                    rowKey="id"
+                    scroll={{ y: "calc(100vh - 383px)" }}
+                    headerTitle="用户列表"
+                    columns={columns}
+                    request={userAPI.getTableData}
+                    actionRef={actionRef}
+                    search={{ span: 6 }}
+                    toolBarRender={() => [
+                        <AuthWrap code="system:user:create">
+                        <UserModalForm
+                            mode={"create"}
+                            onSuccess={() => {
+                                void actionRef.current?.reload();
+                            }}
+                            initialValues={{
+                                status: 1,
+                            }}
+                        >
+                            <Button type="primary">创建用户</Button>
+                        </UserModalForm>
+                    </AuthWrap>,
+                ]}
+                />
+            </AuthWrap>
+            <Modal
+                title="密码重置成功"
+                open={passwordModal.open}
+                onOk={() => setPasswordModal({ open: false, password: "" })}
+                onCancel={() => setPasswordModal({ open: false, password: "" })}
+                okText="关闭"
+                cancelButtonProps={{ style: { display: "none" } }}
+            >
+                <p>新密码：</p>
+                <Typography.Text
+                    strong
+                    copyable={{ text: passwordModal.password }}
+                    style={{ fontSize: 24 }}
+                >
+                    {passwordModal.password}
+                </Typography.Text>
+            </Modal>
+        </>
     );
 }
-
-const columns: ProColumns<UserItemResp>[] = [
-    {
-        title: "ID",
-        align: "center",
-        dataIndex: "id",
-        width: 48,
-        search: false,
-    },
-    {
-        title: "头像",
-        align: "center",
-        dataIndex: "avatarUrl",
-        width: 60,
-        search: false,
-        render: (_, record) => {
-            if (!record.avatarUrl) {
-                return null;
-            }
-            return (
-                <img
-                    src={record.avatarUrl}
-                    alt="头像"
-                    className="object-fit mx-auto h-5 w-5 rounded-full"
-                />
-            );
-        },
-    },
-    {
-        title: "用户名",
-        align: "center",
-        dataIndex: "username",
-    },
-    {
-        title: "邮箱",
-        align: "center",
-        dataIndex: "email",
-    },
-    {
-        title: "真实姓名",
-        align: "center",
-        dataIndex: "realName",
-    },
-    {
-        title: "状态",
-        align: "center",
-        dataIndex: "status",
-        valueEnum: {
-            1: { text: "启用", status: "Success" },
-            2: { text: "禁用", status: "Default" },
-        },
-    },
-    {
-        title: "角色",
-        align: "center",
-        dataIndex: "roles",
-        search: false,
-        render: (_: React.ReactNode, record: UserItemResp) =>
-            record.roles.map((role) => role.label).join(", "),
-    },
-    {
-        title: "最后登录时间",
-        align: "center",
-        dataIndex: "lastLoginAt",
-        valueType: "dateTime",
-        search: false,
-    },
-    {
-        title: "更新时间",
-        align: "center",
-        dataIndex: "updatedAt",
-        valueType: "dateTime",
-        search: false,
-    },
-    {
-        title: "操作",
-        key: "action",
-        width: 200,
-        align: "center",
-        fixed: "right",
-        search: false,
-        render: (_dom: React.ReactNode, entity: UserItemResp, _index, action?: ActionType) => {
-            const cur = useAuthStore.getState().userInfo;
-            if (entity.id === cur?.id || entity.id === 1) {
-                // 不能操作当前用户或管理员
-                return null;
-            }
-            const status = entity.status === 1 ? "禁用" : "启用";
-            return (
-                <Space size="middle">
-                    <AuthWrap code="system:user:update">
-                        <UserModalForm
-                            mode={"edit"}
-                            initialValues={entity}
-                            onSuccess={action?.reload}
-                        >
-                            <a>编辑</a>
-                        </UserModalForm>
-                    </AuthWrap>
-                    <MoreButton>
-                        <AuthConfirm
-                            key="status"
-                            code="system:user:status"
-                            title={`确定要${status}此用户吗？`}
-                            children={status}
-                            onConfirm={async () => {
-                                await userAPI.updateStatus(entity.id, entity.status === 1 ? 2 : 1);
-                                void action?.reload();
-                            }}
-                        />
-                        <AuthConfirm
-                            key="password"
-                            code="system:user:password"
-                            title="确定要重置此用户的密码吗？"
-                            children="重置密码"
-                            onConfirm={async () => {
-                                const randomPassword = Math.random().toString(36).slice(-8);
-                                await userAPI.resetPassword(
-                                    entity.id,
-                                    `${entity.username}${randomPassword}`,
-                                );
-                                void action?.reload();
-                            }}
-                        />
-                        <AuthConfirm
-                            key="delete"
-                            code="system:user:delete"
-                            title="确定要删除此用户吗？"
-                            className="text-red-500"
-                            children="删除用户"
-                            onConfirm={async () => {
-                                await userAPI.delete(entity.id);
-                                await action?.reload();
-                            }}
-                        />
-                    </MoreButton>
-                </Space>
-            );
-        },
-    },
-];
 
 interface UserModalFormProps {
     initialValues?: Partial<UserItemResp>;
@@ -216,7 +240,7 @@ const UserModalForm = ({
             onOpenChange={(open) => {
                 if (open) {
                     form.resetFields();
-                    const roleIds = initialValues?.roles?.map((role) => role.value);
+                    const roleIds = initialValues?.roles?.map((role: { value: number }) => role.value);
                     form.setFieldsValue({
                         ...initialValues,
                         roleIds,

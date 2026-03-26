@@ -7,7 +7,9 @@ import { Button, Space, Tag } from "antd";
 import React, { useRef } from "react";
 
 import { dictAPI } from "@/api/system/dict";
-import type { DictItemResp, CreateDictDto, UpdateDictPayload } from "@/api/types";
+import type { DictItemResp } from "@/api/types/DictItemResp";
+import type { CreateDictDto } from "@/api/types/CreateDictDto";
+import type { UpdateDictPayload } from "@/api/types/UpdateDictPayload";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 
 export const Route = createFileRoute("/system/dict")({
@@ -18,27 +20,29 @@ function DictPage() {
     const actionRef = useRef<ActionType>(null);
 
     return (
-        <ProTable<DictItemResp>
-            rowKey="id"
-            search={false}
-            scroll={{ y: "calc(100vh - 287px)" }}
-            headerTitle="字典管理"
-            columns={columns}
-            request={dictAPI.getTableData}
-            actionRef={actionRef}
-            toolBarRender={() => [
-                <AuthWrap code="system:dict:create">
-                    <DictModalForm
-                        mode={"create"}
-                        onSuccess={() => {
-                            void actionRef.current?.reload();
-                        }}
-                    >
-                        <Button type="primary">创建字典</Button>
-                    </DictModalForm>
-                </AuthWrap>,
-            ]}
-        />
+        <AuthWrap code="system:dict:list">
+            <ProTable<DictItemResp>
+                rowKey="id"
+                search={false}
+                scroll={{ y: "calc(100vh - 287px)" }}
+                headerTitle="字典管理"
+                columns={columns}
+                request={dictAPI.getTableData}
+                actionRef={actionRef}
+                toolBarRender={() => [
+                    <AuthWrap code="system:dict:create">
+                        <DictModalForm
+                            mode={"create"}
+                            onSuccess={() => {
+                                void actionRef.current?.reload();
+                            }}
+                        >
+                            <Button type="primary">创建字典</Button>
+                        </DictModalForm>
+                    </AuthWrap>,
+                ]}
+            />
+        </AuthWrap>
     );
 }
 

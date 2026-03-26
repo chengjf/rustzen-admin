@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { UserInfoResp } from "@/api/types";
+import type { UserInfoResp } from "@/api/types/UserInfoResp";
 
 interface AuthState {
     userInfo: UserInfoResp | null;

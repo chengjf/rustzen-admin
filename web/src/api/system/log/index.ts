@@ -1,5 +1,6 @@
 import { apiDownload, proTableRequest } from "@/api";
-import type { LogItemResp, LogQuery } from "@/api/types";
+import type { LogItemResp } from "@/api/types/LogItemResp";
+import type { LogQuery } from "@/api/types/LogQuery";
 
 /**
  * 日志管理API服务

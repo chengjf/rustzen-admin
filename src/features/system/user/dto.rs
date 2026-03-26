@@ -68,7 +68,12 @@ pub struct UserOptionsQuery {
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct UpdateUserPasswordPayload {
+pub struct UpdateUserPasswordPayload {}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ResetPasswordResp {
     pub password: String,
 }
 

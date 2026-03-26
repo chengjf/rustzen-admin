@@ -77,8 +77,11 @@ pub struct DictOptionsQuery {
 #[derive(Debug, Deserialize, TS)]
 #[ts(export)]
 pub struct OptionsWithCodeQuery {
+    #[ts(optional)]
     pub q: Option<String>,
+    #[ts(optional)]
     pub limit: Option<i64>,
     /// Whether to filter out button menus
+    #[ts(optional)]
     pub btn_filter: Option<bool>,
 }

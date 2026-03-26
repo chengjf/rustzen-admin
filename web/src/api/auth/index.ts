@@ -1,5 +1,7 @@
 import { apiRequest } from "@/api";
-import type { LoginRequest, LoginResp, UserInfoResp } from "@/api/types";
+import type { LoginRequest } from "@/api/types/LoginRequest";
+import type { LoginResp } from "@/api/types/LoginResp";
+import type { UserInfoResp } from "@/api/types/UserInfoResp";
 
 /**
  * 认证相关API服务

@@ -5,7 +5,7 @@ import { Button, Card, Form, Input, Typography } from "antd";
 import { useTransition } from "react";
 
 import { authAPI } from "@/api/auth";
-import type { LoginRequest } from "@/api/types";
+import type { LoginRequest } from "@/api/types/LoginRequest";
 import { useAuthStore } from "@/stores/useAuthStore";
 export const Route = createFileRoute("/login")({
     component: () => <LoginPage />,

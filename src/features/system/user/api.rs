@@ -1,7 +1,7 @@
 use super::{
     dto::{
-        CreateUserDto, UpdateUserPasswordPayload, UpdateUserPayload, UpdateUserStatusPayload,
-        UserItemResp, UserOptionResp, UserOptionsQuery, UserQuery,
+        CreateUserDto, ResetPasswordResp, UpdateUserPasswordPayload, UpdateUserPayload,
+        UpdateUserStatusPayload, UserItemResp, UserOptionResp, UserOptionsQuery, UserQuery,
     },
     service::UserService,
 };
@@ -174,8 +174,8 @@ pub async fn update_user_password(
     Path(id): Path<i64>,
     current_user: CurrentUser,
     Json(dto): Json<UpdateUserPasswordPayload>,
-) -> AppResult<bool> {
-    tracing::info!("Updating user password for user: {}", id);
+) -> AppResult<ResetPasswordResp> {
+    tracing::info!("Resetting password for user: {}", id);
 
     if id == 1 {
         return Err(ServiceError::UserIsAdmin.into());
@@ -187,7 +187,7 @@ pub async fn update_user_password(
 
     let result = UserService::update_user_password(&pool, id, dto).await?;
 
-    tracing::info!("Successfully updated user password");
+    tracing::info!("Successfully reset user password");
     Ok(ApiResponse::success(result))
 }
 

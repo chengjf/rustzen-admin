@@ -1,11 +1,9 @@
 import { apiRequest, proTableRequest } from "@/api";
-import type {
-    RoleItemResp,
-    RoleQuery,
-    CreateRoleDto,
-    UpdateRolePayload,
-    OptionItem,
-} from "@/api/types";
+import type { RoleItemResp } from "@/api/types/RoleItemResp";
+import type { RoleQuery } from "@/api/types/RoleQuery";
+import type { CreateRoleDto } from "@/api/types/CreateRoleDto";
+import type { UpdateRolePayload } from "@/api/types/UpdateRolePayload";
+import type { OptionItem } from "@/api/types/OptionItem";
 
 /**
  * 角色管理API服务

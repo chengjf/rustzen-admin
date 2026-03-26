@@ -7,7 +7,11 @@ import { Form } from "antd";
 import React, { useRef } from "react";
 
 import { menuAPI } from "@/api/system/menu";
-import type { MenuItemResp, MenuQuery, CreateMenuDto, UpdateMenuPayload, MenuTreeOption } from "@/api/types";
+import type { MenuItemResp } from "@/api/types/MenuItemResp";
+import type { MenuQuery } from "@/api/types/MenuQuery";
+import type { CreateMenuDto } from "@/api/types/CreateMenuDto";
+import type { UpdateMenuPayload } from "@/api/types/UpdateMenuPayload";
+import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/constant/options";
 
@@ -19,37 +23,39 @@ function MenuPage() {
     const actionRef = useRef<ActionType>(null);
 
     return (
-        <ProTable<MenuItemResp>
-            rowKey="id"
-            search={{
-                labelWidth: "auto",
-            }}
-            scroll={{ y: "calc(100vh - 287px)" }}
-            headerTitle="菜单管理"
-            columns={columns}
-            request={async (params) => {
-                const res = await menuAPI.getTableData(params as Partial<MenuQuery>);
-                return {
-                    data: res,
-                    success: true,
-                };
-            }}
-            actionRef={actionRef}
-            pagination={false}
-            toolBarRender={() => [
-                <AuthWrap code="system:menu:create">
-                    <MenuModalForm
-                        mode={"create"}
-                        initialValues={{ sortOrder: 0 }}
-                        onSuccess={() => {
-                            void actionRef.current?.reload();
-                        }}
-                    >
-                        <Button type="primary">创建菜单</Button>
-                    </MenuModalForm>
-                </AuthWrap>,
-            ]}
-        />
+        <AuthWrap code="system:menu:list">
+            <ProTable<MenuItemResp>
+                rowKey="id"
+                search={{
+                    labelWidth: "auto",
+                }}
+                scroll={{ y: "calc(100vh - 287px)" }}
+                headerTitle="菜单管理"
+                columns={columns}
+                request={async (params) => {
+                    const res = await menuAPI.getTableData(params as Partial<MenuQuery>);
+                    return {
+                        data: res,
+                        success: true,
+                    };
+                }}
+                actionRef={actionRef}
+                pagination={false}
+                toolBarRender={() => [
+                    <AuthWrap code="system:menu:create">
+                        <MenuModalForm
+                            mode={"create"}
+                            initialValues={{ sortOrder: 0 }}
+                            onSuccess={() => {
+                                void actionRef.current?.reload();
+                            }}
+                        >
+                            <Button type="primary">创建菜单</Button>
+                        </MenuModalForm>
+                    </AuthWrap>,
+                ]}
+            />
+        </AuthWrap>
     );
 }
 

@@ -1,7 +1,7 @@
 use super::{
     dto::{
-        CreateUserDto, UpdateUserPasswordPayload, UpdateUserPayload, UpdateUserStatusPayload,
-        UserItemResp, UserOptionResp, UserOptionsQuery, UserQuery,
+        CreateUserDto, ResetPasswordResp, UpdateUserPasswordPayload, UpdateUserPayload,
+        UpdateUserStatusPayload, UserItemResp, UserOptionResp, UserOptionsQuery, UserQuery,
     },
     repo::{CreateUserCommand, UserListQuery, UserRepository},
 };
@@ -174,15 +174,16 @@ impl UserService {
     pub async fn update_user_password(
         pool: &PgPool,
         id: i64,
-        dto: UpdateUserPasswordPayload,
-    ) -> Result<bool, ServiceError> {
-        tracing::debug!("Updating user password for user ID: {}", id);
+        _dto: UpdateUserPasswordPayload,
+    ) -> Result<ResetPasswordResp, ServiceError> {
+        tracing::debug!("Resetting password for user ID: {}", id);
 
-        let password_hash = PasswordUtils::hash_password(&dto.password)?;
+        let password = PasswordUtils::generate_password(6);
+        let password_hash = PasswordUtils::hash_password(&password)?;
 
-        let result = UserRepository::update_user_password(pool, id, &password_hash).await?;
+        UserRepository::update_user_password(pool, id, &password_hash).await?;
 
-        Ok(result)
+        Ok(ResetPasswordResp { password })
     }
 
     pub async fn update_user_status(

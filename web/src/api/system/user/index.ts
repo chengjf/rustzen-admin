@@ -1,13 +1,12 @@
 import { apiRequest, proTableRequest } from "@/api";
-import type {
-    UserItemResp,
-    UserQuery,
-    CreateUserDto,
-    UpdateUserPayload,
-    UpdateUserPasswordPayload,
-    UpdateUserStatusPayload,
-    OptionItem,
-} from "@/api/types";
+import type { UserItemResp } from "@/api/types/UserItemResp";
+import type { UserQuery } from "@/api/types/UserQuery";
+import type { CreateUserDto } from "@/api/types/CreateUserDto";
+import type { UpdateUserPayload } from "@/api/types/UpdateUserPayload";
+import type { ResetPasswordResp } from "@/api/types/ResetPasswordResp";
+import type { UpdateUserPasswordPayload } from "@/api/types/UpdateUserPasswordPayload";
+import type { UpdateUserStatusPayload } from "@/api/types/UpdateUserStatusPayload";
+import type { OptionItem } from "@/api/types/OptionItem";
 
 /**
  * 用户管理API服务
@@ -42,11 +41,11 @@ export const userAPI = {
             params: data,
         }),
 
-    resetPassword: (id: number, data: UpdateUserPasswordPayload) =>
-        apiRequest<void, UpdateUserPasswordPayload>({
+    resetPassword: (id: number) =>
+        apiRequest<ResetPasswordResp, UpdateUserPasswordPayload>({
             url: `/api/system/users/${id}/password`,
             method: "PUT",
-            params: data,
+            body: JSON.stringify({} as UpdateUserPasswordPayload),
         }),
 
     getStatusOptions: () =>

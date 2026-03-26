@@ -10,11 +10,12 @@ import {
 } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
 import { Form, Space, Tree, Typography, Checkbox, Card, Empty, Row, Col, Spin, Button } from "antd";
-import { useRef, useMemo, useState } from "react";
+import { useRef, useMemo, useState, type ReactNode } from "react";
 
 import { menuAPI } from "@/api/system/menu";
 import { roleAPI } from "@/api/system/role";
-import type { RoleItemResp } from "@/api/types";
+import type { RoleItemResp } from "@/api/types/RoleItemResp";
+import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 import { ENABLE_OPTIONS } from "@/constant/options";
 
@@ -25,9 +26,9 @@ export const Route = createFileRoute("/system/role")({
 });
 
 // --- 核心工具函数 ---
-const getFlatMap = (nodes: any[]) => {
-    const map = new Map<number, any>();
-    const traverse = (data: any[]) => {
+const getFlatMap = (nodes: MenuTreeOption[]) => {
+    const map = new Map<number, MenuTreeOption>();
+    const traverse = (data: MenuTreeOption[]) => {
         data.forEach((node) => {
             map.set(node.value, node);
             if (node.children) traverse(node.children);
@@ -38,13 +39,13 @@ const getFlatMap = (nodes: any[]) => {
 };
 
 // 提交前：根据选中的菜单/按钮，向上追溯所有目录 ID
-const calculateFinalIds = (checkedIds: number[], flatMap: Map<number, any>) => {
+const calculateFinalIds = (checkedIds: number[], flatMap: Map<number, MenuTreeOption>) => {
     const finalSet = new Set<number>();
     checkedIds.forEach((id) => {
         let curr = flatMap.get(id);
         while (curr) {
             finalSet.add(curr.value);
-            curr = flatMap.get(curr.parentId); // 向上追溯
+            curr = curr.parentId ? flatMap.get(curr.parentId) : undefined; // 向上追溯
         }
     });
     return Array.from(finalSet);
@@ -76,13 +77,15 @@ function RolePage() {
                 fixed: "right",
                 render: (_, entity, __, action) => (
                     <Space>
-                        <RoleModalForm
-                            mode="edit"
-                            initialValues={entity}
-                            onSuccess={() => action?.reload()}
-                        >
-                            <a>编辑</a>
-                        </RoleModalForm>
+                        <AuthWrap code="system:role:update">
+                            <RoleModalForm
+                                mode="edit"
+                                initialValues={entity}
+                                onSuccess={() => action?.reload()}
+                            >
+                                <a>编辑</a>
+                            </RoleModalForm>
+                        </AuthWrap>
                         <AuthPopconfirm
                             title="确认删除吗？"
                             code="system:role:delete"
@@ -101,33 +104,42 @@ function RolePage() {
     );
 
     return (
-        <ProTable<RoleItemResp>
-            rowKey="id"
-            columns={columns}
-            request={roleAPI.getTableData}
-            actionRef={actionRef}
-            headerTitle="角色权限管理"
-            toolBarRender={() => [
-                <AuthWrap code="system:role:create" key="add">
-                    <RoleModalForm mode="create" onSuccess={() => actionRef.current?.reload()}>
-                        <Button type="primary">创建角色</Button>
-                    </RoleModalForm>
-                </AuthWrap>,
-            ]}
-        />
+        <AuthWrap code="system:role:list">
+            <ProTable<RoleItemResp>
+                rowKey="id"
+                columns={columns}
+                request={roleAPI.getTableData}
+                actionRef={actionRef}
+                headerTitle="角色权限管理"
+                toolBarRender={() => [
+                    <AuthWrap code="system:role:create" key="add">
+                        <RoleModalForm mode="create" onSuccess={() => actionRef.current?.reload()}>
+                            <Button type="primary">创建角色</Button>
+                        </RoleModalForm>
+                    </AuthWrap>,
+                ]}
+            />
+        </AuthWrap>
     );
 }
 
 // --- 权限分配组件 ---
-const PermissionManager = ({ value = [], onChange, menuTree, loading }: any) => {
+interface PermissionManagerProps {
+    value?: number[];
+    onChange?: (ids: number[]) => void;
+    menuTree: MenuTreeOption[];
+    loading: boolean;
+}
+
+const PermissionManager = ({ value = [], onChange, menuTree, loading }: PermissionManagerProps) => {
     const [selectedKey, setSelectedKey] = useState<number | null>(null);
 
     // 构建树与索引
     const { filteredTree, buttonMap, flatMap } = useMemo(() => {
-        const bMap = new Map<number, any[]>();
+        const bMap = new Map<number, MenuTreeOption[]>();
         const fMap = getFlatMap(menuTree);
 
-        const buildTree = (nodes: any[]): any[] => {
+        const buildTree = (nodes: MenuTreeOption[]): object[] => {
             return nodes
                 .map((node) => {
                     if (node.menuType === 3) {
@@ -144,7 +156,7 @@ const PermissionManager = ({ value = [], onChange, menuTree, loading }: any) => 
                             : undefined,
                     };
                 })
-                .filter(Boolean);
+                .filter(Boolean) as object[];
         };
 
         return { filteredTree: buildTree(menuTree), buttonMap: bMap, flatMap: fMap };
@@ -226,15 +238,13 @@ const PermissionManager = ({ value = [], onChange, menuTree, loading }: any) => 
                                         hoverable
                                         onClick={() => {
                                             const isChecked = value.includes(btn.value);
-                                            let next;
+                                            let next: number[];
                                             if (isChecked) {
-                                                next = value.filter(
-                                                    (id: number) => id !== btn.value,
-                                                );
+                                                next = value.filter((id) => id !== btn.value);
                                             } else {
-                                                // 选中按钮，必须确保其所属菜单也被选中
+                                                // 选中按钮，递归向上追溯所有祖先菜单确保都被选中
                                                 next = Array.from(
-                                                    new Set([...value, btn.value, btn.parentId]),
+                                                    new Set(calculateFinalIds([...value, btn.value], flatMap)),
                                                 );
                                             }
                                             onChange?.(next);
@@ -271,66 +281,50 @@ const PermissionManager = ({ value = [], onChange, menuTree, loading }: any) => 
     );
 };
 
-// --- ModalForm 组件 ---
-const RoleModalForm = ({ children, initialValues, mode, onSuccess }: any) => {
-    const [form] = Form.useForm();
-    const [menuTree, setMenuTree] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
+interface RoleModalFormProps {
+    children: ReactNode;
+    initialValues?: RoleItemResp;
+    mode: "create" | "edit";
+    onSuccess?: () => void;
+}
 
-    // 1. 将获取数据封装成独立的函数
+// --- ModalForm 组件 ---
+const RoleModalForm = ({ children, initialValues, mode, onSuccess }: RoleModalFormProps) => {
+    const [form] = Form.useForm();
+    const [menuTree, setMenuTree] = useState<MenuTreeOption[]>([]);
+    const [loading, setLoading] = useState(false);
+    const abortRef = useRef<AbortController | null>(null);
+
     const handleOpen = async (open: boolean) => {
         if (open) {
-            // 只有在打开时才请求数据
+            // 取消上一次未完成的请求，防止快速开关时的状态泄漏
+            abortRef.current?.abort();
+            const controller = new AbortController();
+            abortRef.current = controller;
+
             setLoading(true);
             try {
                 const res = await menuAPI.getOptionsWithCode({ btn_filter: false });
+
+                // 请求已被取消则忽略结果
+                if (controller.signal.aborted) return;
+
                 setMenuTree(res);
 
-                // 2. 数据回来后，如果是编辑模式，立即填充表单
                 if (mode === "edit" && initialValues) {
-                    const fMap = getFlatMap(res); // 使用刚拿到的 res 构建索引
-
-                    // Debug: 打印关键信息
-                    console.log("[RoleModalForm] initialValues:", initialValues);
-                    console.log("[RoleModalForm] menuTree sample:", res.slice(0, 2));
-                    console.log(
-                        "[RoleModalForm] flatMap keys:",
-                        Array.from(fMap.keys()).slice(0, 10),
-                    );
-
-                    const rawIds =
-                        initialValues.menus?.map((m: any) => m.value) ||
-                        initialValues.menuIds ||
-                        [];
-                    console.log("[RoleModalForm] rawIds:", rawIds);
-
-                    // 修改：不再过滤类型，只要菜单树中存在的ID都保留
-                    const displayIds = rawIds.filter((id: number) => {
-                        const exists = fMap.has(id);
-                        if (!exists) {
-                            console.warn(`[RoleModalForm] Menu ID ${id} not found in menuTree`);
-                        }
-                        return exists;
-                    });
-                    console.log("[RoleModalForm] displayIds:", displayIds);
-
-                    form.setFieldsValue({
-                        ...initialValues,
-                        menuIds: displayIds,
-                    });
+                    const fMap = getFlatMap(res);
+                    const rawIds = initialValues.menus?.map((m: { value: number }) => m.value) ?? [];
+                    const displayIds = rawIds.filter((id: number) => fMap.has(id));
+                    form.setFieldsValue({ ...initialValues, menuIds: displayIds });
                 }
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) setLoading(false);
             }
         } else {
-            // 关闭时重置表单和树数据（可选，根据业务需求）
+            abortRef.current?.abort();
             form.resetFields();
-            // setMenuTree([]);
         }
     };
-
-    // 注意：删掉之前的 useEffect(() => { fetchMenuTree(); }, []);
-    // 注意：删掉之前的 useEffect(() => { setFieldsValue... }, [...]);
 
     return (
         <ModalForm
@@ -339,19 +333,20 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: any) => {
             trigger={children}
             width={850}
             layout="vertical"
-            // 3. 核心配置：监听弹窗打开状态
             onOpenChange={handleOpen}
             modalProps={{
                 destroyOnClose: true,
                 maskClosable: false,
             }}
             onFinish={async (values) => {
+                if (loading || menuTree.length === 0) return false;
+
                 const fMap = getFlatMap(menuTree);
                 const finalMenuIds = calculateFinalIds(values.menuIds || [], fMap);
                 const params = { ...values, menuIds: finalMenuIds };
 
                 if (mode === "edit") {
-                    await roleAPI.update(initialValues.id, params);
+                    await roleAPI.update(initialValues!.id, params);
                 } else {
                     await roleAPI.create(params);
                 }
@@ -370,7 +365,7 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: any) => {
                     <ProFormDigit name="sortOrder" label="排序" initialValue={0} />
                 </Col>
                 <Col span={6}>
-                    <ProFormSelect name="status" label="状态" options={ENABLE_OPTIONS} />
+                    <ProFormSelect name="status" label="状态" options={ENABLE_OPTIONS} initialValue={1} rules={[{ required: true }]} />
                 </Col>
             </Row>
 

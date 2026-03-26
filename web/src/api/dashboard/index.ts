@@ -1,10 +1,8 @@
 import { apiRequest } from "@/api";
-import type {
-    StatsResp,
-    SystemInfo,
-    SystemMetricsDataResp,
-    UserTrendsResp,
-} from "@/api/types";
+import type { StatsResp } from "@/api/types/StatsResp";
+import type { SystemInfo } from "@/api/types/SystemInfo";
+import type { SystemMetricsDataResp } from "@/api/types/SystemMetricsDataResp";
+import type { UserTrendsResp } from "@/api/types/UserTrendsResp";
 
 export const dashboardAPI = {
     getStats: () => apiRequest<StatsResp>({ url: "/api/dashboard/stats" }),

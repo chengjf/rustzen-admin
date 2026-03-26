@@ -4,6 +4,7 @@ use argon2::{
     Argon2,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
+use rand::Rng;
 
 /// Password utilities for secure hashing and verification.
 pub struct PasswordUtils;
@@ -52,6 +53,29 @@ impl PasswordUtils {
             Err(_) => return false,
         };
         Argon2::default().verify_password(password.as_bytes(), &parsed_hash).is_ok()
+    }
+
+    /// Generates a secure random password of specified length.
+    ///
+    /// Uses `OsRng` for cryptographically secure random number generation.
+    /// Character set excludes ambiguous characters (0, O, I, l, 1).
+    ///
+    /// # Arguments
+    ///
+    /// * `length` - The desired password length
+    ///
+    /// # Returns
+    ///
+    /// * `String` - The generated password
+    pub fn generate_password(length: usize) -> String {
+        const CHARSET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+        let mut rng = OsRng;
+        (0..length)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect()
     }
 }
 
