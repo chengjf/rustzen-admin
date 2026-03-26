@@ -30,7 +30,7 @@ function DictPage() {
                     <DictModalForm
                         mode={"create"}
                         onSuccess={() => {
-                            actionRef.current?.reload();
+                            void actionRef.current?.reload();
                         }}
                     >
                         <Button type="primary">创建字典</Button>
@@ -88,7 +88,7 @@ const columns: ProColumns<Dict.Item>[] = [
                         mode={"edit"}
                         initialValues={entity}
                         onSuccess={() => {
-                            action?.reload();
+                            void action?.reload();
                         }}
                     >
                         <a>编辑</a>
@@ -100,7 +100,7 @@ const columns: ProColumns<Dict.Item>[] = [
                     description="此操作不可撤销。"
                     onConfirm={async () => {
                         await dictAPI.delete(entity.id);
-                        action?.reload();
+                        void action?.reload();
                     }}
                 >
                     <span className="cursor-pointer text-red-500">删除</span>

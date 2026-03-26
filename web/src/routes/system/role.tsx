@@ -14,7 +14,6 @@ import {
     Space,
     Tree,
     Typography,
-    Tag,
     Checkbox,
     Card,
     Empty,
@@ -23,7 +22,7 @@ import {
     Spin,
     Button,
 } from "antd";
-import React, { useRef, useMemo, useState, useEffect } from "react";
+import { useRef, useMemo, useState } from "react";
 
 import { menuAPI } from "@/api/system/menu";
 import { roleAPI } from "@/api/system/role";
@@ -100,7 +99,7 @@ function RolePage() {
                             code="system:role:delete"
                             onConfirm={async () => {
                                 await roleAPI.delete(entity.id);
-                                action?.reload();
+                                void action?.reload();
                             }}
                         >
                             <span className="text-red-500 cursor-pointer">删除</span>
@@ -174,47 +173,46 @@ const PermissionManager = ({ value = [], onChange, menuTree, loading }: any) => 
             </div>
         );
 
-        return (
+    return (
+        <div
+            style={{
+                display: "flex",
+                border: "1px solid #d9d9d9",
+                borderRadius: 8,
+                height: 450,
+                overflow: "hidden",
+            }}
+        >
+            {/* 左侧：菜单树 */}
             <div
                 style={{
-                    display: "flex",
-                    border: "1px solid #d9d9d9",
-                    borderRadius: 8,
-                    height: 450,
-                    overflow: "hidden",
+                    width: 300,
+                    borderRight: "1px solid #d9d9d9",
+                    padding: 12,
+                    overflow: "auto",
+                    background: "#fafafa",
                 }}
             >
-                {/* 左侧：菜单树 */}
-                <div
-                    style={{
-                        width: 300,
-                        borderRight: "1px solid #d9d9d9",
-                        padding: 12,
-                        overflow: "auto",
-                        background: "#fafafa",
+                <Tree
+                    checkable
+                    checkStrictly // 严格受控，手动处理父子逻辑更可靠
+                    defaultExpandAll
+                    treeData={filteredTree}
+                    checkedKeys={value.filter((id: number) => {
+                        const node = flatMap.get(id);
+                        return node ? node.menuType !== 3 : false;
+                    })}
+                    onCheck={(checkedInfo: any) => {
+                        const checkedKeys = checkedInfo.checked as number[];
+                        const buttonIds = value.filter(
+                            (id: number) => flatMap.get(id)?.menuType === 3,
+                        );
+                        onChange?.([...checkedKeys, ...buttonIds]);
                     }}
-                >
-                    <Tree
-                        checkable
-                        checkStrictly // 严格受控，手动处理父子逻辑更可靠
-                        defaultExpandAll
-                        treeData={filteredTree}
-                        checkedKeys={value.filter((id: number) => {
-                            const node = flatMap.get(id);
-                            return node ? node.menuType !== 3 : false;
-                        })}
-                        onCheck={(checkedInfo: any) => {
-                            const checkedKeys = checkedInfo.checked as number[];
-                            const buttonIds = value.filter(
-                                (id: number) => flatMap.get(id)?.menuType === 3,
-                            );
-                            onChange?.([...checkedKeys, ...buttonIds]);
-                        }}
-                        onSelect={(keys) => setSelectedKey(keys[0] as number)}
-                        selectedKeys={selectedKey ? [selectedKey] : []}
-                    />
-                </div>
-
+                    onSelect={(keys) => setSelectedKey(keys[0] as number)}
+                    selectedKeys={selectedKey ? [selectedKey] : []}
+                />
+            </div>
 
             {/* 右侧：按钮列表 */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "#fff" }}>
@@ -302,18 +300,21 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: any) => {
                 // 2. 数据回来后，如果是编辑模式，立即填充表单
                 if (mode === "edit" && initialValues) {
                     const fMap = getFlatMap(res); // 使用刚拿到的 res 构建索引
-                    
+
                     // Debug: 打印关键信息
-                    console.log('[RoleModalForm] initialValues:', initialValues);
-                    console.log('[RoleModalForm] menuTree sample:', res.slice(0, 2));
-                    console.log('[RoleModalForm] flatMap keys:', Array.from(fMap.keys()).slice(0, 10));
-                    
+                    console.log("[RoleModalForm] initialValues:", initialValues);
+                    console.log("[RoleModalForm] menuTree sample:", res.slice(0, 2));
+                    console.log(
+                        "[RoleModalForm] flatMap keys:",
+                        Array.from(fMap.keys()).slice(0, 10),
+                    );
+
                     const rawIds =
                         initialValues.menus?.map((m: any) => m.value) ||
                         initialValues.menuIds ||
                         [];
-                    console.log('[RoleModalForm] rawIds:', rawIds);
-                    
+                    console.log("[RoleModalForm] rawIds:", rawIds);
+
                     // 修改：不再过滤类型，只要菜单树中存在的ID都保留
                     const displayIds = rawIds.filter((id: number) => {
                         const exists = fMap.has(id);
@@ -322,7 +323,7 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: any) => {
                         }
                         return exists;
                     });
-                    console.log('[RoleModalForm] displayIds:', displayIds);
+                    console.log("[RoleModalForm] displayIds:", displayIds);
 
                     form.setFieldsValue({
                         ...initialValues,

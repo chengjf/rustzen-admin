@@ -17,12 +17,6 @@ interface GroupedPermissions {
     };
 }
 
-const menuTypeLabels: Record<number, string> = {
-    1: "目录",
-    2: "菜单",
-    3: "按钮",
-};
-
 export const PermissionGroupSelect: React.FC<PermissionGroupSelectProps> = ({
     value = [],
     onChange,

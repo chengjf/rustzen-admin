@@ -143,7 +143,7 @@ const formatFetchConfig = <T>({ params, url, ...options }: RequestOptions<T>) =>
         signal: controller.signal,
         headers: {
             ...defaultHeaders,
-            ...options.headers,
+            ...Object.fromEntries(new Headers(options.headers || {}).entries()),
             ...getAuthHeaders(),
         },
     };
@@ -155,9 +155,7 @@ const formatFetchConfig = <T>({ params, url, ...options }: RequestOptions<T>) =>
     return {
         url,
         config,
-        reqDelete() {
-            requestPool.delete(controller);
-        },
+        reqDelete: () => requestPool.delete(controller),
     };
 };
 

@@ -19,7 +19,7 @@ function LoginPage() {
             try {
                 const res = await authAPI.login(values);
                 handleLogin(res.token, res.userInfo);
-                navigate({ to: "/", replace: true });
+                void navigate({ to: "/", replace: true });
             } catch (error) {
                 console.error("Login failed", error);
             }

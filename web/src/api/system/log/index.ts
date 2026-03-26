@@ -11,7 +11,7 @@ export const logAPI = {
         }),
 
     exportLogList: () => {
-        apiDownload({ url: "/api/system/logs/export" }).then(async (res) => {
+        void apiDownload({ url: "/api/system/logs/export" }).then(async (res) => {
             console.log("downloadName", res);
         });
     },

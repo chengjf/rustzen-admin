@@ -1,0 +1,27 @@
+{
+    "$schema": "https://raw.githubusercontent.com/oxc-project/oxlint/main/npm/oxlint/configuration_schema.json",
+    "plugins": [
+        "react",
+        "typescript",
+        "unicorn",
+        "oxc"
+    ],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "warn",
+        "style": "warn",
+        "perf": "warn"
+    },
+    "rules": {
+        "typescript-eslint/no-floating-promises": "warn",
+        "typescript-eslint/unbound-method": "warn",
+        "typescript-eslint/no-misused-spread": "warn",
+        "eslint/no-unused-vars": [
+            "warn",
+            {
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_"
+            }
+        ]
+    }
+}

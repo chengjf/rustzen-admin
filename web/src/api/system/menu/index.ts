@@ -1,4 +1,4 @@
-import { apiRequest, proTableRequest } from "@/api";
+import { apiRequest } from "@/api";
 
 /**
  * 菜单管理API服务

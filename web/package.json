@@ -8,7 +8,9 @@
         "preview": "vp preview",
         "postbuild": "zipper -o dist-rustzen-admin",
         "dev": "vp dev",
-        "build": "vp build"
+        "build": "vp build",
+        "lint": "vp lint",
+        "fmt": "vp fmt"
     },
     "dependencies": {
         "@ant-design/icons": "^6.1.0",

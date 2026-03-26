@@ -43,7 +43,7 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
                 await authAPI.logout();
                 useAuthStore.getState().clearAuth();
                 appMessage.success("退出登录成功");
-                router.navigate({ to: "/login" });
+                void router.navigate({ to: "/login" });
                 return true;
             },
         },

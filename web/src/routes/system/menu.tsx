@@ -27,7 +27,7 @@ function MenuPage() {
             headerTitle="菜单管理"
             columns={columns}
             request={async (params) => {
-                const res = await menuAPI.getTableData(params);
+                const res = await menuAPI.getTableData(params as Menu.QueryParams);
                 return {
                     data: res,
                     success: true,
@@ -41,7 +41,7 @@ function MenuPage() {
                         mode={"create"}
                         initialValues={{ sortOrder: 0 }}
                         onSuccess={() => {
-                            actionRef.current?.reload();
+                            void actionRef.current?.reload();
                         }}
                     >
                         <Button type="primary">创建菜单</Button>
@@ -135,7 +135,7 @@ const columns: ProColumns<Menu.Item>[] = [
                         mode={"edit"}
                         initialValues={entity}
                         onSuccess={() => {
-                            action?.reload();
+                            void action?.reload();
                         }}
                     >
                         <a>编辑</a>
@@ -148,7 +148,7 @@ const columns: ProColumns<Menu.Item>[] = [
                     hidden={entity.isSystem}
                     onConfirm={async () => {
                         await menuAPI.delete(entity.id);
-                        action?.reload();
+                        void action?.reload();
                     }}
                 >
                     <span className="cursor-pointer text-red-500">删除</span>

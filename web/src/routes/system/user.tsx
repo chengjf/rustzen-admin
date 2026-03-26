@@ -9,7 +9,6 @@ import { roleAPI } from "@/api/system/role";
 import { userAPI } from "@/api/system/user";
 import { AuthConfirm, AuthWrap } from "@/components/auth";
 import { MoreButton } from "@/components/button";
-import { ENABLE_OPTIONS } from "@/constant/options";
 import { useApiQuery } from "@/integrations/react-query";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -33,7 +32,7 @@ function UserPage() {
                     <UserModalForm
                         mode={"create"}
                         onSuccess={() => {
-                            actionRef.current?.reload();
+                            void actionRef.current?.reload();
                         }}
                         initialValues={{
                             status: 1,
@@ -153,7 +152,7 @@ const columns: ProColumns<User.Item>[] = [
                             children={status}
                             onConfirm={async () => {
                                 await userAPI.updateStatus(entity.id, entity.status === 1 ? 2 : 1);
-                                action?.reload();
+                                void action?.reload();
                             }}
                         />
                         <AuthConfirm
@@ -167,7 +166,7 @@ const columns: ProColumns<User.Item>[] = [
                                     entity.id,
                                     `${entity.username}${randomPassword}`,
                                 );
-                                action?.reload();
+                                void action?.reload();
                             }}
                         />
                         <AuthConfirm
