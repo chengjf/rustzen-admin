@@ -38,7 +38,7 @@ VALUES
     -- User Management (Menu with page permission)
     (3, 2, '用户管理', 'system:user:list', 2, 1, 1, TRUE),
     (4, 3, '用户创建', 'system:user:create', 3, 1, 1, TRUE),
-    (5, 3, '用户更新', 'system:user:update', 3, 2, 1, TRUE),
+    (5, 3, '用户编辑', 'system:user:update', 3, 2, 1, TRUE),
     (6, 3, '用户详情', 'system:user:detail', 3, 3, 1, TRUE),
     (7, 3, '用户删除', 'system:user:delete', 3, 4, 1, TRUE),
     (8, 3, '用户状态', 'system:user:status', 3, 5, 1, TRUE),
@@ -47,21 +47,21 @@ VALUES
     -- Role Management (Menu with page permission)
     (10, 2, '角色管理', 'system:role:list', 2, 2, 1, TRUE),
     (11, 10, '角色创建', 'system:role:create', 3, 1, 1, TRUE),
-    (12, 10, '角色更新', 'system:role:update', 3, 2, 1, TRUE),
+    (12, 10, '角色编辑', 'system:role:update', 3, 2, 1, TRUE),
     (13, 10, '角色详情', 'system:role:detail', 3, 3, 1, TRUE),
     (14, 10, '角色删除', 'system:role:delete', 3, 4, 1, TRUE),
 
     -- Menu Management (Menu with page permission)
     (15, 2, '菜单管理', 'system:menu:list', 2, 3, 1, TRUE),
     (16, 15, '菜单创建', 'system:menu:create', 3, 1, 1, TRUE),
-    (17, 15, '菜单更新', 'system:menu:update', 3, 2, 1, TRUE),
+    (17, 15, '菜单编辑', 'system:menu:update', 3, 2, 1, TRUE),
     (18, 15, '菜单详情', 'system:menu:detail', 3, 3, 1, TRUE),
     (19, 15, '菜单删除', 'system:menu:delete', 3, 4, 1, TRUE),
 
     -- Dictionary Management (Menu with page permission)
     (20, 2, '字典管理', 'system:dict:list', 2, 4, 1, TRUE),
     (21, 20, '字典创建', 'system:dict:create', 3, 1, 1, TRUE),
-    (22, 20, '字典更新', 'system:dict:update', 3, 2, 1, TRUE),
+    (22, 20, '字典编辑', 'system:dict:update', 3, 2, 1, TRUE),
     (23, 20, '字典详情', 'system:dict:detail', 3, 3, 1, TRUE),
     (24, 20, '字典删除', 'system:dict:delete', 3, 4, 1, TRUE),
 
