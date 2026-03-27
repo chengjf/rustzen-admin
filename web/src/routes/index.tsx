@@ -7,195 +7,266 @@ import {
 } from "@ant-design/icons";
 import { Column, Line } from "@ant-design/plots";
 import { createFileRoute } from "@tanstack/react-router";
-import { Card, Progress, Statistic } from "antd";
+import { Card, Progress, Statistic, Skeleton, Row, Col } from "antd";
+import { useMemo } from "react";
 
 import { dashboardAPI } from "@/api/dashboard";
 import { useApiQuery } from "@/integrations/react-query";
 import { calculatePercent, convertUnit } from "@/util";
 
+// =============================================================================
+// 1. 路由定义
+// =============================================================================
+
 export const Route = createFileRoute("/")({
     component: DashboardPage,
-    notFoundComponent: () => <div>404 Not Found 1111</div>,
+    notFoundComponent: () => (
+        <div className="flex h-full items-center justify-center text-xl font-bold">
+            404 Not Found
+        </div>
+    ),
 });
+
+// =============================================================================
+// 2. 页面主组件
+// =============================================================================
 
 function DashboardPage() {
     return (
-        <div className="flex flex-col gap-4">
-            {/* 统计卡片 */}
-            <StatsCard />
+        <div className="flex flex-col gap-4 p-1">
+            {/* 统计指标行 */}
+            <StatsRow />
 
-            {/* 系统健康状态 */}
-            <div className="grid grid-cols-2 gap-4">
-                <HealthCard />
-                <MetricsCard />
-            </div>
+            {/* 健康状态与性能指标 */}
+            <Row gutter={[16, 16]}>
+                <Col span={12}>
+                    <HealthCard />
+                </Col>
+                <Col span={12}>
+                    <MetricsCard />
+                </Col>
+            </Row>
 
-            {/* 用户活动趋势 */}
-            <UserActivityTrendCard />
+            {/* 趋势图表行 */}
+            <UserActivityTrendRow />
         </div>
     );
 }
 
-// 统计卡片
-const StatsCard = () => {
-    const { data: stats } = useApiQuery("dashboard/stats", dashboardAPI.getStats);
-    return (
-        <div className="grid grid-cols-4 gap-4">
-            <Card>
-                <Statistic
-                    title="总用户数"
-                    value={stats?.totalUsers}
-                    prefix={<UserOutlined />}
-                    valueStyle={{ color: "#3f8600" }}
-                />
-            </Card>
-            <Card>
-                <Statistic
-                    title="活跃用户数"
-                    value={stats?.activeUsers}
-                    prefix={<TeamOutlined />}
-                    valueStyle={{ color: "#1890ff" }}
-                />
-            </Card>
-            <Card>
-                <Statistic
-                    title="今日登录数"
-                    value={stats?.todayLogins}
-                    prefix={<ClockCircleOutlined />}
-                    valueStyle={{ color: "#722ed1" }}
-                />
-            </Card>
+// =============================================================================
+// 3. 子组件实现
+// =============================================================================
 
-            <Card>
-                <Statistic
-                    title="系统运行时间"
-                    value={stats?.systemUptime}
-                    prefix={<CheckCircleOutlined />}
-                    valueStyle={{ color: "#52c41a" }}
-                />
-            </Card>
-        </div>
+/**
+ * 顶部统计卡片
+ */
+const StatsRow = () => {
+    const { data: stats, isLoading } = useApiQuery("dashboard/stats", dashboardAPI.getStats);
+
+    const config = useMemo(
+        () => [
+            {
+                title: "总用户数",
+                value: stats?.totalUsers,
+                prefix: <UserOutlined />,
+                color: "#3f8600",
+            },
+            {
+                title: "活跃用户数",
+                value: stats?.activeUsers,
+                prefix: <TeamOutlined />,
+                color: "#1890ff",
+            },
+            {
+                title: "今日登录数",
+                value: stats?.todayLogins,
+                prefix: <ClockCircleOutlined />,
+                color: "#722ed1",
+            },
+            {
+                title: "系统运行时间",
+                value: stats?.systemUptime,
+                prefix: <CheckCircleOutlined />,
+                color: "#52c41a",
+            },
+        ],
+        [stats],
+    );
+
+    return (
+        <Row gutter={[16, 16]}>
+            {config.map((item, index) => (
+                <Col key={index} span={6}>
+                    <Card bordered={false} hoverable>
+                        <Skeleton loading={isLoading} active paragraph={{ rows: 1 }}>
+                            <Statistic
+                                title={item.title}
+                                value={item.value}
+                                prefix={item.prefix}
+                                valueStyle={{ color: item.color }}
+                            />
+                        </Skeleton>
+                    </Card>
+                </Col>
+            ))}
+        </Row>
     );
 };
 
-// 系统健康状态
+/**
+ * 系统健康状态 (内存/CPU/磁盘)
+ */
 const HealthCard = () => {
-    const { data: health } = useApiQuery("dashboard/health", dashboardAPI.getHealth);
-    const memoryUsage = calculatePercent(health?.memoryUsed, health?.memoryTotal);
-    const cpuUsage = calculatePercent(health?.cpuUsed, health?.cpuTotal);
-    const diskUsage = calculatePercent(health?.diskUsed, health?.diskTotal);
+    const { data: health, isLoading } = useApiQuery("dashboard/health", dashboardAPI.getHealth);
+
+    // 防御性计算，防止除以 0 或 undefined
+    const memoryUsage = useMemo(
+        () => calculatePercent(health?.memoryUsed, health?.memoryTotal),
+        [health],
+    );
+    const cpuUsage = useMemo(() => calculatePercent(health?.cpuUsed, health?.cpuTotal), [health]);
+    const diskUsage = useMemo(
+        () => calculatePercent(health?.diskUsed, health?.diskTotal),
+        [health],
+    );
 
     return (
-        <Card title="系统健康状态" extra={<ExclamationCircleOutlined />}>
-            <div className="flex flex-col gap-5">
-                <div>
-                    <div className="mb-2 flex justify-between">
-                        <span>内存使用量</span>
-                        <span>
-                            {convertUnit(health?.memoryUsed)} / {convertUnit(health?.memoryTotal)}
-                        </span>
-                    </div>
-                    <Progress
+        <Card
+            title="系统健康状态"
+            extra={<ExclamationCircleOutlined className="text-gray-400" />}
+            bordered={false}
+            className="h-full"
+        >
+            <Skeleton loading={isLoading} active>
+                <div className="flex flex-col gap-6">
+                    <ProgressItem
+                        label="内存使用量"
                         percent={memoryUsage}
-                        status={memoryUsage > 80 ? "exception" : "normal"}
+                        used={convertUnit(health?.memoryUsed)}
+                        total={convertUnit(health?.memoryTotal)}
+                        threshold={80}
                     />
-                </div>
-                <div>
-                    <div className="mb-2 flex justify-between">
-                        <span>CPU 使用量</span>
-                        <span>
-                            {health?.cpuUsed.toFixed(1)} / {health?.cpuTotal}
-                        </span>
-                    </div>
-                    <Progress percent={cpuUsage} status={cpuUsage > 80 ? "exception" : "normal"} />
-                </div>
-                <div>
-                    <div className="mb-2 flex justify-between">
-                        <span>磁盘使用量</span>
-                        <span>
-                            {convertUnit(health?.diskUsed)} / {convertUnit(health?.diskTotal)}
-                        </span>
-                    </div>
-                    <Progress
+                    <ProgressItem
+                        label="CPU 使用量"
+                        percent={cpuUsage}
+                        used={health?.cpuUsed?.toFixed(1)}
+                        total={String(health?.cpuTotal ?? 0)}
+                        threshold={80}
+                    />
+                    <ProgressItem
+                        label="磁盘使用量"
                         percent={diskUsage}
-                        status={diskUsage > 90 ? "exception" : "normal"}
+                        used={convertUnit(health?.diskUsed)}
+                        total={convertUnit(health?.diskTotal)}
+                        threshold={90}
                     />
                 </div>
-            </div>
+            </Skeleton>
         </Card>
     );
 };
 
-// 性能指标
+/**
+ * 7天性能指标
+ */
 const MetricsCard = () => {
-    const { data: metrics } = useApiQuery("dashboard/metrics", dashboardAPI.getMetrics);
+    const { data: metrics, isLoading } = useApiQuery("dashboard/metrics", dashboardAPI.getMetrics);
+
     return (
         <Card
             title="7天性能指标"
-            rootClassName="flex flex-col"
-            classNames={{
-                body: "flex-1 place-content-center",
-            }}
+            bordered={false}
+            className="h-full flex flex-col"
+            styles={{ body: { flex: 1, display: "flex", alignItems: "center" } }}
         >
-            <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
-                        {metrics?.avgResponseTime}ms
-                    </div>
-                    <div className="text-gray-500">平均响应时间</div>
-                </div>
-                <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
-                        {metrics?.errorRate?.toFixed(1)}%
-                    </div>
-                    <div className="text-gray-500">错误率</div>
-                </div>
-                <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
-                        {metrics?.totalRequests} 次请求
-                    </div>
-                    <div className="text-gray-500">总请求次数</div>
-                </div>
-            </div>
+            <Skeleton loading={isLoading} active>
+                <Row gutter={16} className="w-full">
+                    <MetricItem
+                        value={`${metrics?.avgResponseTime ?? 0}ms`}
+                        label="平均响应时间"
+                        color="text-blue-600"
+                    />
+                    <MetricItem
+                        value={`${metrics?.errorRate?.toFixed(1) ?? 0}%`}
+                        label="错误率"
+                        color="text-red-500"
+                    />
+                    <MetricItem
+                        value={`${metrics?.totalRequests ?? 0} 次`}
+                        label="总请求次数"
+                        color="text-purple-600"
+                    />
+                </Row>
+            </Skeleton>
         </Card>
     );
 };
 
-// 用户活动趋势
-const UserActivityTrendCard = () => {
-    const { data } = useApiQuery("dashboard/trends", dashboardAPI.getTrends);
+/**
+ * 趋势图表
+ */
+const UserActivityTrendRow = () => {
+    const { data, isLoading } = useApiQuery("dashboard/trends", dashboardAPI.getTrends);
+
     return (
-        <div className="grid grid-cols-2 gap-4">
-            <Card title="30天用户登录趋势图">
-                <Line
-                    data={data?.dailyLogins || []}
-                    xField="date"
-                    yField="count"
-                    height={300}
-                    axis={{
-                        y: {
-                            labelFormatter: (v: number) => Math.round(v),
-                        },
-                    }}
-                />
-            </Card>
-            <Card title="24小时活跃用户趋势图">
-                <Column
-                    data={data?.hourlyActive || []}
-                    xField="date"
-                    yField="count"
-                    height={300}
-                    axis={{
-                        y: {
-                            labelFormatter: (v: number) => Math.round(v),
-                        },
-                    }}
-                    style={{
-                        radiusTopLeft: 10,
-                        radiusTopRight: 10,
-                    }}
-                />
-            </Card>
-        </div>
+        <Row gutter={[16, 16]}>
+            <Col span={12}>
+                <Card title="30天用户登录趋势图" bordered={false}>
+                    <Skeleton loading={isLoading} active>
+                        <Line
+                            data={data?.dailyLogins || []}
+                            xField="date"
+                            yField="count"
+                            height={300}
+                            autoFit
+                            axis={{ y: { labelFormatter: (v: number) => Math.round(v) } }}
+                            smooth
+                        />
+                    </Skeleton>
+                </Card>
+            </Col>
+            <Col span={12}>
+                <Card title="24小时活跃用户趋势图" bordered={false}>
+                    <Skeleton loading={isLoading} active>
+                        <Column
+                            data={data?.hourlyActive || []}
+                            xField="date"
+                            yField="count"
+                            height={300}
+                            autoFit
+                            axis={{ y: { labelFormatter: (v: number) => Math.round(v) } }}
+                            style={{ radiusTopLeft: 4, radiusTopRight: 4 }}
+                        />
+                    </Skeleton>
+                </Card>
+            </Col>
+        </Row>
     );
 };
+
+// =============================================================================
+// 4. 私有原子组件 (Private Sub-components)
+// =============================================================================
+
+const ProgressItem = ({ label, percent, used, total, threshold }: any) => (
+    <div>
+        <div className="mb-2 flex justify-between text-sm">
+            <span className="text-gray-500">{label}</span>
+            <span className="font-medium">
+                {used} / {total}
+            </span>
+        </div>
+        <Progress
+            percent={percent}
+            status={percent > threshold ? "exception" : "normal"}
+            strokeColor={percent > threshold ? undefined : percent > 60 ? "#faad14" : undefined}
+        />
+    </div>
+);
+
+const MetricItem = ({ value, label, color }: any) => (
+    <Col span={8} className="text-center">
+        <div className={`text-2xl font-bold ${color}`}>{value}</div>
+        <div className="text-gray-500 text-xs mt-1 uppercase tracking-wider">{label}</div>
+    </Col>
+);
