@@ -7,8 +7,8 @@ import { Button, Space, Tag } from "antd";
 import React, { useRef } from "react";
 
 import { dictAPI } from "@/api/system/dict";
-import type { DictItemResp } from "@/api/types/DictItemResp";
 import type { CreateDictDto } from "@/api/types/CreateDictDto";
+import type { DictItemResp } from "@/api/types/DictItemResp";
 import type { UpdateDictPayload } from "@/api/types/UpdateDictPayload";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 

@@ -1,5 +1,5 @@
 import { UploadOutlined } from "@ant-design/icons";
-import { Upload, type UploadFile } from "antd";
+import { Avatar, Upload, type UploadFile } from "antd";
 
 import { appMessage } from "@/api";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -48,7 +48,7 @@ export const UserAvatar = () => {
                 }}
             >
                 {userInfo?.avatarUrl ? (
-                    <img src={userInfo?.avatarUrl} className="rounded-full" alt="avatar" />
+                    <Avatar src={userInfo?.avatarUrl} size={100} />
                 ) : (
                     <UploadOutlined />
                 )}

@@ -3,4 +3,11 @@
 /**
  * Menu tree option item for permission selection
  */
-export type MenuTreeOption = { label: string, value: number, code: string, parentId: number, menuType: number, children: Array<MenuTreeOption> | null, };
+export type MenuTreeOption = {
+    label: string;
+    value: number;
+    code: string;
+    parentId: number;
+    menuType: number;
+    children: Array<MenuTreeOption> | null;
+};

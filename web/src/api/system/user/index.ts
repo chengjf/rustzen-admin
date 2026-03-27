@@ -1,12 +1,12 @@
 import { apiRequest, proTableRequest } from "@/api";
-import type { UserItemResp } from "@/api/types/UserItemResp";
-import type { UserQuery } from "@/api/types/UserQuery";
 import type { CreateUserDto } from "@/api/types/CreateUserDto";
-import type { UpdateUserPayload } from "@/api/types/UpdateUserPayload";
+import type { OptionItem } from "@/api/types/OptionItem";
 import type { ResetPasswordResp } from "@/api/types/ResetPasswordResp";
 import type { UpdateUserPasswordPayload } from "@/api/types/UpdateUserPasswordPayload";
+import type { UpdateUserPayload } from "@/api/types/UpdateUserPayload";
 import type { UpdateUserStatusPayload } from "@/api/types/UpdateUserStatusPayload";
-import type { OptionItem } from "@/api/types/OptionItem";
+import type { UserItemResp } from "@/api/types/UserItemResp";
+import type { UserQuery } from "@/api/types/UserQuery";
 
 /**
  * 用户管理API服务

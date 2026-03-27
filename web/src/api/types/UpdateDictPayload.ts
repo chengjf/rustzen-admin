@@ -3,4 +3,11 @@
 /**
  * Update dictionary item request parameters
  */
-export type UpdateDictPayload = { dictType: string, label: string, value: string, status: number | null, description: string | null, sortOrder: number | null, };
+export type UpdateDictPayload = {
+    dictType: string;
+    label: string;
+    value: string;
+    status: number | null;
+    description: string | null;
+    sortOrder: number | null;
+};

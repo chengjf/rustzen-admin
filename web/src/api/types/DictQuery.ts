@@ -3,28 +3,29 @@
 /**
  * Dictionary query parameters
  */
-export type DictQuery = { 
-/**
- * The page number to retrieve. Defaults to 1.
- */
-current: number | null, 
-/**
- * The number of items per page. Defaults to 10.
- */
-pageSize: number | null, 
-/**
- * Filter by dictionary type.
- */
-dictType: string | null, 
-/**
- * Filter by label.
- */
-label: string | null, 
-/**
- * Filter by value.
- */
-value: string | null, 
-/**
- * Filter by status.
- */
-status: string | null, };
+export type DictQuery = {
+    /**
+     * The page number to retrieve. Defaults to 1.
+     */
+    current: number | null;
+    /**
+     * The number of items per page. Defaults to 10.
+     */
+    pageSize: number | null;
+    /**
+     * Filter by dictionary type.
+     */
+    dictType: string | null;
+    /**
+     * Filter by label.
+     */
+    label: string | null;
+    /**
+     * Filter by value.
+     */
+    value: string | null;
+    /**
+     * Filter by status.
+     */
+    status: string | null;
+};

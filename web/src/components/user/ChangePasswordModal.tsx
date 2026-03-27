@@ -1,6 +1,6 @@
 import { ModalForm, ProFormText } from "@ant-design/pro-components";
-import { Form } from "antd";
 import { useNavigate } from "@tanstack/react-router";
+import { Form } from "antd";
 
 import { appMessage } from "@/api";
 import { authAPI } from "@/api/auth";
@@ -14,11 +14,7 @@ export const ChangePasswordModal = () => {
         <ModalForm
             form={form}
             title="修改密码"
-            trigger={
-                <span>
-                    修改密码
-                </span>
-            }
+            trigger={<span>修改密码</span>}
             layout="horizontal"
             labelCol={{ span: 6 }}
             submitter={{

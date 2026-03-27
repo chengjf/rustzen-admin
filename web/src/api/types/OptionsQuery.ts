@@ -3,4 +3,4 @@
 /**
  * Query parameters for options endpoints
  */
-export type OptionsQuery = { q: string | null, limit: number | null, };
+export type OptionsQuery = { q: string | null; limit: number | null };

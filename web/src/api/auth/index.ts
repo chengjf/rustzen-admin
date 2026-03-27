@@ -2,6 +2,7 @@ import { apiRequest } from "@/api";
 import type { LoginRequest } from "@/api/types/LoginRequest";
 import type { LoginResp } from "@/api/types/LoginResp";
 import type { UserInfoResp } from "@/api/types/UserInfoResp";
+
 import type { ChangePasswordPayload } from "../types/ChangePasswordPayload";
 
 /**
@@ -28,12 +29,10 @@ export const authAPI = {
      */
     getUserInfo: () => apiRequest<UserInfoResp>({ url: "/api/auth/me" }),
 
-
     changePassword: (data: ChangePasswordPayload) =>
         apiRequest<void, ChangePasswordPayload>({
             url: "/api/auth/self/password",
             method: "PUT",
             params: data,
         }),
-    
 };

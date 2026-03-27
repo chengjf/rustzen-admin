@@ -3,28 +3,29 @@
 /**
  * User list query parameters
  */
-export type UserQuery = { 
-/**
- * The page number to retrieve. Defaults to 1.
- */
-current: number | null, 
-/**
- * The number of items per page. Defaults to 10.
- */
-pageSize: number | null, 
-/**
- * Filter by username (case-insensitive search).
- */
-username: string | null, 
-/**
- * Filter by user status. Accepts: "normal"/"1", "disabled"/"2", or "all".
- */
-status: string | null, 
-/**
- * Filter by real name (case-insensitive search).
- */
-realName: string | null, 
-/**
- * Filter by email (case-insensitive search).
- */
-email: string | null, };
+export type UserQuery = {
+    /**
+     * The page number to retrieve. Defaults to 1.
+     */
+    current: number | null;
+    /**
+     * The number of items per page. Defaults to 10.
+     */
+    pageSize: number | null;
+    /**
+     * Filter by username (case-insensitive search).
+     */
+    username: string | null;
+    /**
+     * Filter by user status. Accepts: "normal"/"1", "disabled"/"2", or "all".
+     */
+    status: string | null;
+    /**
+     * Filter by real name (case-insensitive search).
+     */
+    realName: string | null;
+    /**
+     * Filter by email (case-insensitive search).
+     */
+    email: string | null;
+};

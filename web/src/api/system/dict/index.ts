@@ -1,9 +1,9 @@
 import { apiRequest, proTableRequest } from "@/api";
+import type { CreateDictDto } from "@/api/types/CreateDictDto";
 import type { DictItemResp } from "@/api/types/DictItemResp";
 import type { DictQuery } from "@/api/types/DictQuery";
-import type { CreateDictDto } from "@/api/types/CreateDictDto";
-import type { UpdateDictPayload } from "@/api/types/UpdateDictPayload";
 import type { OptionItem } from "@/api/types/OptionItem";
+import type { UpdateDictPayload } from "@/api/types/UpdateDictPayload";
 
 /**
  * 字典管理API服务

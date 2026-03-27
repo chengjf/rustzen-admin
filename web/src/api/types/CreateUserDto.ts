@@ -3,12 +3,17 @@
 /**
  * Create user request parameters
  */
-export type CreateUserDto = { username: string, email: string, password: string, realName: string | null, 
-/**
- * User status: Defaults to 1.
- */
-status: number | null, 
-/**
- * A list of role IDs to assign to the user. If empty, will use default role.
- */
-roleIds: Array<number>, };
+export type CreateUserDto = {
+    username: string;
+    email: string;
+    password: string;
+    realName: string | null;
+    /**
+     * User status: Defaults to 1.
+     */
+    status: number | null;
+    /**
+     * A list of role IDs to assign to the user. If empty, will use default role.
+     */
+    roleIds: Array<number>;
+};

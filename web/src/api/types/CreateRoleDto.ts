@@ -3,4 +3,11 @@
 /**
  * Create and update role request parameters
  */
-export type CreateRoleDto = { name: string, code: string, status: number, sortOrder: number | null, menuIds: Array<number>, description: string | null, };
+export type CreateRoleDto = {
+    name: string;
+    code: string;
+    status: number;
+    sortOrder: number | null;
+    menuIds: Array<number>;
+    description: string | null;
+};

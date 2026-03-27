@@ -1,4 +1,10 @@
-import { DashboardOutlined, DownOutlined, KeyOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
+import {
+    DashboardOutlined,
+    DownOutlined,
+    KeyOutlined,
+    LogoutOutlined,
+    UserOutlined,
+} from "@ant-design/icons";
 import { ProLayout } from "@ant-design/pro-components";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import type { MenuProps } from "antd";

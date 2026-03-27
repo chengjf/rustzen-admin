@@ -3,28 +3,29 @@
 /**
  * Create dictionary item request parameters
  */
-export type CreateDictDto = { 
-/**
- * The type of the dictionary, used to group related items (e.g., "user_status").
- */
-dictType: string, 
-/**
- * The display text for the item (e.g., "Active").
- */
-label: string, 
-/**
- * The actual value of the item (e.g., "1").
- */
-value: string, 
-/**
- * The status of the item.
- */
-status: number | null, 
-/**
- * The description of the item.
- */
-description: string | null, 
-/**
- * The sort order of the item.
- */
-sortOrder: number | null, };
+export type CreateDictDto = {
+    /**
+     * The type of the dictionary, used to group related items (e.g., "user_status").
+     */
+    dictType: string;
+    /**
+     * The display text for the item (e.g., "Active").
+     */
+    label: string;
+    /**
+     * The actual value of the item (e.g., "1").
+     */
+    value: string;
+    /**
+     * The status of the item.
+     */
+    status: number | null;
+    /**
+     * The description of the item.
+     */
+    description: string | null;
+    /**
+     * The sort order of the item.
+     */
+    sortOrder: number | null;
+};

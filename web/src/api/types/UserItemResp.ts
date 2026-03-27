@@ -4,4 +4,15 @@ import type { OptionItem } from "./OptionItem";
 /**
  * User item for list display
  */
-export type UserItemResp = { id: number, username: string, email: string, realName: string | null, avatarUrl: string | null, status: number, lastLoginAt: string | null, roles: Array<OptionItem<number>>, createdAt: string, updatedAt: string, };
+export type UserItemResp = {
+    id: number;
+    username: string;
+    email: string;
+    realName: string | null;
+    avatarUrl: string | null;
+    status: number;
+    lastLoginAt: string | null;
+    roles: Array<OptionItem<number>>;
+    createdAt: string;
+    updatedAt: string;
+};

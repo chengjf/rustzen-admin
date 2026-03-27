@@ -1,9 +1,9 @@
 import { Popconfirm } from "antd";
+import type { ButtonProps } from "antd/lib/button";
 import React from "react";
 
 import { appModal } from "@/api";
 import { useAuthStore } from "@/stores/useAuthStore";
-import type { ButtonProps } from "antd/lib/button";
 
 interface AuthWrapProps {
     code: string;

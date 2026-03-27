@@ -3,4 +3,4 @@
 /**
  * Updates the status of a dictionary item.
  */
-export type UpdateDictStatusPayload = { status: number, };
+export type UpdateDictStatusPayload = { status: number };

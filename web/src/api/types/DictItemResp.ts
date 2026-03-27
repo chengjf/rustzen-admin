@@ -3,32 +3,34 @@
 /**
  * Dictionary item for list display
  */
-export type DictItemResp = { id: number, 
-/**
- * The type of the dictionary, used to group related items (e.g., "user_status").
- */
-dictType: string, 
-/**
- * The display text for the item (e.g., "Active").
- */
-label: string, 
-/**
- * The actual value of the item (e.g., "1").
- */
-value: string, 
-/**
- * The status of the item.
- */
-status: number, 
-/**
- * The description of the item.
- */
-description: string, 
-/**
- * The sort order of the item.
- */
-sortOrder: number, 
-/**
- * The last update time.
- */
-updatedAt: string, };
+export type DictItemResp = {
+    id: number;
+    /**
+     * The type of the dictionary, used to group related items (e.g., "user_status").
+     */
+    dictType: string;
+    /**
+     * The display text for the item (e.g., "Active").
+     */
+    label: string;
+    /**
+     * The actual value of the item (e.g., "1").
+     */
+    value: string;
+    /**
+     * The status of the item.
+     */
+    status: number;
+    /**
+     * The description of the item.
+     */
+    description: string;
+    /**
+     * The sort order of the item.
+     */
+    sortOrder: number;
+    /**
+     * The last update time.
+     */
+    updatedAt: string;
+};

@@ -3,4 +3,4 @@
 /**
  * Query parameters for dict options endpoints
  */
-export type DictOptionsQuery = { dict_type: string | null, q: string | null, limit: number | null, };
+export type DictOptionsQuery = { dict_type: string | null; q: string | null; limit: number | null };

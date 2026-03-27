@@ -3,32 +3,33 @@
 /**
  * Comprehensive user information for authenticated sessions.
  */
-export type UserInfoResp = { 
-/**
- * Unique identifier of the user
- */
-id: number, 
-/**
- * Username of the user
- */
-username: string, 
-/**
- * Full/display name of the user (optional)
- */
-realName: string | null, 
-/**
- * Email of the user
- */
-email: string | null, 
-/**
- * Avatar URL of the user
- */
-avatarUrl: string | null, 
-/**
- * Whether the user is a system user
- */
-isSystem: boolean, 
-/**
- * List of permission codes the user has access to
- */
-permissions: Array<string>, };
+export type UserInfoResp = {
+    /**
+     * Unique identifier of the user
+     */
+    id: number;
+    /**
+     * Username of the user
+     */
+    username: string;
+    /**
+     * Full/display name of the user (optional)
+     */
+    realName: string | null;
+    /**
+     * Email of the user
+     */
+    email: string | null;
+    /**
+     * Avatar URL of the user
+     */
+    avatarUrl: string | null;
+    /**
+     * Whether the user is a system user
+     */
+    isSystem: boolean;
+    /**
+     * List of permission codes the user has access to
+     */
+    permissions: Array<string>;
+};

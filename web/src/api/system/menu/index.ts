@@ -1,12 +1,12 @@
 import { apiRequest } from "@/api";
+import type { CreateMenuDto } from "@/api/types/CreateMenuDto";
 import type { MenuItemResp } from "@/api/types/MenuItemResp";
 import type { MenuQuery } from "@/api/types/MenuQuery";
-import type { CreateMenuDto } from "@/api/types/CreateMenuDto";
-import type { UpdateMenuPayload } from "@/api/types/UpdateMenuPayload";
+import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
 import type { MenuType } from "@/api/types/MenuType";
 import type { OptionItem } from "@/api/types/OptionItem";
 import type { OptionsWithCodeQuery } from "@/api/types/OptionsWithCodeQuery";
-import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
+import type { UpdateMenuPayload } from "@/api/types/UpdateMenuPayload";
 
 /**
  * 菜单管理API服务

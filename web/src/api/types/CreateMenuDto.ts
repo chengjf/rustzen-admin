@@ -3,4 +3,11 @@
 /**
  * Create menu request parameters
  */
-export type CreateMenuDto = { parentId: number, name: string, code: string, menuType: number, sortOrder: number, status: number, };
+export type CreateMenuDto = {
+    parentId: number;
+    name: string;
+    code: string;
+    menuType: number;
+    sortOrder: number;
+    status: number;
+};

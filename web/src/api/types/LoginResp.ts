@@ -4,12 +4,13 @@ import type { UserInfoResp } from "./UserInfoResp";
 /**
  * Response payload for successful user login.
  */
-export type LoginResp = { 
-/**
- * JWT token for authenticating subsequent requests
- */
-token: string, 
-/**
- * User information
- */
-userInfo: UserInfoResp, };
+export type LoginResp = {
+    /**
+     * JWT token for authenticating subsequent requests
+     */
+    token: string;
+    /**
+     * User information
+     */
+    userInfo: UserInfoResp;
+};

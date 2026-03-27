@@ -1,15 +1,15 @@
+import { UserOutlined } from "@ant-design/icons";
 import type { ActionType, ProColumns } from "@ant-design/pro-components";
 import { ProTable, ModalForm, ProFormSelect, ProFormText } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Form, Modal, Space, Typography, Avatar } from "antd";
-import { UserOutlined } from "@ant-design/icons";
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 import { roleAPI } from "@/api/system/role";
 import { userAPI } from "@/api/system/user";
-import type { UserItemResp } from "@/api/types/UserItemResp";
 import type { CreateUserDto } from "@/api/types/CreateUserDto";
 import type { UpdateUserPayload } from "@/api/types/UpdateUserPayload";
+import type { UserItemResp } from "@/api/types/UserItemResp";
 import { AuthConfirm, AuthWrap } from "@/components/auth";
 import { MoreButton } from "@/components/button";
 import { useApiQuery } from "@/integrations/react-query";
@@ -26,87 +26,92 @@ interface UserModalFormProps {
     onSuccess?: () => void;
 }
 
-const UserModalForm = React.memo(({
-    open,
-    onOpenChange,
-    initialValues,
-    mode = "create",
-    onSuccess,
-}: UserModalFormProps) => {
-    const [form] = Form.useForm();
-    const { data: roleOptions } = useApiQuery("system/roles/options", roleAPI.getOptions);
+const UserModalForm = React.memo(
+    ({ open, onOpenChange, initialValues, mode = "create", onSuccess }: UserModalFormProps) => {
+        const [form] = Form.useForm();
+        const { data: roleOptions } = useApiQuery("system/roles/options", roleAPI.getOptions);
 
-    useEffect(() => {
-        if (open) {
-            form.resetFields();
-            if (mode === "edit" && initialValues) {
-                // 修复：移除 any 标注，利用 TS 自动推导类型
-                // 兼容逻辑保留以应对不同版本的后端 API 定义
-                const roleIds = (initialValues.roles ?? []).map((role) => role.value);
-                form.setFieldsValue({
-                    ...initialValues,
-                    roleIds,
-                });
-            } else {
-                form.setFieldsValue({ status: 1 });
-            }
-        }
-    }, [open, mode, initialValues, form]);
-
-    return (
-        <ModalForm<CreateUserDto | UpdateUserPayload>
-            form={form}
-            open={open}
-            onOpenChange={onOpenChange}
-            width={500}
-            layout="horizontal"
-            title={mode === "create" ? "创建用户" : "编辑用户"}
-            labelCol={{ span: 5 }}
-            modalProps={{ destroyOnHidden: true, maskClosable: false }}
-            onFinish={async (values) => {
-                try {
-                    if (mode === "create") {
-                        await userAPI.create(values as CreateUserDto);
-                    } else if (mode === "edit" && initialValues?.id) {
-                        await userAPI.update(initialValues.id, values as UpdateUserPayload);
-                    }
-                    onSuccess?.();
-                    return true;
-                } catch (error) {
-                    console.error("[UserModalForm Submit Error]:", error);
-                    return false;
+        useEffect(() => {
+            if (open) {
+                form.resetFields();
+                if (mode === "edit" && initialValues) {
+                    // 修复：移除 any 标注，利用 TS 自动推导类型
+                    // 兼容逻辑保留以应对不同版本的后端 API 定义
+                    const roleIds = (initialValues.roles ?? []).map((role) => role.value);
+                    form.setFieldsValue({
+                        ...initialValues,
+                        roleIds,
+                    });
+                } else {
+                    form.setFieldsValue({ status: 1 });
                 }
-            }}
-        >
-            <ProFormText
-                name="username"
-                label="用户名"
-                rules={[{ required: true, message: "请输入用户名" }, { min: 3, message: "至少3个字符" }]}
-                disabled={mode === "edit"}
-            />
-            <ProFormText
-                name="email"
-                label="邮箱"
-                rules={[{ required: true, message: "请输入邮箱" }, { type: "email", message: "邮箱格式不正确" }]}
-            />
-            <ProFormText name="realName" label="真实姓名" />
-            {mode === "create" && (
-                <ProFormText.Password
-                    name="password"
-                    label="密码"
-                    rules={[{ required: true, message: "请输入密码" }, { min: 6, message: "至少6个字符" }]}
+            }
+        }, [open, mode, initialValues, form]);
+
+        return (
+            <ModalForm<CreateUserDto | UpdateUserPayload>
+                form={form}
+                open={open}
+                onOpenChange={onOpenChange}
+                width={500}
+                layout="horizontal"
+                title={mode === "create" ? "创建用户" : "编辑用户"}
+                labelCol={{ span: 5 }}
+                modalProps={{ destroyOnHidden: true, maskClosable: false }}
+                onFinish={async (values) => {
+                    try {
+                        if (mode === "create") {
+                            await userAPI.create(values as CreateUserDto);
+                        } else if (mode === "edit" && initialValues?.id) {
+                            await userAPI.update(initialValues.id, values as UpdateUserPayload);
+                        }
+                        onSuccess?.();
+                        return true;
+                    } catch (error) {
+                        console.error("[UserModalForm Submit Error]:", error);
+                        return false;
+                    }
+                }}
+            >
+                <ProFormText
+                    name="username"
+                    label="用户名"
+                    rules={[
+                        { required: true, message: "请输入用户名" },
+                        { min: 3, message: "至少3个字符" },
+                    ]}
+                    disabled={mode === "edit"}
                 />
-            )}
-            <ProFormSelect
-                name="roleIds"
-                label="角色"
-                options={roleOptions}
-                mode="multiple"
-                rules={[{ required: true, message: "请至少选择一个角色" }]}
-            />
-        </ModalForm>
-    );
-});
+                <ProFormText
+                    name="email"
+                    label="邮箱"
+                    rules={[
+                        { required: true, message: "请输入邮箱" },
+                        { type: "email", message: "邮箱格式不正确" },
+                    ]}
+                />
+                <ProFormText name="realName" label="真实姓名" />
+                {mode === "create" && (
+                    <ProFormText.Password
+                        name="password"
+                        label="密码"
+                        rules={[
+                            { required: true, message: "请输入密码" },
+                            { min: 6, message: "至少6个字符" },
+                        ]}
+                    />
+                )}
+                <ProFormSelect
+                    name="roleIds"
+                    label="角色"
+                    options={roleOptions}
+                    mode="multiple"
+                    rules={[{ required: true, message: "请至少选择一个角色" }]}
+                />
+            </ModalForm>
+        );
+    },
+);
 
 UserModalForm.displayName = "UserModalForm";
 
@@ -164,19 +169,27 @@ function UserPage() {
                 dataIndex: "avatarUrl",
                 width: 60,
                 search: false,
-                render: (url) => <Avatar src={url as string} icon={<UserOutlined />} className="mx-auto" />,
+                render: (url) => (
+                    <Avatar src={url as string} icon={<UserOutlined />} className="mx-auto" />
+                ),
             },
             { title: "用户名", align: "center", dataIndex: "username" },
             { title: "真实姓名", align: "center", dataIndex: "realName" },
             { title: "邮箱", align: "center", dataIndex: "email" },
-            { 
-                title: "角色", 
-                align: "center", 
-                dataIndex: "roles", 
+            {
+                title: "角色",
+                align: "center",
+                dataIndex: "roles",
                 search: false,
                 render: (_, record) => (record.roles ?? []).map((role) => role.label).join(", "),
             },
-            { title: "最后登录时间", align: "center", dataIndex: "lastLoginAt", valueType: "dateTime", search: false },
+            {
+                title: "最后登录时间",
+                align: "center",
+                dataIndex: "lastLoginAt",
+                valueType: "dateTime",
+                search: false,
+            },
             {
                 title: "操作",
                 key: "action",
@@ -188,7 +201,7 @@ function UserPage() {
                     if (entity.id === userInfo?.id || entity.id === 1) return null;
                     const isEnable = entity.status === 1;
                     const statusText = isEnable ? "禁用" : "启用";
-                    
+
                     return (
                         <Space size="middle">
                             <AuthWrap code="system:user:update">
@@ -200,7 +213,9 @@ function UserPage() {
                                     code="system:user:status"
                                     title={`确定要${statusText}此用户吗？`}
                                     onConfirm={async () => {
-                                        await userAPI.updateStatus(entity.id, { status: isEnable ? 2 : 1 });
+                                        await userAPI.updateStatus(entity.id, {
+                                            status: isEnable ? 2 : 1,
+                                        });
                                         void actionRef.current?.reload();
                                     }}
                                 >
@@ -237,16 +252,19 @@ function UserPage() {
                 },
             },
         ],
-        [userInfo, handleEdit], 
+        [userInfo, handleEdit],
     );
 
-    const toolBarRender = useCallback(() => [
-        <AuthWrap code="system:user:create" key="create">
-            <Button type="primary" onClick={handleCreate}>
-                创建用户
-            </Button>
-        </AuthWrap>,
-    ], [handleCreate]);
+    const toolBarRender = useCallback(
+        () => [
+            <AuthWrap code="system:user:create" key="create">
+                <Button type="primary" onClick={handleCreate}>
+                    创建用户
+                </Button>
+            </AuthWrap>,
+        ],
+        [handleCreate],
+    );
 
     return (
         <>
@@ -283,7 +301,12 @@ function UserPage() {
                 <Typography.Text
                     strong
                     copyable={{ text: passwordModal.password }}
-                    style={{ fontSize: 24, display: 'block', textAlign: 'center', margin: '16px 0' }}
+                    style={{
+                        fontSize: 24,
+                        display: "block",
+                        textAlign: "center",
+                        margin: "16px 0",
+                    }}
                 >
                     {passwordModal.password}
                 </Typography.Text>
