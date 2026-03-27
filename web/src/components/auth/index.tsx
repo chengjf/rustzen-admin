@@ -3,6 +3,7 @@ import React from "react";
 
 import { appModal } from "@/api";
 import { useAuthStore } from "@/stores/useAuthStore";
+import type { ButtonProps } from "antd/lib/button";
 
 interface AuthWrapProps {
     code: string;
@@ -29,6 +30,8 @@ interface AuthPopconfirmProps extends AuthWrapProps {
     description?: React.ReactNode;
     onConfirm: () => Promise<void>;
     onCancel?: () => Promise<void>;
+    okButtonProps?: ButtonProps;
+    cancelButtonProps?: ButtonProps;
 }
 
 export const AuthPopconfirm: React.FC<AuthPopconfirmProps> = ({
@@ -70,6 +73,8 @@ export const AuthConfirm: React.FC<AuthConfirmProps> = (props) => {
             onCancel: props.onCancel,
             okText: "确认",
             cancelText: "取消",
+            okButtonProps: props.okButtonProps,
+            cancelButtonProps: props.cancelButtonProps,
         });
     };
 
