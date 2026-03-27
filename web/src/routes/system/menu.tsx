@@ -1,169 +1,62 @@
-import type { ActionType, ProColumns } from "@ant-design/pro-components";
-import { ProFormTreeSelect, ProTable } from "@ant-design/pro-components";
-import { ModalForm, ProFormDigit, ProFormSelect, ProFormText } from "@ant-design/pro-components";
+import {
+    type ActionType,
+    type ProColumns,
+    ProFormTreeSelect,
+    ProTable,
+    ModalForm,
+    ProFormDigit,
+    ProFormSelect,
+    ProFormText,
+} from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Space, Tag } from "antd";
-import { Form } from "antd";
-import React, { useRef } from "react";
+import { Button, Space, Tag, Form, message } from "antd";
+import React, { useRef, useCallback, useMemo } from "react";
 
 import { menuAPI } from "@/api/system/menu";
 import type { MenuItemResp } from "@/api/types/MenuItemResp";
 import type { MenuQuery } from "@/api/types/MenuQuery";
-import type { CreateMenuDto } from "@/api/types/CreateMenuDto";
-import type { UpdateMenuPayload } from "@/api/types/UpdateMenuPayload";
 import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/constant/options";
+
+// =============================================================================
+// 1. 路由定义 (Router Definition) - 放置于顶部以兼容路由 Codegen
+// =============================================================================
 
 export const Route = createFileRoute("/system/menu")({
     component: MenuPage,
 });
 
-function MenuPage() {
-    const actionRef = useRef<ActionType>(null);
+// =============================================================================
+// 2. 常量与工具函数 (Constants & Helpers)
+// =============================================================================
 
-    return (
-        <AuthWrap code="system:menu:list">
-            <ProTable<MenuItemResp>
-                rowKey="id"
-                search={{
-                    labelWidth: "auto",
-                }}
-                scroll={{ y: "calc(100vh - 287px)" }}
-                headerTitle="菜单管理"
-                columns={columns}
-                request={async (params) => {
-                    const res = await menuAPI.getTableData(params as Partial<MenuQuery>);
-                    return {
-                        data: res,
-                        success: true,
-                    };
-                }}
-                actionRef={actionRef}
-                pagination={false}
-                toolBarRender={() => [
-                    <AuthWrap code="system:menu:create">
-                        <MenuModalForm
-                            mode={"create"}
-                            initialValues={{ sortOrder: 0 }}
-                            onSuccess={() => {
-                                void actionRef.current?.reload();
-                            }}
-                        >
-                            <Button type="primary">创建菜单</Button>
-                        </MenuModalForm>
-                    </AuthWrap>,
-                ]}
-            />
-        </AuthWrap>
-    );
-}
-
-const menuTypeEnum: Record<number, { text: string; color: string }> = {
+const MENU_TYPE_CONFIG: Record<number, { text: string; color: string }> = {
     1: { text: "目录", color: "cyan" },
     2: { text: "菜单", color: "purple" },
-    3: { text: "按钮", color: "warning" },
+    3: { text: "按钮", color: "orange" },
 };
 
-const columns: ProColumns<MenuItemResp>[] = [
-    {
-        title: "",
-        dataIndex: "",
-        width: 60,
-        hideInSearch: true,
-    },
-    {
-        title: "名称",
-        align: "center",
-        width: 120,
-        dataIndex: "name",
-        ellipsis: true,
-    },
-    {
-        title: "编码",
-        align: "center",
-        width: 120,
-        dataIndex: "code",
-        ellipsis: true,
-    },
-    {
-        title: "菜单类型",
-        align: "center",
-        dataIndex: "menuType",
-        width: 120,
-        ellipsis: true,
-        valueEnum: {
-            1: { text: "目录", color: "cyan" },
-            2: { text: "菜单", color: "purple" },
-            3: { text: "按钮", color: "warning" },
-        },
-        render: (_, record) => {
-            const item = menuTypeEnum[record.menuType];
-            return <Tag color={item.color}>{item.text}</Tag>;
-        },
-    },
-    {
-        title: "状态",
-        align: "center",
-        dataIndex: "status",
-        width: 120,
-        ellipsis: true,
-        valueEnum: {
-            1: { text: "启用", status: "Success" },
-            2: { text: "禁用", status: "Default" },
-        },
-    },
-    {
-        title: "排序",
-        align: "center",
-        dataIndex: "sortOrder",
-        width: 120,
-        ellipsis: true,
-        hideInSearch: true,
-    },
-    {
-        title: "更新时间",
-        align: "center",
-        dataIndex: "updatedAt",
-        valueType: "dateTime",
-        width: 200,
-        hideInSearch: true,
-    },
-    {
-        title: "操作",
-        align: "center",
-        key: "action",
-        width: 200,
-        fixed: "right",
-        render: (_dom: React.ReactNode, entity: MenuItemResp, _index, action?: ActionType) => (
-            <Space size="middle">
-                <AuthWrap code="system:menu:update">
-                    <MenuModalForm
-                        mode={"edit"}
-                        initialValues={entity}
-                        onSuccess={() => {
-                            void action?.reload();
-                        }}
-                    >
-                        <a>编辑</a>
-                    </MenuModalForm>
-                </AuthWrap>
-                <AuthPopconfirm
-                    code="system:menu:delete"
-                    title="确定要删除此菜单吗？"
-                    description="此操作不可撤销。"
-                    hidden={entity.isSystem}
-                    onConfirm={async () => {
-                        await menuAPI.delete(entity.id);
-                        void action?.reload();
-                    }}
-                >
-                    <span className="cursor-pointer text-red-500">删除</span>
-                </AuthPopconfirm>
-            </Space>
-        ),
-    },
-];
+/**
+ * 递归过滤树节点中的按钮类型
+ */
+const filterButtonNodes = (nodes: MenuTreeOption[]): MenuTreeOption[] => {
+    return nodes
+        .filter((node) => node.menuType !== 3)
+        .map(
+            (node): MenuTreeOption => ({
+                ...node,
+                children:
+                    node.children && node.children.length > 0
+                        ? filterButtonNodes(node.children)
+                        : null,
+            }),
+        );
+};
+
+// =============================================================================
+// 3. 子组件 (Sub-Components) - 声明于主组件之前
+// =============================================================================
 
 interface MenuModalFormProps {
     initialValues?: Partial<MenuItemResp>;
@@ -180,95 +73,216 @@ const MenuModalForm = ({
 }: MenuModalFormProps) => {
     const [form] = Form.useForm();
 
+    const handleOpenChange = (open: boolean) => {
+        if (open && initialValues) {
+            form.setFieldsValue(initialValues);
+        } else if (!open) {
+            form.resetFields();
+        }
+    };
+
     return (
-        <ModalForm<CreateMenuDto | UpdateMenuPayload>
+        <ModalForm
             form={form}
-            width={600}
-            layout="horizontal"
-            title={mode === "create" ? "创建菜单" : "编辑菜单"}
+            width={580}
+            title={mode === "create" ? "新增菜单节点" : "编辑菜单属性"}
             trigger={children}
-            labelCol={{ span: 6 }}
+            layout="horizontal"
+            labelCol={{ span: 5 }}
             wrapperCol={{ span: 18 }}
             modalProps={{
-                destroyOnHidden: true,
+                destroyOnClose: true,
                 maskClosable: false,
-                okText: mode === "create" ? "创建" : "保存",
-                cancelText: "取消",
             }}
-            onOpenChange={(open) => {
-                if (open) {
-                    form.setFieldsValue(initialValues);
-                } else {
-                    form.resetFields();
-                }
-            }}
+            onOpenChange={handleOpenChange}
             onFinish={async (values) => {
-                if (mode === "create") {
-                    await menuAPI.create(values);
-                } else if (mode === "edit" && initialValues?.id) {
-                    await menuAPI.update(initialValues.id, values);
+                try {
+                    if (mode === "create") {
+                        await menuAPI.create(values);
+                        message.success("创建成功");
+                    } else if (mode === "edit") {
+                        if (!initialValues?.id) {
+                            message.error("数据异常：缺失 ID");
+                            return false;
+                        }
+                        await menuAPI.update(initialValues.id, values);
+                        message.success("更新保存成功");
+                    }
+                    onSuccess?.();
+                    return true;
+                } catch (error) {
+                    console.error("[MenuModalForm Submit Error]:", error);
+                    return false;
                 }
-                onSuccess?.();
-                return true;
             }}
         >
             <ProFormTreeSelect
                 name="parentId"
                 label="上级菜单"
-                placeholder="请选择上级菜单"
                 request={async () => {
                     const res = await menuAPI.getOptionsWithCode({ btn_filter: true });
-                    // 添加默认根节点id为0
-                    console.log(res);
-                    let root = { label: "根菜单", value: 0, children: [] as MenuTreeOption[] };
-                    // 过滤点menuType为3的，递归children
-
-                    // 将res中的parentId为0的项添加到root的children中
-                    let rootChild = res.filter((item) => item.parentId === 0);
-                    root.children = rootChild;
-                    return [root];
+                    return [
+                        {
+                            label: "顶级根目录",
+                            value: 0,
+                            children: filterButtonNodes(res),
+                        },
+                    ];
                 }}
                 fieldProps={{
                     showSearch: true,
-                    // 关键配置：指定搜索时过滤哪一个字段
                     treeNodeFilterProp: "label",
-                    // 建议同时开启此项，支持搜索子节点时展示层级
                     treeDefaultExpandAll: true,
                 }}
-                rules={[{ required: true, message: "请选择上级菜单" }]}
+                rules={[{ required: true, message: "请指定上级菜单" }]}
             />
-            <ProFormText
-                name="name"
-                label="菜单名称"
-                placeholder="请输入菜单名称"
-                rules={[{ required: true, message: "请输入菜单名称" }]}
-            />
-            <ProFormText
-                name="code"
-                label="权限编码"
-                placeholder="请输入权限编码（如 system:menu:list）"
-                rules={[{ required: true, message: "请输入权限编码" }]}
-            />
+
             <ProFormSelect
-                label="类型"
+                label="菜单类型"
                 name="menuType"
                 options={MENU_TYPE_OPTIONS}
-                rules={[{ required: true, message: "请选择菜单类型" }]}
+                rules={[{ required: true }]}
             />
+
+            <ProFormText name="name" label="名称" rules={[{ required: true, max: 32 }]} />
+
+            <ProFormText name="code" label="权限标识" rules={[{ required: true }]} />
+
             <ProFormSelect
                 name="status"
                 label="状态"
-                placeholder="请选择状态"
                 options={ENABLE_OPTIONS}
-                rules={[{ required: true, message: "请选择状态" }]}
+                rules={[{ required: true }]}
             />
+
             <ProFormDigit
                 name="sortOrder"
-                label="排序"
-                placeholder="请输入排序"
+                label="显示排序"
                 min={0}
+                initialValue={0}
                 fieldProps={{ precision: 0 }}
             />
         </ModalForm>
     );
 };
+
+// =============================================================================
+// 4. 页面主组件 (Main Component)
+// =============================================================================
+
+function MenuPage() {
+    const actionRef = useRef<ActionType>(null);
+
+    const handleReload = useCallback(() => {
+        void actionRef.current?.reload();
+    }, []);
+
+    const columns: ProColumns<MenuItemResp>[] = useMemo(
+        () => [
+            { title: "名称", dataIndex: "name", width: 200, ellipsis: true },
+            { title: "编码", align: "center", width: 150, dataIndex: "code", ellipsis: true },
+            {
+                title: "类型",
+                align: "center",
+                dataIndex: "menuType",
+                width: 100,
+                valueEnum: MENU_TYPE_CONFIG,
+                render: (_, record) => {
+                    const config = MENU_TYPE_CONFIG[record.menuType];
+                    return <Tag color={config?.color}>{config?.text}</Tag>;
+                },
+            },
+            {
+                title: "状态",
+                align: "center",
+                dataIndex: "status",
+                width: 100,
+                valueEnum: {
+                    1: { text: "启用", status: "Success" },
+                    2: { text: "禁用", status: "Default" },
+                },
+            },
+            { title: "排序", align: "center", dataIndex: "sortOrder", width: 80, search: false },
+            {
+                title: "更新时间",
+                align: "center",
+                dataIndex: "updatedAt",
+                valueType: "dateTime",
+                width: 180,
+                search: false,
+            },
+            {
+                title: "操作",
+                align: "center",
+                key: "action",
+                width: 160,
+                fixed: "right",
+                render: (_, entity) => (
+                    <Space size="small">
+                        <AuthWrap code="system:menu:update">
+                            <MenuModalForm
+                                mode="edit"
+                                initialValues={entity}
+                                onSuccess={handleReload}
+                            >
+                                <a>编辑</a>
+                            </MenuModalForm>
+                        </AuthWrap>
+                        <AuthPopconfirm
+                            code="system:menu:delete"
+                            title="确定要删除此菜单吗？"
+                            description="此操作将同步删除下级菜单且不可撤销。"
+                            hidden={entity.isSystem}
+                            onConfirm={async () => {
+                                try {
+                                    await menuAPI.delete(entity.id);
+                                    message.success("删除成功");
+                                    handleReload();
+                                } catch (e) {
+                                    console.error("[Delete Menu Error]:", e);
+                                }
+                            }}
+                        >
+                            <span className="cursor-pointer text-red-500">删除</span>
+                        </AuthPopconfirm>
+                    </Space>
+                ),
+            },
+        ],
+        [handleReload],
+    );
+
+    const toolBarRender = useCallback(
+        () => [
+            <AuthWrap code="system:menu:create" key="add">
+                <MenuModalForm
+                    mode="create"
+                    initialValues={{ sortOrder: 0, status: 1, menuType: 1, parentId: 0 }}
+                    onSuccess={handleReload}
+                >
+                    <Button type="primary">创建菜单</Button>
+                </MenuModalForm>
+            </AuthWrap>,
+        ],
+        [handleReload],
+    );
+
+    return (
+        <AuthWrap code="system:menu:list">
+            <ProTable<MenuItemResp>
+                rowKey="id"
+                search={{ labelWidth: "auto" }}
+                scroll={{ y: "calc(100vh - 280px)" }}
+                headerTitle="菜单权限架构"
+                columns={columns}
+                request={async (params) => {
+                    const res = await menuAPI.getTableData(params as Partial<MenuQuery>);
+                    return { data: res, success: true };
+                }}
+                actionRef={actionRef}
+                pagination={false}
+                toolBarRender={toolBarRender}
+            />
+        </AuthWrap>
+    );
+}
