@@ -35,5 +35,6 @@ export const authAPI = {
             url: "/api/auth/self/password",
             method: "PUT",
             params: data,
+            skipSuccessMsg: true, // Let page show custom message
         }),
 };

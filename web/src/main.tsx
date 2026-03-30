@@ -2,6 +2,7 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 
+import { ErrorBoundary } from "./components/error-boundary";
 import * as TanStackQueryProvider from "./integrations/tanstack-query/root-provider.tsx";
 import { routeTree } from "./routeTree.gen";
 
@@ -36,9 +37,11 @@ if (rootElement && !rootElement.innerHTML) {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
         <StrictMode>
-            <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
-                <RouterProvider router={router} />
-            </TanStackQueryProvider.Provider>
+            <ErrorBoundary>
+                <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
+                    <RouterProvider router={router} />
+                </TanStackQueryProvider.Provider>
+            </ErrorBoundary>
         </StrictMode>,
     );
 }

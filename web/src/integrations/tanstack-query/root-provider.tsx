@@ -11,9 +11,14 @@ export function getContext() {
                 gcTime: 1000 * 60 * 30,
                 refetchOnWindowFocus: true,
                 refetchOnReconnect: true,
+                retry: 1, // Retry failed queries once
+            },
+            mutations: {
+                retry: false, // Don't retry mutations (user sees error)
             },
         },
     });
+
     return {
         queryClient,
     };

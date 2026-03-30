@@ -9,9 +9,10 @@ import {
     ProFormText,
 } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Space, Tag, Form, message } from "antd";
+import { Button, Space, Tag, Form } from "antd";
 import React, { useRef, useCallback, useMemo } from "react";
 
+import { appMessage } from "@/api";
 import { menuAPI } from "@/api/system/menu";
 import type { MenuItemResp } from "@/api/types/MenuItemResp";
 import type { MenuQuery } from "@/api/types/MenuQuery";
@@ -99,14 +100,14 @@ const MenuModalForm = ({
                 try {
                     if (mode === "create") {
                         await menuAPI.create(values);
-                        message.success("创建成功");
+                        appMessage.success("创建成功");
                     } else if (mode === "edit") {
                         if (!initialValues?.id) {
-                            message.error("数据异常：缺失 ID");
+                            appMessage.error("数据异常：缺失 ID");
                             return false;
                         }
                         await menuAPI.update(initialValues.id, values);
-                        message.success("更新保存成功");
+                        appMessage.success("更新保存成功");
                     }
                     onSuccess?.();
                     return true;
@@ -236,7 +237,7 @@ function MenuPage() {
                             onConfirm={async () => {
                                 try {
                                     await menuAPI.delete(entity.id);
-                                    message.success("删除成功");
+                                    appMessage.success("删除成功");
                                     handleReload();
                                 } catch (e) {
                                     console.error("[Delete Menu Error]:", e);

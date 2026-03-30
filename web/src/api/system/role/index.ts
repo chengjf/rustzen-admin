@@ -20,6 +20,7 @@ export const roleAPI = {
             url: "/api/system/roles",
             method: "POST",
             params: data,
+            skipSuccessMsg: true, // Let page handle success message
         }),
 
     update: (id: number, data: UpdateRolePayload) =>
@@ -27,9 +28,15 @@ export const roleAPI = {
             url: `/api/system/roles/${id}`,
             method: "PUT",
             params: data,
+            skipSuccessMsg: true, // Let page handle success message
         }),
 
-    delete: (id: number) => apiRequest<void>({ url: `/api/system/roles/${id}`, method: "DELETE" }),
+    delete: (id: number) =>
+        apiRequest<void>({
+            url: `/api/system/roles/${id}`,
+            method: "DELETE",
+            skipSuccessMsg: true, // Let page handle success message
+        }),
 
     getOptions: () => apiRequest<OptionItem<number>[]>({ url: "/api/system/roles/options" }),
 };

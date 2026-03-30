@@ -14,6 +14,7 @@ import { AuthConfirm, AuthWrap } from "@/components/auth";
 import { MoreButton } from "@/components/button";
 import { useApiQuery } from "@/integrations/react-query";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { appMessage } from "@/api";
 
 // =============================================================================
 // 1. 子组件：UserModalForm
@@ -62,8 +63,10 @@ const UserModalForm = React.memo(
                     try {
                         if (mode === "create") {
                             await userAPI.create(values as CreateUserDto);
+                            appMessage.success("创建用户成功");
                         } else if (mode === "edit" && initialValues?.id) {
                             await userAPI.update(initialValues.id, values as UpdateUserPayload);
+                            appMessage.success("更新用户成功");
                         }
                         onSuccess?.();
                         return true;
@@ -216,6 +219,7 @@ function UserPage() {
                                         await userAPI.updateStatus(entity.id, {
                                             status: isEnable ? 2 : 1,
                                         });
+                                        appMessage.success(statusText === "启用" ? "已启用用户" : "已禁用用户");
                                         void actionRef.current?.reload();
                                     }}
                                 >
@@ -241,6 +245,7 @@ function UserPage() {
                                     okButtonProps={{ danger: true }}
                                     onConfirm={async () => {
                                         await userAPI.delete(entity.id);
+                                        appMessage.success("删除用户成功");
                                         void actionRef.current?.reload();
                                     }}
                                 >

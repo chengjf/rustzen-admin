@@ -20,6 +20,7 @@ export const dictAPI = {
             url: "/api/system/dicts",
             method: "POST",
             params: data,
+            skipSuccessMsg: true,
         }),
 
     update: (id: number, data: UpdateDictPayload) =>
@@ -27,12 +28,14 @@ export const dictAPI = {
             url: `/api/system/dicts/${id}`,
             method: "PUT",
             params: data,
+            skipSuccessMsg: true,
         }),
 
     delete: (id: number) =>
         apiRequest<void>({
             url: `/api/system/dicts/${id}`,
             method: "DELETE",
+            skipSuccessMsg: true,
         }),
 
     getOptions: () => apiRequest<OptionItem<string>[]>({ url: "/api/system/dicts/options" }),

@@ -1,8 +1,9 @@
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Button, Card, Form, Input, Typography, message } from "antd";
+import { Button, Card, Form, Input, Typography } from "antd";
 import { useState, useCallback } from "react";
 
+import { appMessage } from "@/api";
 import { authAPI } from "@/api/auth";
 import type { LoginRequest } from "@/api/types/LoginRequest";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -36,7 +37,7 @@ function LoginPage() {
                 // 存储 token 和用户信息
                 handleLogin(res.token, res.userInfo);
 
-                message.success("登录成功，正在跳转...");
+                appMessage.success("登录成功，正在跳转...");
 
                 // 使用 replace 防止用户通过后退键回到登录页
                 void navigate({ to: "/", replace: true });

@@ -9,23 +9,11 @@ import {
     type ProColumns,
 } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-    Form,
-    Space,
-    Tree,
-    Typography,
-    Checkbox,
-    Card,
-    Empty,
-    Row,
-    Col,
-    Spin,
-    Button,
-    message,
-} from "antd";
+import { Form, Space, Tree, Typography, Checkbox, Card, Empty, Row, Col, Spin, Button } from "antd";
 import type { DataNode } from "antd/es/tree";
 import { useRef, useMemo, useState, useCallback, useEffect, type ReactNode } from "react";
 
+import { appMessage } from "@/api";
 import { menuAPI } from "@/api/system/menu";
 import { roleAPI } from "@/api/system/role";
 import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
@@ -111,7 +99,7 @@ function RolePage() {
                             onConfirm={async () => {
                                 try {
                                     await roleAPI.delete(entity.id);
-                                    message.success("删除成功");
+                                    appMessage.success("删除成功");
                                     handleReload();
                                 } catch (e) {
                                     console.error(e);
@@ -374,7 +362,7 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: RoleModalFo
 
                     if (mode === "edit") {
                         if (!initialValues?.id) {
-                            message.error("数据异常，请刷新后重试");
+                            appMessage.error("数据异常，请刷新后重试");
                             console.error("edit 模式缺少 id");
                             return false;
                         }
@@ -383,7 +371,7 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: RoleModalFo
                         await roleAPI.create(params);
                     }
 
-                    message.success(mode === "edit" ? "更新成功" : "创建成功");
+                    appMessage.success(mode === "edit" ? "更新成功" : "创建成功");
                     onSuccess?.();
                     return true;
                 } catch (error) {

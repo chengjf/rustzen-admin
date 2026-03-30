@@ -1,9 +1,10 @@
 import { type ActionType, type ProColumns, ProTable } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Segmented, Tag, message } from "antd";
+import { Button, Segmented, Tag } from "antd";
 // 修复 TS6133: 移除未使用的 React 默认导入，仅保留需要的 Hooks
 import { useRef, useCallback, useMemo, useState } from "react";
 
+import { appMessage } from "@/api";
 import { logAPI } from "@/api/system/log";
 import type { LogItemResp } from "@/api/types/LogItemResp";
 import { AuthWrap } from "@/components/auth";
@@ -56,7 +57,7 @@ function LogPage() {
         setExportLoading(true);
         try {
             const filename = await logAPI.exportLogList();
-            message.success(`日志已导出为 ${filename}`);
+            appMessage.success(`日志已导出为 ${filename}`);
         } catch (error) {
             console.error("[Log Export Error]:", error);
             // Error toast is already shown by handleError, no need to show again

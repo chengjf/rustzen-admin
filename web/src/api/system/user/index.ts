@@ -23,6 +23,7 @@ export const userAPI = {
             url: "/api/system/users",
             method: "POST",
             params: data,
+            skipSuccessMsg: true,
         }),
 
     update: (id: number, data: UpdateUserPayload) =>
@@ -30,15 +31,22 @@ export const userAPI = {
             url: `/api/system/users/${id}`,
             method: "PUT",
             params: data,
+            skipSuccessMsg: true,
         }),
 
-    delete: (id: number) => apiRequest<void>({ url: `/api/system/users/${id}`, method: "DELETE" }),
+    delete: (id: number) =>
+        apiRequest<void>({
+            url: `/api/system/users/${id}`,
+            method: "DELETE",
+            skipSuccessMsg: true,
+        }),
 
     updateStatus: (id: number, data: UpdateUserStatusPayload) =>
         apiRequest<void, UpdateUserStatusPayload>({
             url: `/api/system/users/${id}/status`,
             method: "PUT",
             params: data,
+            skipSuccessMsg: true,
         }),
 
     resetPassword: (id: number) =>
@@ -46,6 +54,7 @@ export const userAPI = {
             url: `/api/system/users/${id}/password`,
             method: "PUT",
             body: JSON.stringify({} as UpdateUserPasswordPayload),
+            skipSuccessMsg: true,
         }),
 
     getStatusOptions: () =>

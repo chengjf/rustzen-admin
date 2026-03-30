@@ -11,6 +11,7 @@ import type { CreateDictDto } from "@/api/types/CreateDictDto";
 import type { DictItemResp } from "@/api/types/DictItemResp";
 import type { UpdateDictPayload } from "@/api/types/UpdateDictPayload";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
+import { appMessage } from "@/api";
 
 export const Route = createFileRoute("/system/dict")({
     component: DictPage,
@@ -104,8 +105,13 @@ const columns: ProColumns<DictItemResp>[] = [
                     title="确定要删除此字典吗？"
                     description="此操作不可撤销。"
                     onConfirm={async () => {
-                        await dictAPI.delete(entity.id);
-                        void action?.reload();
+                        try {
+                            await dictAPI.delete(entity.id);
+                            appMessage.success("删除字典成功");
+                            void action?.reload();
+                        } catch (error) {
+                            console.error("[Delete Dict Error]:", error);
+                        }
                     }}
                 >
                     <span className="cursor-pointer text-red-500">删除</span>
@@ -153,13 +159,20 @@ const DictModalForm = ({
                 }
             }}
             onFinish={async (values) => {
-                if (mode === "create") {
-                    await dictAPI.create(values as CreateDictDto);
-                } else if (mode === "edit" && initialValues?.id) {
-                    await dictAPI.update(initialValues.id, values as UpdateDictPayload);
+                try {
+                    if (mode === "create") {
+                        await dictAPI.create(values as CreateDictDto);
+                        appMessage.success("创建字典成功");
+                    } else if (mode === "edit" && initialValues?.id) {
+                        await dictAPI.update(initialValues.id, values as UpdateDictPayload);
+                        appMessage.success("更新字典成功");
+                    }
+                    onSuccess?.();
+                    return true;
+                } catch (error) {
+                    console.error("[DictModalForm Submit Error]:", error);
+                    return false;
                 }
-                onSuccess?.();
-                return true;
             }}
         >
             <ProFormText

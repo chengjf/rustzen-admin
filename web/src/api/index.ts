@@ -104,6 +104,11 @@ interface RequestOptions<P = Api.BaseParams> extends RequestInit {
      * If true, skip success message
      */
     skipSuccessMsg?: boolean;
+
+    /**
+     * Request timeout in milliseconds (default: 30000)
+     */
+    timeout?: number;
 }
 
 /**
@@ -128,7 +133,7 @@ const coreRequest = async <T, P>(options: RequestOptions<P>): Promise<Api.ApiRes
         // 在调用时传：menuAPI.create(data, { skipSuccessMsg: true })
         const skipMsg = options.skipSuccessMsg;
 
-        if (isMutation && !skipMsg) {
+        if (isMutation && !skipMsg && !options?.silent) {
             appMessage.success(result.message || "操作成功");
         }
         return result;
@@ -139,9 +144,19 @@ const coreRequest = async <T, P>(options: RequestOptions<P>): Promise<Api.ApiRes
     }
 };
 
-const formatFetchConfig = <T>({ params, url, ...options }: RequestOptions<T>) => {
+const formatFetchConfig = <T>({
+    params,
+    url,
+    timeout = 30000,
+    ...options
+}: RequestOptions<T> & { timeout?: number }) => {
     const controller = new AbortController();
     requestPool.add(controller);
+
+    // Set timeout
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, timeout);
 
     const config: RequestInit = {
         ...options,
@@ -160,7 +175,10 @@ const formatFetchConfig = <T>({ params, url, ...options }: RequestOptions<T>) =>
     return {
         url,
         config,
-        reqDelete: () => requestPool.delete(controller),
+        reqDelete: () => {
+            clearTimeout(timeoutId);
+            requestPool.delete(controller);
+        },
     };
 };
 
@@ -168,14 +186,19 @@ const formatFetchConfig = <T>({ params, url, ...options }: RequestOptions<T>) =>
  * Handle all errors
  */
 const handleError = async (error: unknown, options?: RequestOptions<any>): Promise<never> => {
-    // 1. AbortError (request cancellation or timeout)
+    // 1. Business logic errors from backend (result.code !== 0)
+    if (error && typeof error === "object" && "code" in error && "message" in error) {
+        const businessError = error as { code: number; message: string };
+        if (!options?.silent) {
+            appMessage.error(businessError.message || "操作失败");
+        }
+        return Promise.reject(error);
+    }
+
+    // 2. AbortError (request cancellation or timeout)
     if (error instanceof DOMException) {
         if (error.name === "AbortError") {
             console.debug("Request aborted");
-            // Optionally show timeout message if needed
-            // if (!options?.silent) {
-            //     appMessage.error("请求超时，请重试");
-            // }
             return Promise.reject(error);
         }
         // Other DOMException types
@@ -186,7 +209,7 @@ const handleError = async (error: unknown, options?: RequestOptions<any>): Promi
         return Promise.reject(error);
     }
 
-    // 2. HTTP Response errors
+    // 3. HTTP Response errors
     if (error instanceof Response) {
         const response = error;
         const statusCode = response.status;

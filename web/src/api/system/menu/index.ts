@@ -24,6 +24,7 @@ export const menuAPI = {
             url: "/api/system/menus",
             method: "POST",
             params: data,
+            skipSuccessMsg: true,
         }),
 
     update: (id: number, data: UpdateMenuPayload) =>
@@ -31,9 +32,15 @@ export const menuAPI = {
             url: `/api/system/menus/${id}`,
             method: "PUT",
             params: data,
+            skipSuccessMsg: true,
         }),
 
-    delete: (id: number) => apiRequest<void>({ url: `/api/system/menus/${id}`, method: "DELETE" }),
+    delete: (id: number) =>
+        apiRequest<void>({
+            url: `/api/system/menus/${id}`,
+            method: "DELETE",
+            skipSuccessMsg: true,
+        }),
 
     getOptions: () =>
         apiRequest<OptionItem<number>[]>({ url: "/api/system/menus/options" }).then((res) => [

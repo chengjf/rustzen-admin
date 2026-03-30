@@ -49,7 +49,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
     const { token, updateUserInfo } = useAuthStore();
-    const { data: userInfo } = useQuery({
+    const { data: userInfo, error: userInfoError } = useQuery({
         queryKey: ["auth-userInfo"],
         queryFn: authAPI.getUserInfo,
     });
@@ -59,6 +59,14 @@ function RootLayout() {
             updateUserInfo(userInfo);
         }
     }, [userInfo, updateUserInfo]);
+
+    // Handle getUserInfo errors
+    useEffect(() => {
+        if (userInfoError) {
+            console.error("[UserInfo Load Error]:", userInfoError);
+            // Error toast is already shown by apiRequest's handleError
+        }
+    }, [userInfoError]);
 
     return (
         <ConfigProvider locale={enUS}>
