@@ -17,6 +17,7 @@ export const authAPI = {
             url: "/api/auth/login",
             method: "POST",
             params: data,
+            skipSuccessMsg: true, // Login page shows its own success message
         }),
 
     /**

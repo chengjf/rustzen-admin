@@ -9,6 +9,7 @@
         "postbuild": "zipper -o dist-rustzen-admin",
         "dev": "vp dev",
         "build": "vp build",
+        "build:prod": "tsc --project tsconfig.build.json --noEmit && vite build",
         "lint": "vp lint",
         "fmt": "vp fmt"
     },
@@ -18,10 +19,7 @@
         "@ant-design/pro-components": "^2.8.10",
         "@emotion/react": "^11.14.0",
         "@tanstack/react-query": "^5.91.0",
-        "@tanstack/react-query-devtools": "^5.91.3",
         "@tanstack/react-router": "^1.167.5",
-        "@tanstack/react-router-devtools": "^1.166.9",
-        "@tanstack/router-plugin": "^1.166.14",
         "antd": "^6.3.3",
         "http-proxy-middleware": "^3.0.5",
         "react": "^19.2.4",
@@ -30,19 +28,20 @@
     },
     "devDependencies": {
         "@rustzen/zipper": "^0.1.4",
-        "@tailwindcss/postcss": "^4.2.2",
         "@tailwindcss/vite": "^4.2.2",
+        "@tanstack/react-query-devtools": "^5.91.3",
+        "@tanstack/react-router-devtools": "^1.166.9",
+        "@tanstack/router-plugin": "^1.166.14",
         "@types/node": "^25.5.0",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^6.0.1",
         "autoprefixer": "^10.4.27",
-        "globals": "^17.4.0",
         "postcss": "^8.5.8",
         "tailwindcss": "^4.2.2",
         "typescript": "~5.9.3",
-        "vite": "latest",
-        "vite-plus": "latest"
+        "vite": "8.0.1",
+        "vite-plus": "0.1.12"
     },
     "volta": {
         "node": "24.2.0"

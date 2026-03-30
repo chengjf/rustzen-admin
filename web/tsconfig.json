@@ -14,10 +14,10 @@
         /* Linting */
         "skipLibCheck": true,
         "strict": true,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
         "noFallthroughCasesInSwitch": true,
-        // "noUncheckedSideEffectImports": true,
+        "noUncheckedSideEffectImports": true,
+        // "noUnusedLocals": true,  // Enabled in tsconfig.build.json
+        // "noUnusedParameters": true,  // Enabled in tsconfig.build.json
         "paths": {
             "@/*": ["./src/*"]
         }

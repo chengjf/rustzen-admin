@@ -41,7 +41,7 @@ export const apiDownload = async <T>({
         }
         return downloadFile(response, filename);
     } catch (error) {
-        return handleError(error);
+        return handleError(error, options); // Pass options to handleError
     } finally {
         reqDelete();
     }
@@ -124,7 +124,7 @@ const coreRequest = async <T, P>(options: RequestOptions<P>): Promise<Api.ApiRes
             config.method?.toLowerCase() || "",
         );
 
-        // 2. 允许单个接口通过配置"跳过"自动提示
+        // 允许单个接口通过配置"跳过"自动提示
         // 在调用时传：menuAPI.create(data, { skipSuccessMsg: true })
         const skipMsg = options.skipSuccessMsg;
 
@@ -133,7 +133,7 @@ const coreRequest = async <T, P>(options: RequestOptions<P>): Promise<Api.ApiRes
         }
         return result;
     } catch (error) {
-        return handleError(error);
+        return handleError(error, options); // Pass options to handleError
     } finally {
         reqDelete();
     }
@@ -167,41 +167,87 @@ const formatFetchConfig = <T>({ params, url, ...options }: RequestOptions<T>) =>
 /**
  * Handle all errors
  */
-const handleError = async (error: unknown) => {
-    const response = error as Response;
-    const statusCode = response.status;
-    if (error instanceof DOMException && error.name === "AbortError") {
-        console.warn("Request aborted");
-    } else if (statusCode === 401) {
-        let errorMsg = "会话过期，请重新登录";
-        try {
-            const errorData = await response.json();
-            if (errorData.message) {
-                errorMsg = errorData.message;
-            }
-        } catch {
-            // 无法解析，使用默认消息
+const handleError = async (error: unknown, options?: RequestOptions<any>): Promise<never> => {
+    // 1. AbortError (request cancellation or timeout)
+    if (error instanceof DOMException) {
+        if (error.name === "AbortError") {
+            console.debug("Request aborted");
+            // Optionally show timeout message if needed
+            // if (!options?.silent) {
+            //     appMessage.error("请求超时，请重试");
+            // }
+            return Promise.reject(error);
         }
-        useAuthStore.getState().clearAuth();
-        requestPool.forEach((controller) => {
-            if (!controller.signal.aborted) {
-                controller.abort();
-            }
-        });
-        appMessage.error(errorMsg);
-    } else if (statusCode >= 500) {
-        appMessage.error(`服务器错误：${response.statusText}`);
-        return Promise.reject(new Error(response.statusText));
-    } else {
-        try {
-            const errorData = await response.json();
-            appMessage.error(errorData.message || `请求失败：${response.statusText}`);
-        } catch {
-            appMessage.error(`请求失败：${response.statusText}`);
+        // Other DOMException types
+        if (!options?.silent) {
+            appMessage.error("请求被取消");
         }
+        console.warn("Request cancelled:", error);
+        return Promise.reject(error);
     }
 
-    // throw error;
+    // 2. HTTP Response errors
+    if (error instanceof Response) {
+        const response = error;
+        const statusCode = response.status;
+
+        if (statusCode === 401) {
+            let errorMsg = "会话过期，请重新登录";
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.message || errorMsg;
+            } catch {
+                // Cannot parse JSON, use default message
+            }
+            useAuthStore.getState().clearAuth();
+            // Abort all pending requests
+            requestPool.forEach((controller) => {
+                if (!controller.signal.aborted) {
+                    controller.abort();
+                }
+            });
+            requestPool.clear(); // Clean up the pool
+            if (!options?.silent) {
+                appMessage.error(errorMsg);
+            }
+            return Promise.reject(error);
+        }
+
+        if (statusCode === 403) {
+            if (!options?.silent) {
+                appMessage.error("您没有权限执行此操作");
+            }
+            return Promise.reject(error);
+        }
+
+        if (statusCode >= 500) {
+            if (!options?.silent) {
+                appMessage.error("服务器内部错误，请稍后重试或联系管理员");
+            }
+            return Promise.reject(new Error(response.statusText));
+        }
+
+        // Other 4xx client errors
+        try {
+            const errorData = await response.json();
+            const messageText = errorData.message || response.statusText || "请求失败";
+            if (!options?.silent) {
+                appMessage.error(messageText);
+            }
+        } catch {
+            // Cannot parse JSON body
+            if (!options?.silent) {
+                appMessage.error(`请求失败：${response.statusText}`);
+            }
+        }
+        return Promise.reject(error);
+    }
+
+    // 3. Network errors (TypeError for CORS/offline/DNS, etc.)
+    if (!options?.silent) {
+        appMessage.error("网络连接失败，请检查网络连接");
+    }
+    console.error("[Network Error]:", error);
     return Promise.reject(error);
 };
 

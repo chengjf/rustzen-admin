@@ -52,18 +52,15 @@ function LogPage() {
     /**
      * 导出逻辑处理
      */
-    const handleExport = useCallback(() => {
+    const handleExport = useCallback(async () => {
         setExportLoading(true);
         try {
-            // 修复 await-thenable: 如果 exportLogList 是同步的，移除 await
-            // 如果它是异步的但类型定义漏了 Promise，请在 API 定义处修改
-            logAPI.exportLogList();
-            message.success("日志导出指令已发送");
+            const filename = await logAPI.exportLogList();
+            message.success(`日志已导出为 ${filename}`);
         } catch (error) {
             console.error("[Log Export Error]:", error);
-            message.error("导出失败");
+            // Error toast is already shown by handleError, no need to show again
         } finally {
-            // 同步操作下直接关闭 loading
             setExportLoading(false);
         }
     }, []);

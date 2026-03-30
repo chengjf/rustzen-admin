@@ -13,8 +13,6 @@ export const logAPI = {
         }),
 
     exportLogList: () => {
-        void apiDownload({ url: "/api/system/logs/export" }).then(async (res) => {
-            console.log("downloadName", res);
-        });
+        return apiDownload({ url: "/api/system/logs/export" });
     },
 };
