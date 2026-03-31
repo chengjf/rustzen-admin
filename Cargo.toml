@@ -35,14 +35,10 @@ uuid = { version = "1.17", features = ["v4", "serde"] }
 # JWT authentication
 jsonwebtoken = "9.3"
 
-# async trait
-async-trait = "0.1"
-
 # password hashing
 argon2 = "0.5"
 rand = "0.8"
 sysinfo = "0.36.1"
-tokio-stream = "0.1.17"
 futures = "0.3.31"
 include_dir = "0.7.4"
 figment = { version = "0.10.19", features = ["env"] }
