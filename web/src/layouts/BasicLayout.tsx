@@ -123,7 +123,6 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
                 key={contentKey}
                 style={{ padding: "16px", height: "calc(100% - 37px)", overflow: "auto" }}
             >
-                <span>当前内容键值: {contentKey}</span>
                 {children}
             </div>
         </ProLayout>
