@@ -9,16 +9,16 @@ import { ProLayout } from "@ant-design/pro-components";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import type { MenuProps } from "antd";
 import { Dropdown } from "antd";
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useState } from "react";
 
 import { appMessage } from "@/api";
 import { authAPI } from "@/api/auth";
+import { TabBar } from "@/components/TabBar";
 import { ChangePasswordModal } from "@/components/user/ChangePasswordModal";
 import { UserProfileModal } from "@/components/user/index";
-import { TabBar } from "@/components/TabBar";
 import { getMenuData } from "@/layouts";
-import { useTabStore } from "@/stores/useTabStore";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useTabStore } from "@/stores/useTabStore";
 
 const PATH_TITLE_MAP: Record<string, string> = {
     "/": "首页",
@@ -39,7 +39,7 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
     const router = useRouter();
     const currentPath = useLocation().pathname;
     const { addTab, clearTabs } = useTabStore();
-    const contentKey = useRef(0);
+    const [contentKey, setContentKey] = useState(0);
 
     useEffect(() => {
         const title = PATH_TITLE_MAP[currentPath];
@@ -49,8 +49,8 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
     }, [currentPath, addTab]);
 
     const handleReload = useCallback(() => {
-        contentKey.current += 1;
-    }, []);
+        setContentKey(contentKey + 1);
+    }, [contentKey]);
 
     if (hidden) {
         return children;
@@ -119,7 +119,11 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
             }}
         >
             <TabBar onReload={handleReload} />
-            <div style={{ padding: "16px", height: "calc(100% - 37px)", overflow: "auto" }}>
+            <div
+                key={contentKey}
+                style={{ padding: "16px", height: "calc(100% - 37px)", overflow: "auto" }}
+            >
+                <span>当前内容键值: {contentKey}</span>
                 {children}
             </div>
         </ProLayout>

@@ -5,6 +5,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button, Form, Modal, Space, Typography, Avatar } from "antd";
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
+import { appMessage } from "@/api";
 import { roleAPI } from "@/api/system/role";
 import { userAPI } from "@/api/system/user";
 import type { CreateUserDto } from "@/api/types/CreateUserDto";
@@ -14,7 +15,6 @@ import { AuthConfirm, AuthWrap } from "@/components/auth";
 import { MoreButton } from "@/components/button";
 import { useApiQuery } from "@/integrations/react-query";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { appMessage } from "@/api";
 
 // =============================================================================
 // 1. 子组件：UserModalForm
@@ -178,6 +178,15 @@ function UserPage() {
             },
             { title: "用户名", align: "center", dataIndex: "username" },
             { title: "真实姓名", align: "center", dataIndex: "realName" },
+            {
+                title: "状态",
+                align: "center",
+                dataIndex: "status",
+                valueEnum: {
+                    1: { text: "启用", status: "Success" },
+                    2: { text: "禁用", status: "Default" },
+                },
+            },
             { title: "邮箱", align: "center", dataIndex: "email" },
             {
                 title: "角色",
@@ -219,7 +228,9 @@ function UserPage() {
                                         await userAPI.updateStatus(entity.id, {
                                             status: isEnable ? 2 : 1,
                                         });
-                                        appMessage.success(statusText === "启用" ? "已启用用户" : "已禁用用户");
+                                        appMessage.success(
+                                            statusText === "启用" ? "已启用用户" : "已禁用用户",
+                                        );
                                         void actionRef.current?.reload();
                                     }}
                                 >

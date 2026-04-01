@@ -6,12 +6,12 @@ import { Form } from "antd";
 import { Button, Space, Tag } from "antd";
 import React, { useRef } from "react";
 
+import { appMessage } from "@/api";
 import { dictAPI } from "@/api/system/dict";
 import type { CreateDictDto } from "@/api/types/CreateDictDto";
 import type { DictItemResp } from "@/api/types/DictItemResp";
 import type { UpdateDictPayload } from "@/api/types/UpdateDictPayload";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
-import { appMessage } from "@/api";
 
 export const Route = createFileRoute("/system/dict")({
     component: DictPage,
@@ -31,7 +31,7 @@ function DictPage() {
                 request={dictAPI.getTableData}
                 actionRef={actionRef}
                 toolBarRender={() => [
-                    <AuthWrap code="system:dict:create">
+                    <AuthWrap code="system:dict:create" key="create">
                         <DictModalForm
                             mode={"create"}
                             onSuccess={() => {

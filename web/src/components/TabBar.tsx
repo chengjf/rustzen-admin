@@ -38,9 +38,7 @@ export const TabBar = ({ onReload }: TabBarProps) => {
         const path = rightClickTab.current;
         const { tabs: currentTabs } = useTabStore.getState();
         // Keep home + the right-clicked tab
-        currentTabs
-            .filter((t) => t.closable && t.path !== path)
-            .forEach((t) => removeTab(t.path));
+        currentTabs.filter((t) => t.closable && t.path !== path).forEach((t) => removeTab(t.path));
         setActiveKey(path);
         void navigate({ to: path as any });
     }, [removeTab, setActiveKey, navigate]);

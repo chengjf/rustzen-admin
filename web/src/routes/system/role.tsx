@@ -217,10 +217,16 @@ const PermissionManager = ({ value = [], onChange, menuTree, loading }: Permissi
                     onCheck={(info) => {
                         const { checked } = info as { checked: React.Key[] };
                         const checkedIds = checked.map(Number);
+
+                        // 与右侧按钮保持一致：勾选子菜单时自动带上所有父级
+                        const withParents = calculateFinalIds(checkedIds, flatMap);
+
+                        // 保留当前已选中的按钮 IDs 不变
                         const currentButtonIds = value.filter(
                             (id) => flatMap.get(id)?.menuType === 3,
                         );
-                        onChange?.([...checkedIds, ...currentButtonIds]);
+
+                        onChange?.([...new Set([...withParents, ...currentButtonIds])]);
                     }}
                     onSelect={(keys) => setSelectedKey(keys[0] as number)}
                     selectedKeys={selectedKey ? [selectedKey] : []}
