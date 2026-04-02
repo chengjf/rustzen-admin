@@ -1,151 +1,180 @@
-# 📚 rustzen-admin Documentation Center
+# 📚 rustzen-admin 中文文档中心
+
+---
+
+> 一个现代化的全栈管理系统模板，基于 **Rust (Axum)** 和 **React (Vite + Ant Design)** 构建。为性能、简洁和可扩展性而设计。
+
+[English](./README.md)
 
 ---
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Language](https://img.shields.io/badge/lang-Rust%20%7C%20TypeScript-orange.svg)
-![Status](https://img.shields.io/badge/status-Development-yellow.svg)
+![Status](https://img.shields.io/badge/status-开发中-yellow.svg)
 
 ---
 
-[简体中文](./README-zh.md)
+## 🎯 项目目标
 
-> A modern full-stack admin system template built with **Rust (Axum)** and **React (Vite + Ant Design)**. Designed for performance, simplicity, and scalability.
+这个项目的目标是成为 Rust 生态中的 **现代化管理后台模板**，提供：
 
-## 🎯 Project Goals
-
-This project aims to become a **modern admin backend template** in the Rust ecosystem, providing:
-
-1. **Out-of-the-box**: Complete RBAC permission system and basic functionality
-2. **Code Quality**: Good code structure and security
-3. **Easy to Extend**: Clear modular architecture
-4. **Best Practices**: Demonstrates Rust + React full-stack development patterns
+1. **开箱即用**：完整的 RBAC 权限系统和基础功能
+2. **代码质量**：良好的代码结构和安全性
+3. **易于扩展**：清晰的模块化架构
+4. **最佳实践**：展示 Rust + React 全栈开发模式
 
 ---
 
-## ⚙️ Tech Stack
+## ⚙️ 技术栈
 
-| Layer        | Technology                                       |
-| ------------ | ------------------------------------------------ |
-| **Backend**  | Rust, Axum, SQLx, PostgreSQL, Tracing            |
-| **Frontend** | React, TypeScript, Vite, Ant Design, TailwindCSS |
-| **Auth**     | JWT (JSON Web Tokens)                            |
-| **Tooling**  | just, pnpm                                       |
+| 层级       | 技术选型                                         |
+| ---------- | ------------------------------------------------ |
+| **后端**   | Rust, Axum, SQLx, PostgreSQL, Tracing            |
+| **前端**   | React, TypeScript, Vite, Ant Design, TailwindCSS |
+| **认证**   | JWT (JSON Web Tokens)                            |
+| **工具链** | just, pnpm                                       |
 
 ---
 
-## 📦 Directory Structure
+## 📦 目录结构
 
 ```
 rustzen-admin/
-├── src/              # Rust (Axum) API service source code
-├── web/              # React (Vite) admin frontend
-├── migrations/       # Database migration files
-├── docs/             # Project documentation
-├── Cargo.toml        # Rust dependencies configuration
-├── justfile          # Project command runner
+├── src/              # Rust (Axum) API 服务源码
+├── web/              # React (Vite) 管理后台前端
+├── migrations/       # 数据库迁移文件
+├── docs/             # 项目文档
+├── Cargo.toml        # Rust 依赖配置
+├── justfile          # 项目命令运行器
 └── README.md
 ```
 
 ---
 
-## 🛠️ Quick Start
+## 🛠️ 快速开始
 
-### Prerequisites
+### 环境要求
 
 -   [Rust](https://www.rust-lang.org/tools/install)
--   [Node.js](https://nodejs.org/) (v24+) and `pnpm`
--   [Just](https://github.com/casey/just) command runner
+-   [Node.js](https://nodejs.org/) (v24+) 及 `pnpm`
+-   [Just](https://github.com/casey/just) 命令运行器
 
-### Installation & Setup
+### 安装与启动
 
-1.  **Clone the repository:**
+1. **克隆仓库:**
 
     ```bash
     git clone https://github.com/idaibin/rustzen-admin.git
     cd rustzen-admin
     ```
 
-2.  **Set up environment variables:**
+2. **设置环境变量:**
 
     ```bash
     cp .env.example .env
-    # Edit .env file with database connection information
+    # 编辑 .env 文件，配置数据库连接信息
     ```
 
-3.  **Install dependencies:**
+3. **安装依赖:**
 
     ```bash
-    # Install just and Rust dependencies
+    # 安装 just 和 Rust 依赖
     cargo install just
     cargo install cargo-watch
 
-    # Install frontend dependencies
+    # 安装前端依赖
     cd web && pnpm install && cd ..
     ```
 
-4.  **Set up database**
+4. **设置数据库:**
+
+    首先，确保已安装并运行 PostgreSQL。然后设置数据库：
 
     ```bash
-    First, ensure you have PostgreSQL installed and running. Then set up the database:
-
-    # Install sqlx-cli if you haven't already
+    # 如果还没有安装 sqlx-cli，请先安装
     cargo install sqlx-cli --features postgres
-
-    # Set up environment variable for database connection （using .env file）
-    # Option 1: Use DATABASE_URL (recommended for sqlx-cli)
-    DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
-
-    # Option 2: Use RUSTZEN_DB_URL (project default)
-    RUSTZEN_DB_URL="postgresql://username:password@localhost:5432/database_name"
-
-    # Check migration status:
-    sqlx migrate info
-
-    # Expected output:
-    # 101/pending system table
-    # 102/pending system relation
-    # 103/pending system view
-    # 104/pending system func
-    # 105/pending system seed
-
-    # Run migrations:
-    sqlx migrate run
-
-    # Expected output after successful migration:
-    # 101/installed system table
-    # 102/installed system relation
-    # 103/installed system view
-    # 104/installed system func
-    # 105/installed system seed
-    # Check database connection
     ```
 
-    > **Note:** The project uses `RUSTZEN_DB_URL` by default, but `sqlx-cli` uses `DATABASE_URL`.
+    **设置环境变量**（在 `.env` 文件中）：
 
-5.  **Start the project:**
+    ```bash
+    # 选项 1: 使用 DATABASE_URL（推荐，sqlx-cli 默认使用）
+    DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
+
+    # 选项 2: 使用 RUSTZEN_DB_URL（项目默认）
+    RUSTZEN_DB_URL="postgresql://username:password@localhost:5432/database_name"
+    ```
+
+    **检查迁移状态:**
+
+    ```bash
+    # 使用 DATABASE_URL（如果已设置）
+    sqlx migrate info
+    ```
+
+    预期输出：
+
+    ```
+    101/pending system table
+    102/pending system relation
+    103/pending system view
+    104/pending system func
+    105/pending system seed
+    ```
+
+    **运行迁移:**
+
+    ```bash
+    # 使用 DATABASE_URL（如果已设置）
+    sqlx migrate run
+    ```
+
+    迁移成功后的预期输出：
+
+    ```
+    101/installed system table
+    102/installed system relation
+    103/installed system view
+    104/installed system func
+    105/installed system seed
+    ```
+
+    > **注意:** 项目默认使用 `RUSTZEN_DB_URL`，但 `sqlx-cli` 使用 `DATABASE_URL`
+
+5. **启动项目:**
 
     ```bash
     just dev
     ```
 
-    The application will be available at `http://localhost:5173`.
+    应用将在 `http://localhost:5173` 上可用。
 
 ---
 
-## 📖 Project Documentation
+## 📚 基础功能
 
--   [🏗️ Architecture Design](./docs/architecture.md) - System modules and technical architecture
--   [⚙️ Permission Design](./docs/permissions-guide.md) - Design and usage guide
-
----
-
-## 📄 Open Source License
-
-This project is licensed under the MIT License. See [LICENSE.md](./LICENSE.md) for details.
+-   **认证系统**: JWT 登录、用户信息获取、权限验证
+-   **用户管理**: CRUD 操作、角色分配、状态管理
+-   **角色管理**: 角色 CRUD、菜单权限分配
+-   **菜单管理**: 树形菜单结构、权限控制
+-   **数据字典**: 字典项管理、选项 API
+-   **操作日志**: 系统日志记录和查询
 
 ---
 
-Developed by [idaibin], committed to building deployable, maintainable, and scalable Rust full-stack system engineering templates 🦀
+## 📖 项目文档
+
+-   [🏗️ 架构设计](./docs/architecture.md) - 系统模块和技术架构
+-   [⚙️ 权限设计](./docs/permissions-guide.md) - 设计和使用说明
+
+---
+
+## 📄 开源协议
+
+本项目采用 MIT 协议。详情请见 [LICENSE.md](./LICENSE.md) 文件。
+
+---
+
+由 [idaibin] 开发，致力于打造可落地、可维护、可成长的 Rust 全栈系统工程模板 🦀
 
 ---
