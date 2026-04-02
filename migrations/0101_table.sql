@@ -1,21 +1,23 @@
 -- ============================================================================
--- Module: User Management
--- Description: Create users table, indexes, and comments. Zen migration style.
+-- Module: Core tables
+-- Description: Create base business tables, indexes, and comments.
 -- ============================================================================
 
 CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY, -- Unique user ID
-    username VARCHAR(50) NOT NULL, -- Unique username
-    email VARCHAR(100) NOT NULL, -- Unique email address
-    password_hash VARCHAR(255) NOT NULL, -- Hashed password
-    real_name VARCHAR(50), -- Real name
-    avatar_url VARCHAR(255), -- Avatar image URL
-    status SMALLINT DEFAULT 1 CHECK (status IN (1, 2, 3, 4)), -- 1: active, 2: disabled, 3: pending, 4: locked
-    is_system BOOLEAN DEFAULT FALSE, -- System built-in user flag
-    last_login_at TIMESTAMP, -- Last login timestamp
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Creation timestamp
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp
-    deleted_at TIMESTAMP -- Soft delete timestamp (NULL means not deleted)
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    real_name VARCHAR(50),
+    avatar_url VARCHAR(255),
+    status SMALLINT DEFAULT 1 CHECK (status IN (1, 2, 3, 4)),
+    is_system BOOLEAN DEFAULT FALSE,
+    last_login_at TIMESTAMP,
+    failed_login_attempts SMALLINT NOT NULL DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
 );
 
 CREATE UNIQUE INDEX idx_users_username ON users(username) WHERE deleted_at IS NULL;
@@ -26,27 +28,24 @@ COMMENT ON TABLE users IS 'Users table: stores user account information';
 COMMENT ON COLUMN users.username IS 'Unique username';
 COMMENT ON COLUMN users.email IS 'Unique email address';
 COMMENT ON COLUMN users.real_name IS 'Real name';
-COMMENT ON COLUMN users.status IS 'User status: 1=active, 2=disabled, 3=pending';
+COMMENT ON COLUMN users.status IS 'User status: 1=active, 2=disabled, 3=pending, 4=locked';
+COMMENT ON COLUMN users.failed_login_attempts IS 'Consecutive failed login attempts since last successful login or auto-unlock';
+COMMENT ON COLUMN users.locked_until IS 'Account locked until this timestamp due to too many failed login attempts; NULL means not locked';
 COMMENT ON COLUMN users.deleted_at IS 'Soft delete timestamp, NULL means not deleted';
 COMMENT ON COLUMN users.is_system IS 'System built-in user flag: TRUE for system built-in users';
 
 
--- ============================================================================
--- Module: Role Management
--- Description: Create roles table, indexes, and comments. Zen migration style.
--- ============================================================================
-
 CREATE TABLE roles (
-    id BIGSERIAL PRIMARY KEY, -- Unique role ID
-    name VARCHAR(50) NOT NULL, -- Role display name
-    code VARCHAR(50) NOT NULL, -- Role code for programmatic access
-    description TEXT, -- Role description
-    status SMALLINT DEFAULT 1 CHECK (status IN (1, 2)), -- 1: active, 2: disabled
-    is_system BOOLEAN DEFAULT FALSE, -- System built-in role flag
-    sort_order INTEGER DEFAULT 0, -- Sort order for display
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Creation timestamp
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp
-    deleted_at TIMESTAMP -- Soft delete timestamp
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    code VARCHAR(50) NOT NULL,
+    description TEXT,
+    status SMALLINT DEFAULT 1 CHECK (status IN (1, 2)),
+    is_system BOOLEAN DEFAULT FALSE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
 );
 
 CREATE UNIQUE INDEX idx_roles_name ON roles(name) WHERE deleted_at IS NULL;
@@ -65,23 +64,18 @@ COMMENT ON COLUMN roles.sort_order IS 'Sort order for display';
 COMMENT ON COLUMN roles.deleted_at IS 'Soft delete timestamp, NULL means not deleted';
 
 
--- ============================================================================
--- Module: Resource Management
--- Description: Create menus table, indexes, and comments. Zen migration style.
--- ============================================================================
-
 CREATE TABLE menus (
-    id BIGSERIAL PRIMARY KEY, -- Unique menu ID
-    parent_id BIGINT DEFAULT 0, -- Parent menu ID (0 for root)
-    name VARCHAR(100) NOT NULL, -- Menu title
-    code VARCHAR(100) NOT NULL, -- Unique permission code for menu/button
-    menu_type SMALLINT DEFAULT 2 CHECK (menu_type IN (1, 2, 3)), -- 1=directory, 2=menu, 3=button
-    status SMALLINT DEFAULT 1 CHECK (status IN (1, 2)), -- 1: visible, 2: hidden
-    is_system BOOLEAN DEFAULT FALSE, -- System built-in resource flag
-    sort_order INTEGER DEFAULT 0, -- Sort order
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Creation timestamp
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp
-    deleted_at TIMESTAMP -- Soft delete timestamp
+    id BIGSERIAL PRIMARY KEY,
+    parent_id BIGINT DEFAULT 0,
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(100) NOT NULL,
+    menu_type SMALLINT DEFAULT 2 CHECK (menu_type IN (1, 2, 3)),
+    status SMALLINT DEFAULT 1 CHECK (status IN (1, 2)),
+    is_system BOOLEAN DEFAULT FALSE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
 );
 
 CREATE UNIQUE INDEX idx_menus_name ON menus(name) WHERE deleted_at IS NULL;
@@ -102,11 +96,6 @@ COMMENT ON COLUMN menus.status IS 'Resource status: 1=visible, 2=hidden';
 COMMENT ON COLUMN menus.is_system IS 'System built-in resource flag';
 COMMENT ON COLUMN menus.deleted_at IS 'Soft delete timestamp, NULL means not deleted';
 
-
--- ============================================================================
--- Module: Log Management
--- Description: Create operation_logs table (partitioned), indexes, and comments.
--- ============================================================================
 
 CREATE TABLE operation_logs (
     id BIGSERIAL,
@@ -133,3 +122,22 @@ COMMENT ON COLUMN operation_logs.status IS 'Request status';
 COMMENT ON COLUMN operation_logs.duration_ms IS 'Request duration in milliseconds';
 COMMENT ON COLUMN operation_logs.ip_address IS 'Request IP address';
 COMMENT ON COLUMN operation_logs.user_agent IS 'Request user agent string';
+
+
+CREATE TABLE user_sessions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    permissions JSONB NOT NULL DEFAULT '[]',
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_user_sessions_user_id UNIQUE (user_id)
+);
+
+CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
+
+COMMENT ON TABLE user_sessions IS 'Persistent user sessions; used to restore in-memory permission cache after server restart';
+COMMENT ON COLUMN user_sessions.permissions IS 'JSON array of permission codes held at login time';
+COMMENT ON COLUMN user_sessions.expires_at IS 'Session expiry; matches JWT expiration issued at login';

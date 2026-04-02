@@ -113,16 +113,12 @@ rustzen-admin/
     预期输出：
 
     ```
-    0101/pending system table
-    0102/pending system relation
-    0103/pending system view
-    0104/pending system func
-    0105/pending system seed
-    0106/pending init log partitions
-    0107/pending add login lockout
-    0108/pending user sessions
-    0109/pending update user with roles view
-    0110/pending add effective status to view
+    0101/pending table
+    0102/pending relation
+    0103/pending view
+    0104/pending func
+    0105/pending seed
+    0106/pending partition
     ```
 
     **运行迁移:**

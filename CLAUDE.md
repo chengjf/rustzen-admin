@@ -228,9 +228,9 @@ Errors return `AppError`, which implements `IntoResponse` with appropriate HTTP 
 
 - **SQLx**: `sqlx::query_as` with compile-time checking; run `cargo check` after query changes to verify
 - **Pool**: `PgPool` passed through function parameters (not stored in repositories)
-- **Migrations**: Located in `migrations/` with sequential numbering (e.g., `0101_`, `0102_`)
-- **Partitioned tables**: `log` table uses monthly partitions via `0106_init_log_partitions.sql`
-- **Login lockout**: `0107_add_login_lockout.sql` adds `failed_login_attempts` and `locked_until` columns; accounts are locked for 30 minutes after 5 consecutive failures
+- **Migrations**: Located in `migrations/` and grouped by category (`0101_table.sql` through `0106_partition.sql`)
+- **Partitioned tables**: `operation_logs` uses monthly partitions via `0106_partition.sql`
+- **Login lockout**: Defined in `0101_table.sql` and `0104_func.sql`; accounts are locked for 30 minutes after 5 consecutive failures
 
 ### Frontend State & API
 
@@ -300,7 +300,7 @@ See `docs/architecture.md` (in Chinese) for detailed conventions. Key points:
 ### Database Migrations
 
 - New database changes must include a migration file in `migrations/`
-- Use sequential numbering (last migration is `0107_` as of now)
+- Use the existing category-aligned numbering pattern in `migrations/`
 - Run `sqlx migrate add <description>` to scaffold a new migration
 - After modifying queries, run `cargo check` to ensure SQLx compile-time checks pass
 
