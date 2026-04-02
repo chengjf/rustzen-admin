@@ -1,5 +1,5 @@
 use super::model::UserWithRolesEntity;
-use crate::common::error::ServiceError;
+use crate::{common::error::ServiceError, features::auth::model::UserStatus};
 
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
@@ -180,7 +180,7 @@ impl UserRepository {
         .bind(&cmd.email)
         .bind(&cmd.password_hash)
         .bind(cmd.real_name.as_deref())
-        .bind(cmd.status.unwrap_or(1))
+        .bind(cmd.status.unwrap_or(UserStatus::Normal as i16))
         .bind(Utc::now().naive_utc())
         .fetch_one(&mut *tx)
         .await
@@ -351,7 +351,7 @@ impl UserRepository {
         password_hash: &str,
     ) -> Result<bool, ServiceError> {
         let result =
-            sqlx::query("UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3")
+            sqlx::query("UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3 AND deleted_at IS NULL")
                 .bind(password_hash)
                 .bind(Utc::now().naive_utc())
                 .bind(id)
@@ -370,7 +370,7 @@ impl UserRepository {
         id: i64,
         status: i16,
     ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET status = $1, updated_at = $2 WHERE id = $3")
+        let result = sqlx::query("UPDATE users SET status = $1, updated_at = $2 WHERE id = $3 AND deleted_at IS NULL")
             .bind(status)
             .bind(Utc::now().naive_utc())
             .bind(id)
@@ -387,7 +387,7 @@ impl UserRepository {
     /// Clear auto-lockout: reset failed_login_attempts and locked_until.
     pub async fn unlock_user(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
         let result = sqlx::query(
-            "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = $1 WHERE id = $2"
+            "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL"
         )
         .bind(Utc::now().naive_utc())
         .bind(id)

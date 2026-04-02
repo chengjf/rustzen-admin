@@ -1,5 +1,5 @@
 use super::model::DictEntity;
-use crate::common::{api::OptionItem, error::ServiceError};
+use crate::common::{api::OptionItem, error::ServiceError, status::EnableStatus};
 
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
@@ -42,7 +42,7 @@ impl DictRepository {
     /// Count dicts matching filters
     async fn count_dicts(pool: &PgPool, query: &DictListQuery) -> Result<i64, ServiceError> {
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
-            QueryBuilder::new("SELECT COUNT(*) FROM dicts WHERE 1=1");
+            QueryBuilder::new("SELECT COUNT(*) FROM dicts WHERE deleted_at IS NULL");
 
         Self::format_query(&query, &mut query_builder);
 
@@ -72,7 +72,7 @@ impl DictRepository {
         );
 
         Self::format_query(&query, &mut query_builder);
-        query_builder.push(" AND deleted_at IS NULL AND status = 1");
+        query_builder.push(" AND deleted_at IS NULL");
         query_builder.push(" ORDER BY id ASC, dict_type ASC");
         query_builder.push(" LIMIT ").push_bind(limit);
         query_builder.push(" OFFSET ").push_bind(offset);
@@ -99,10 +99,9 @@ impl DictRepository {
             limit
         );
 
-        let mut query = String::from(
-            "SELECT key, value
-             FROM dicts
-             WHERE deleted_at IS NULL AND status = 1",
+        let mut query = format!(
+            "SELECT key, value FROM dicts WHERE deleted_at IS NULL AND status = {}",
+            EnableStatus::Enabled as i16,
         );
 
         // Add type filter
@@ -136,10 +135,11 @@ impl DictRepository {
 
         let dicts = sqlx::query_as::<_, OptionItem<String>>(
             "SELECT label, value FROM dicts
-             WHERE dict_type = $1 AND deleted_at IS NULL AND status = 1
+             WHERE dict_type = $1 AND deleted_at IS NULL AND status = $2
              ORDER BY sort_order ASC, label ASC",
         )
         .bind(dict_type)
+        .bind(EnableStatus::Enabled as i16)
         .fetch_all(pool)
         .await
         .map_err(|e| {
@@ -174,7 +174,7 @@ impl DictRepository {
         .bind(dict_type)
         .bind(label)
         .bind(value)
-        .bind(status.unwrap_or(1))
+        .bind(status.unwrap_or(EnableStatus::Enabled as i16))
         .bind(description)
         .bind(sort_order.unwrap_or(1))
         .bind(Utc::now().naive_utc())
@@ -215,7 +215,7 @@ impl DictRepository {
             .bind(dict_type)
                 .bind(label)
             .bind(value)
-            .bind(status.unwrap_or(1))
+            .bind(status.unwrap_or(EnableStatus::Enabled as i16))
             .bind(description)
             .bind(sort_order.unwrap_or(1))
             .bind(Utc::now().naive_utc())

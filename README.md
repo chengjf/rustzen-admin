@@ -1,10 +1,8 @@
-# 📚 rustzen-admin 中文文档中心
+# rustzen-admin
 
 ---
 
 > 一个现代化的全栈管理系统模板，基于 **Rust (Axum)** 和 **React (Vite + Ant Design)** 构建。为性能、简洁和可扩展性而设计。
-
-[English](./README.md)
 
 ---
 
@@ -115,11 +113,16 @@ rustzen-admin/
     预期输出：
 
     ```
-    101/pending system table
-    102/pending system relation
-    103/pending system view
-    104/pending system func
-    105/pending system seed
+    0101/pending system table
+    0102/pending system relation
+    0103/pending system view
+    0104/pending system func
+    0105/pending system seed
+    0106/pending init log partitions
+    0107/pending add login lockout
+    0108/pending user sessions
+    0109/pending update user with roles view
+    0110/pending add effective status to view
     ```
 
     **运行迁移:**
@@ -129,15 +132,7 @@ rustzen-admin/
     sqlx migrate run
     ```
 
-    迁移成功后的预期输出：
-
-    ```
-    101/installed system table
-    102/installed system relation
-    103/installed system view
-    104/installed system func
-    105/installed system seed
-    ```
+    迁移成功后，各迁移状态将显示为 `installed`。
 
     > **注意:** 项目默认使用 `RUSTZEN_DB_URL`，但 `sqlx-cli` 使用 `DATABASE_URL`
 
@@ -153,12 +148,13 @@ rustzen-admin/
 
 ## 📚 基础功能
 
--   **认证系统**: JWT 登录、用户信息获取、权限验证
+-   **认证系统**: JWT 登录、用户信息获取、权限验证、会话数据库存储
 -   **用户管理**: CRUD 操作、角色分配、状态管理
 -   **角色管理**: 角色 CRUD、菜单权限分配
 -   **菜单管理**: 树形菜单结构、权限控制
 -   **数据字典**: 字典项管理、选项 API
--   **操作日志**: 系统日志记录和查询
+-   **操作日志**: 系统日志记录和查询（按月分区）
+-   **登录安全**: 连续登录失败 5 次后锁定账户 30 分钟
 
 ---
 
@@ -175,6 +171,6 @@ rustzen-admin/
 
 ---
 
-由 [idaibin] 开发，致力于打造可落地、可维护、可成长的 Rust 全栈系统工程模板 🦀
+致力于打造可落地、可维护、可成长的 Rust 全栈系统工程模板 🦀
 
 ---

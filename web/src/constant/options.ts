@@ -1,10 +1,19 @@
 import type { UserStatus } from "@/api/types/UserStatus";
 
+/** Default value for "enabled" status (menu, role, dict) */
+export const ENABLE_DEFAULT = 1 as const;
+
 /** Generic enable/disable options — used for menus, roles, etc. (status: 1 | 2) */
 export const ENABLE_OPTIONS = [
-    { label: "启用", value: 1 },
+    { label: "启用", value: ENABLE_DEFAULT },
     { label: "禁用", value: 2 },
 ];
+
+/** ProTable valueEnum for enable/disable status columns */
+export const ENABLE_STATUS_ENUM = {
+    [ENABLE_DEFAULT]: { text: "启用", status: "Success" },
+    2: { text: "禁用", status: "Default" },
+} as const;
 
 /** Full user status options — reflects all four UserStatus variants */
 export const USER_STATUS_OPTIONS: { label: string; value: UserStatus }[] = [

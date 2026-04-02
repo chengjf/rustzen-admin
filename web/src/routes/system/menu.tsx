@@ -18,7 +18,7 @@ import type { MenuItemResp } from "@/api/types/MenuItemResp";
 import type { MenuQuery } from "@/api/types/MenuQuery";
 import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
-import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/constant/options";
+import { ENABLE_DEFAULT, ENABLE_OPTIONS, ENABLE_STATUS_ENUM, MENU_TYPE_OPTIONS } from "@/constant/options";
 
 // =============================================================================
 // 1. 路由定义 (Router Definition) - 放置于顶部以兼容路由 Codegen
@@ -198,10 +198,7 @@ function MenuPage() {
                 align: "center",
                 dataIndex: "status",
                 width: 100,
-                valueEnum: {
-                    1: { text: "启用", status: "Success" },
-                    2: { text: "禁用", status: "Default" },
-                },
+                valueEnum: ENABLE_STATUS_ENUM,
             },
             { title: "排序", align: "center", dataIndex: "sortOrder", width: 80, search: false },
             {
@@ -258,7 +255,7 @@ function MenuPage() {
             <AuthWrap code="system:menu:create" key="add">
                 <MenuModalForm
                     mode="create"
-                    initialValues={{ sortOrder: 0, status: 1, menuType: 1, parentId: 0 }}
+                    initialValues={{ sortOrder: 0, status: ENABLE_DEFAULT, menuType: 1, parentId: 0 }}
                     onSuccess={handleReload}
                 >
                     <Button type="primary">创建菜单</Button>

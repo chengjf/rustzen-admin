@@ -1,5 +1,5 @@
 use super::dto::{StatsResp, SystemMetricsDataResp, TrendResp, UserTrendsResp};
-use crate::common::error::ServiceError;
+use crate::{common::error::ServiceError, features::auth::model::UserStatus};
 use sqlx::PgPool;
 
 pub struct DashboardRepository;
@@ -43,8 +43,9 @@ impl DashboardRepository {
 
             // 获取待审核用户数
             sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM users WHERE status = 3 AND deleted_at IS NULL"
+                "SELECT COUNT(*) FROM users WHERE status = $1 AND deleted_at IS NULL"
             )
+            .bind(UserStatus::Pending as i16)
             .fetch_one(pool)
         );
 

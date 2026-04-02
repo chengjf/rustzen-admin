@@ -156,8 +156,8 @@ impl UserService {
     /// Get user status options
     pub fn get_user_status_options() -> Vec<UserOptionResp> {
         vec![
-            UserOptionResp { label: "Normal".to_string(), value: 1 },
-            UserOptionResp { label: "Disabled".to_string(), value: 2 },
+            UserOptionResp { label: "Normal".to_string(), value: UserStatus::Normal as i64 },
+            UserOptionResp { label: "Disabled".to_string(), value: UserStatus::Disabled as i64 },
         ]
     }
 

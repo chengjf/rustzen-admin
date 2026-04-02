@@ -19,7 +19,7 @@ import { roleAPI } from "@/api/system/role";
 import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
 import type { RoleItemResp } from "@/api/types/RoleItemResp";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
-import { ENABLE_OPTIONS } from "@/constant/options";
+import { ENABLE_DEFAULT, ENABLE_OPTIONS, ENABLE_STATUS_ENUM } from "@/constant/options";
 
 const { Text } = Typography;
 
@@ -71,10 +71,7 @@ function RolePage() {
                 dataIndex: "status",
                 width: 100,
                 align: "center",
-                valueEnum: {
-                    1: { text: "启用", status: "Success" },
-                    2: { text: "禁用", status: "Default" },
-                },
+                valueEnum: ENABLE_STATUS_ENUM,
             },
             {
                 title: "操作",
@@ -401,7 +398,7 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: RoleModalFo
                         name="status"
                         label="状态"
                         options={ENABLE_OPTIONS}
-                        initialValue={1}
+                        initialValue={ENABLE_DEFAULT}
                         rules={[{ required: true }]}
                     />
                 </Col>

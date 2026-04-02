@@ -1,5 +1,5 @@
 use super::model::RoleWithMenuEntity;
-use crate::common::error::ServiceError;
+use crate::common::{error::ServiceError, status::EnableStatus};
 
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
@@ -222,8 +222,10 @@ impl RoleRepository {
         search_query: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Vec<(i64, String)>, ServiceError> {
-        let mut query =
-            String::from("SELECT id, name FROM roles WHERE status = 1 AND deleted_at IS NULL");
+        let mut query = format!(
+            "SELECT id, name FROM roles WHERE status = {} AND deleted_at IS NULL",
+            EnableStatus::Enabled as i16,
+        );
 
         if let Some(keyword) = search_query {
             query.push_str(&format!(" AND name ILIKE '%{}%'", keyword.replace("'", "''")));
@@ -245,7 +247,7 @@ impl RoleRepository {
 
     pub async fn get_role_user_count(pool: &PgPool, role_id: i64) -> Result<i64, ServiceError> {
         let result =
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM user_roles WHERE role_id = $1")
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM user_roles ur JOIN users u ON u.id = ur.user_id AND u.deleted_at IS NULL WHERE ur.role_id = $1")
                 .bind(role_id)
                 .fetch_one(pool)
                 .await

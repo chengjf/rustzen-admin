@@ -1,5 +1,5 @@
 use super::model::MenuEntity;
-use crate::common::error::ServiceError;
+use crate::common::{error::ServiceError, status::EnableStatus};
 
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder, pool};
@@ -190,8 +190,10 @@ impl MenuRepository {
         search_query: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Vec<(i64, String)>, ServiceError> {
-        let mut query =
-            String::from("SELECT id, name FROM menus WHERE status = 1 AND deleted_at IS NULL");
+        let mut query = format!(
+            "SELECT id, name FROM menus WHERE status = {} AND deleted_at IS NULL",
+            EnableStatus::Enabled as i16,
+        );
 
         if let Some(keyword) = search_query {
             query.push_str(&format!(" AND name ILIKE '%{}%'", keyword.replace("'", "''")));
@@ -218,8 +220,9 @@ impl MenuRepository {
         limit: Option<i64>,
         btn_filter: Option<bool>,
     ) -> Result<Vec<(i64, String, Option<String>, i64, i16)>, ServiceError> {
-        let mut query = String::from(
-            "SELECT id, name, code, parent_id, menu_type FROM menus WHERE status = 1 AND deleted_at IS NULL",
+        let mut query = format!(
+            "SELECT id, name, code, parent_id, menu_type FROM menus WHERE status = {} AND deleted_at IS NULL",
+            EnableStatus::Enabled as i16,
         );
 
         if let Some(keyword) = search_query {
