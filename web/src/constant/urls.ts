@@ -1,6 +1,3 @@
-// 字典选项
-export const DICT_OPTIONS_URL = "/api/system/dicts/type/";
-
 // 角色选项
 export const ROLE_OPTIONS_URL = "/api/system/roles/options";
 

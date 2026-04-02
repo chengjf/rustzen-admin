@@ -254,7 +254,7 @@ const handleError = async (error: unknown, options?: RequestOptions<any>): Promi
 
             // Navigate to login, then reset the guard so future 401s (after
             // a new login session) are handled normally.
-            router.navigate({ to: "/login", replace: true }).finally(() => {
+            void router.navigate({ to: "/login", replace: true }).finally(() => {
                 isHandlingAuthExpiry = false;
             });
 

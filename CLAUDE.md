@@ -125,7 +125,6 @@ src/
         ├── user/        # User CRUD, user-role associations
         ├── role/        # Role management, permission assignments
         ├── menu/        # Menu tree, permission-based filtering
-        ├── dict/        # Dictionary/data dictionary management
         └── log/         # System audit logs, partitioning (by month)
 ```
 

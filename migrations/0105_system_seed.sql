@@ -58,15 +58,8 @@ VALUES
     (18, 15, '菜单详情', 'system:menu:detail', 3, 3, 1, TRUE),
     (19, 15, '菜单删除', 'system:menu:delete', 3, 4, 1, TRUE),
 
-    -- Dictionary Management (Menu with page permission)
-    (20, 2, '字典管理', 'system:dict:list', 2, 4, 1, TRUE),
-    (21, 20, '字典创建', 'system:dict:create', 3, 1, 1, TRUE),
-    (22, 20, '字典编辑', 'system:dict:update', 3, 2, 1, TRUE),
-    (23, 20, '字典详情', 'system:dict:detail', 3, 3, 1, TRUE),
-    (24, 20, '字典删除', 'system:dict:delete', 3, 4, 1, TRUE),
-
     -- Operation Logs (Menu with page permission)
-    (25, 2, '操作日志', 'system:log:list', 2, 5, 1, TRUE),
+    (25, 2, '操作日志', 'system:log:list', 2, 4, 1, TRUE),
     (26, 25, '日志详情', 'system:log:detail', 3, 1, 1, TRUE),
     (27, 25, '导出日志', 'system:log:export', 3, 2, 1, TRUE)
 ON CONFLICT (id) DO UPDATE SET
@@ -88,21 +81,6 @@ SELECT r.id, m.id, NOW()
 FROM roles r, menus m
 WHERE r.code = 'SYSTEM_ADMIN' AND m.code = '*'
 ON CONFLICT (role_id, menu_id) DO NOTHING;
-
--- ============================================================================
--- Module: Seed initial dictionary data.
--- ============================================================================
-
-INSERT INTO dicts (dict_type, label, value, status, sort_order)
-VALUES
-    ('user_status', 'Active', '1', 1, 1),
-    ('user_status', 'Disabled', '2', 1, 2),
-    ('user_status', 'Pending', '3', 1, 3),
-    ('user_status', 'Locked', '4', 1, 4),
-    ('role_type', 'System Role', '1', 1, 1),
-    ('role_type', 'Custom Role', '2', 1, 2)
-ON CONFLICT (dict_type, label) WHERE deleted_at IS NULL DO NOTHING;
-
 
 -- ============================================================================
 -- Module: sync serial sequence

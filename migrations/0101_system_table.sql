@@ -104,39 +104,6 @@ COMMENT ON COLUMN menus.deleted_at IS 'Soft delete timestamp, NULL means not del
 
 
 -- ============================================================================
--- Module: Dictionary
--- Description: Create dicts table, indexes, and comments. Zen migration style.
--- ============================================================================
-
-CREATE TABLE dicts (
-    id BIGSERIAL PRIMARY KEY, -- Unique dict entry ID
-    dict_type VARCHAR(50) NOT NULL, -- Dictionary type/category
-    label VARCHAR(100) NOT NULL, -- Dictionary label
-    value VARCHAR(255) NOT NULL, -- Dictionary value
-    status SMALLINT DEFAULT 1 CHECK (status IN (1, 2)), -- 1: active, 2: inactive
-    description TEXT, -- Dictionary description
-    sort_order INTEGER DEFAULT 0, -- Sort order
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Creation timestamp
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp
-    deleted_at TIMESTAMP -- Soft delete timestamp
-);
-
-CREATE UNIQUE INDEX idx_dicts_label ON dicts(dict_type, label) WHERE deleted_at IS NULL;
-CREATE INDEX idx_dicts_status ON dicts(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_dicts_deleted_at ON dicts(deleted_at);
-CREATE INDEX idx_dicts_dict_type ON dicts(dict_type) WHERE deleted_at IS NULL;
-
-COMMENT ON TABLE dicts IS 'Dictionary table for key-value pairs and types';
-COMMENT ON COLUMN dicts.dict_type IS 'Dictionary type';
-COMMENT ON COLUMN dicts.label IS 'Dictionary label';
-COMMENT ON COLUMN dicts.value IS 'Dictionary value';
-COMMENT ON COLUMN dicts.description IS 'Dictionary description';
-COMMENT ON COLUMN dicts.status IS 'Dictionary entry status: 1=active, 2=inactive';
-COMMENT ON COLUMN dicts.sort_order IS 'Sort order for display';
-COMMENT ON COLUMN dicts.deleted_at IS 'Soft delete timestamp, NULL means not deleted';
-
-
--- ============================================================================
 -- Module: Log Management
 -- Description: Create operation_logs table (partitioned), indexes, and comments.
 -- ============================================================================
@@ -166,4 +133,3 @@ COMMENT ON COLUMN operation_logs.status IS 'Request status';
 COMMENT ON COLUMN operation_logs.duration_ms IS 'Request duration in milliseconds';
 COMMENT ON COLUMN operation_logs.ip_address IS 'Request IP address';
 COMMENT ON COLUMN operation_logs.user_agent IS 'Request user agent string';
-

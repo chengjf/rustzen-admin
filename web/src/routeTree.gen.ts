@@ -17,7 +17,6 @@ import { Route as SystemUserRouteImport } from './routes/system/user'
 import { Route as SystemRoleRouteImport } from './routes/system/role'
 import { Route as SystemMenuRouteImport } from './routes/system/menu'
 import { Route as SystemLogRouteImport } from './routes/system/log'
-import { Route as SystemDictRouteImport } from './routes/system/dict'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -59,18 +58,12 @@ const SystemLogRoute = SystemLogRouteImport.update({
   path: '/system/log',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SystemDictRoute = SystemDictRouteImport.update({
-  id: '/system/dict',
-  path: '/system/dict',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/403': typeof R403Route
   '/404': typeof R404Route
   '/login': typeof LoginRoute
-  '/system/dict': typeof SystemDictRoute
   '/system/log': typeof SystemLogRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/role': typeof SystemRoleRoute
@@ -81,7 +74,6 @@ export interface FileRoutesByTo {
   '/403': typeof R403Route
   '/404': typeof R404Route
   '/login': typeof LoginRoute
-  '/system/dict': typeof SystemDictRoute
   '/system/log': typeof SystemLogRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/role': typeof SystemRoleRoute
@@ -93,7 +85,6 @@ export interface FileRoutesById {
   '/403': typeof R403Route
   '/404': typeof R404Route
   '/login': typeof LoginRoute
-  '/system/dict': typeof SystemDictRoute
   '/system/log': typeof SystemLogRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/role': typeof SystemRoleRoute
@@ -106,7 +97,6 @@ export interface FileRouteTypes {
     | '/403'
     | '/404'
     | '/login'
-    | '/system/dict'
     | '/system/log'
     | '/system/menu'
     | '/system/role'
@@ -117,7 +107,6 @@ export interface FileRouteTypes {
     | '/403'
     | '/404'
     | '/login'
-    | '/system/dict'
     | '/system/log'
     | '/system/menu'
     | '/system/role'
@@ -128,7 +117,6 @@ export interface FileRouteTypes {
     | '/403'
     | '/404'
     | '/login'
-    | '/system/dict'
     | '/system/log'
     | '/system/menu'
     | '/system/role'
@@ -140,7 +128,6 @@ export interface RootRouteChildren {
   R403Route: typeof R403Route
   R404Route: typeof R404Route
   LoginRoute: typeof LoginRoute
-  SystemDictRoute: typeof SystemDictRoute
   SystemLogRoute: typeof SystemLogRoute
   SystemMenuRoute: typeof SystemMenuRoute
   SystemRoleRoute: typeof SystemRoleRoute
@@ -205,13 +192,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SystemLogRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/system/dict': {
-      id: '/system/dict'
-      path: '/system/dict'
-      fullPath: '/system/dict'
-      preLoaderRoute: typeof SystemDictRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -220,7 +200,6 @@ const rootRouteChildren: RootRouteChildren = {
   R403Route: R403Route,
   R404Route: R404Route,
   LoginRoute: LoginRoute,
-  SystemDictRoute: SystemDictRoute,
   SystemLogRoute: SystemLogRoute,
   SystemMenuRoute: SystemMenuRoute,
   SystemRoleRoute: SystemRoleRoute,

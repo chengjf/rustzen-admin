@@ -64,15 +64,6 @@ pub struct OptionsQuery {
     pub limit: Option<i64>,
 }
 
-/// Query parameters for dict options endpoints
-#[derive(Debug, Deserialize, TS)]
-#[ts(export)]
-pub struct DictOptionsQuery {
-    pub dict_type: Option<String>,
-    pub q: Option<String>,
-    pub limit: Option<i64>,
-}
-
 /// Query parameters for options with code endpoints
 #[derive(Debug, Deserialize, TS)]
 #[ts(export)]

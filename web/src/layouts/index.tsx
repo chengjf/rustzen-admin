@@ -1,5 +1,4 @@
 import {
-    BookOutlined,
     HistoryOutlined,
     MenuOutlined,
     SettingOutlined,
@@ -35,11 +34,6 @@ const systemRoutes: AppRouter = {
             path: "/system/menu",
             name: "菜单管理",
             icon: <MenuOutlined />,
-        },
-        {
-            path: "/system/dict",
-            name: "字典管理",
-            icon: <BookOutlined />,
         },
         {
             path: "/system/log",

@@ -24,11 +24,6 @@ DROP TRIGGER IF EXISTS update_menus_updated_at ON menus;
 CREATE TRIGGER update_menus_updated_at BEFORE UPDATE ON menus
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_dicts_updated_at ON dicts;
-CREATE TRIGGER update_dicts_updated_at BEFORE UPDATE ON dicts
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-
 -- ============================================================================
 -- Module: Get user basic info
 -- ============================================================================

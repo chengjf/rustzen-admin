@@ -25,7 +25,6 @@ const PATH_TITLE_MAP: Record<string, string> = {
     "/system/user": "用户管理",
     "/system/role": "角色管理",
     "/system/menu": "菜单管理",
-    "/system/dict": "字典管理",
     "/system/log": "操作日志",
 };
 
