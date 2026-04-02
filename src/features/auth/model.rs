@@ -9,6 +9,10 @@ pub struct LoginCredentialsEntity {
     pub password_hash: String,
     pub status: i16,
     pub is_system: bool,
+    /// Number of consecutive failed login attempts since last success or unlock
+    pub failed_login_attempts: i16,
+    /// Account locked until this time; None means not auto-locked
+    pub locked_until: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// Basic user info for session/profile

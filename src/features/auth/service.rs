@@ -13,6 +13,7 @@ use crate::{
     features::{auth::dto::ChangePasswordPayload, system::user::repo::UserRepository},
 };
 
+use chrono::Utc;
 use sqlx::PgPool;
 use tracing;
 
@@ -144,19 +145,52 @@ impl AuthService {
             user.status
         );
 
-        // 2. check if user is enabled
+        // 2. check if user is enabled (handles manual disabled/pending/locked statuses)
         let status = UserStatus::try_from(user.status)?;
         status.check_status()?;
 
-        // 3. verify password
+        // 3. check auto-lockout from repeated failed attempts
+        if let Some(locked_until) = user.locked_until {
+            if locked_until > Utc::now() {
+                let remaining_mins = (locked_until - Utc::now()).num_minutes() + 1;
+                tracing::warn!(
+                    "Login rejected: account auto-locked for username={}, user_id={}, locked for ~{}m more",
+                    username,
+                    user.id,
+                    remaining_mins
+                );
+                return Err(ServiceError::UserIsLocked);
+            }
+            // Lockout period has expired — reset counter and continue
+            tracing::info!("Auto-lock expired for username={}, resetting counter", username);
+            AuthRepository::reset_failed_attempts(pool, user.id).await?;
+        }
+
+        // 4. verify password
         if !PasswordUtils::verify_password(&password.to_string(), &user.password_hash) {
-            tracing::warn!(
-                "Invalid login attempt: password verification failed for username={}, user_id={}",
-                username,
-                user.id
-            );
+            // Increment counter; account will be locked automatically after 5 failures
+            let _ = AuthRepository::increment_failed_attempts(pool, user.id).await;
+            let new_count = user.failed_login_attempts + 1;
+            if new_count >= 5 {
+                tracing::warn!(
+                    "Account auto-locked after {} failures: username={}, user_id={}",
+                    new_count,
+                    username,
+                    user.id
+                );
+            } else {
+                tracing::warn!(
+                    "Invalid login attempt ({}/5): username={}, user_id={}",
+                    new_count,
+                    username,
+                    user.id
+                );
+            }
             return Err(ServiceError::InvalidCredentials);
         }
+
+        // 5. successful login — reset failure counter
+        let _ = AuthRepository::reset_failed_attempts(pool, user.id).await;
 
         tracing::info!(
             "Login verification successful for username={}, user_id={}",

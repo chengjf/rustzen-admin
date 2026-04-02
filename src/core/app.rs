@@ -74,6 +74,7 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
     // combine all routes
     let app = Router::new()
         .route("/api/summary", get(summary))
+        .route("/api/health", get(health))
         .nest("/api", public_api.merge(protected_api))
         .nest_service("/uploads", uploads_service) // uploads file service
         .layer(cors)
@@ -105,6 +106,12 @@ async fn get_addr() -> String {
     let addr = format!("{}:{}", CONFIG.app_host, CONFIG.app_port);
     tracing::debug!("Server configured to run on {}", addr);
     addr
+}
+
+/// Health check endpoint — no authentication required.
+/// Used by monitoring systems (e.g., Zabbix) to verify the process is alive.
+async fn health() -> AppResult<serde_json::Value> {
+    Ok(ApiResponse::success(json!({"status": "ok"})))
 }
 
 /// Handles requests to the root (`/`) endpoint.

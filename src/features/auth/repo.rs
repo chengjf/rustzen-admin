@@ -78,6 +78,55 @@ impl AuthRepository {
             })
     }
 
+    /// Increment failed login attempts for a user.
+    /// When the count reaches 5, the account is automatically locked for 30 minutes.
+    /// Note: does not change `status` — auto-lockout is tracked via `locked_until` only.
+    pub async fn increment_failed_attempts(pool: &PgPool, user_id: i64) -> Result<(), ServiceError> {
+        sqlx::query(
+            r#"
+            UPDATE users
+            SET failed_login_attempts = failed_login_attempts + 1,
+                locked_until = CASE
+                    WHEN failed_login_attempts + 1 >= 5
+                    THEN NOW() + INTERVAL '30 minutes'
+                    ELSE locked_until
+                END
+            WHERE id = $1
+            "#,
+        )
+        .bind(user_id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(
+                "Database error in increment_failed_attempts, user_id={}: {:?}",
+                user_id,
+                e
+            );
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(())
+    }
+
+    /// Reset failed login attempts and remove any auto-lock after a successful login.
+    pub async fn reset_failed_attempts(pool: &PgPool, user_id: i64) -> Result<(), ServiceError> {
+        sqlx::query(
+            "UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1",
+        )
+        .bind(user_id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(
+                "Database error in reset_failed_attempts, user_id={}: {:?}",
+                user_id,
+                e
+            );
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(())
+    }
+
     pub async fn update_avatar(
         pool: &PgPool,
         user_id: i64,

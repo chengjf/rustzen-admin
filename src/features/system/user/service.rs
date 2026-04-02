@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     common::{error::ServiceError, pagination::Pagination},
-    core::password::PasswordUtils,
+    core::{password::PasswordUtils, permission::PermissionService},
 };
 
 use chrono::Utc;
@@ -143,6 +143,9 @@ impl UserService {
             ServiceError::DatabaseQueryFailed
         })?;
 
+        // Revoke active session immediately after deletion
+        PermissionService::clear_user_cache(id);
+
         Ok(())
     }
 
@@ -194,6 +197,12 @@ impl UserService {
         tracing::debug!("Updating user status for user ID: {}", id);
 
         let result = UserRepository::update_user_status(pool, id, dto.status).await?;
+
+        // Revoke active session immediately when disabling (2) or locking (4) an account
+        if dto.status == 2 || dto.status == 4 {
+            PermissionService::clear_user_cache(id);
+            tracing::info!("Revoked session cache for user_id={} due to status change to {}", id, dto.status);
+        }
 
         Ok(result)
     }

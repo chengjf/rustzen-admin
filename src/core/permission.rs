@@ -153,9 +153,24 @@ impl PermissionService {
         );
     }
 
-    /// Clear user cache (called during logout)
+    /// Clear user cache (called during logout or when user is disabled/deleted)
     pub fn clear_user_cache(user_id: i64) {
         PERMISSION_CACHE.remove(user_id);
         tracing::info!("Cleared cache for user {} (logout)", user_id);
+    }
+
+    /// Check if user has an active (non-expired) session in the cache.
+    /// Returns false if no cache entry exists or if the entry has expired.
+    /// Used by auth middleware to enforce token revocation on logout/disable.
+    pub fn is_session_active(user_id: i64) -> bool {
+        match PERMISSION_CACHE.get(user_id) {
+            Some(cache) if !cache.is_expired() => true,
+            Some(_) => {
+                // Cache exists but is expired — clean it up
+                PERMISSION_CACHE.remove(user_id);
+                false
+            }
+            None => false,
+        }
     }
 }

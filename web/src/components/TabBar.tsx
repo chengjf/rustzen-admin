@@ -37,7 +37,6 @@ export const TabBar = ({ onReload }: TabBarProps) => {
     const handleCloseOthers = useCallback(() => {
         const path = rightClickTab.current;
         const { tabs: currentTabs } = useTabStore.getState();
-        // Keep home + the right-clicked tab
         currentTabs.filter((t) => t.closable && t.path !== path).forEach((t) => removeTab(t.path));
         setActiveKey(path);
         void navigate({ to: path as any });
@@ -108,13 +107,16 @@ export const TabBar = ({ onReload }: TabBarProps) => {
 
             <style>{`
                 .tab-bar {
-                    background: #f5f5f5;
+                    background: #fff;
                     border-bottom: 1px solid #e8e8e8;
-                    padding: 6px 12px 0;
+                    padding: 0 12px;
                     overflow-x: auto;
                     overflow-y: hidden;
                     white-space: nowrap;
                     scrollbar-width: none;
+                    display: flex;
+                    align-items: flex-end;
+                    height: 36px;
                 }
                 .tab-bar::-webkit-scrollbar {
                     display: none;
@@ -123,13 +125,14 @@ export const TabBar = ({ onReload }: TabBarProps) => {
                     display: inline-flex;
                     gap: 4px;
                     align-items: flex-end;
+                    height: 100%;
                 }
                 .tab-item {
                     display: inline-flex;
                     align-items: center;
                     gap: 6px;
                     padding: 5px 14px;
-                    background: #e2e2e2;
+                    background: #f0f0f0;
                     border-radius: 6px 6px 0 0;
                     cursor: pointer;
                     font-size: 13px;
@@ -143,7 +146,7 @@ export const TabBar = ({ onReload }: TabBarProps) => {
                     top: 1px;
                 }
                 .tab-item:hover {
-                    background: #d5d5d5;
+                    background: #e4e4e4;
                     color: #333;
                 }
                 .tab-item--active {

@@ -88,6 +88,7 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
             logo="/rustzen.png"
             location={{ pathname: currentPath }}
             layout="mix"
+            contentStyle={{ paddingBlock: 10, paddingInline: 10 }}
             onMenuHeaderClick={() => router.navigate({ to: "/" })}
             menuItemRender={(item, dom) => (
                 <Link to={item.path || "/"} className="block">
@@ -121,7 +122,7 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
             <TabBar onReload={handleReload} />
             <div
                 key={contentKey}
-                style={{ padding: "16px", height: "calc(100% - 37px)", overflow: "auto" }}
+                style={{ padding: "16px", height: "calc(100% - 36px)", overflow: "auto" }}
             >
                 {children}
             </div>
