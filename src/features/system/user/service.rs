@@ -7,7 +7,8 @@ use super::{
 };
 use crate::{
     common::{error::ServiceError, pagination::Pagination},
-    core::{password::PasswordUtils, permission::PermissionService},
+    core::{password::PasswordUtils, permission::PermissionService, session::SessionStore},
+    features::auth::model::UserStatus,
 };
 
 use chrono::Utc;
@@ -27,7 +28,7 @@ impl UserService {
         let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
         let repo_query = UserListQuery {
             username: query.username.clone(),
-            status: query.status.clone(),
+            status: query.status.map(i16::from),
             real_name: query.real_name.clone(),
             email: query.email.clone(),
         };
@@ -64,7 +65,7 @@ impl UserService {
             email: dto.email,
             password_hash,
             real_name: dto.real_name,
-            status: dto.status,
+            status: dto.status.map(i16::from),
             role_ids: dto.role_ids,
         };
 
@@ -145,6 +146,9 @@ impl UserService {
 
         // Revoke active session immediately after deletion
         PermissionService::clear_user_cache(id);
+        if let Err(e) = SessionStore::delete(pool, id).await {
+            tracing::error!("Failed to delete session for user_id={} after deletion: {:?}", id, e);
+        }
 
         Ok(())
     }
@@ -165,7 +169,7 @@ impl UserService {
         tracing::debug!("Getting user options with query: {:?}", query);
 
         let options =
-            UserRepository::find_options(pool, query.status, query.q.as_deref(), query.limit)
+            UserRepository::find_options(pool, query.status.map(i16::from), query.q.as_deref(), query.limit)
                 .await?;
 
         let user_options =
@@ -186,7 +190,25 @@ impl UserService {
 
         UserRepository::update_user_password(pool, id, &password_hash).await?;
 
+        // Revoke active session so the user must re-login with the new password
+        PermissionService::clear_user_cache(id);
+        if let Err(e) = SessionStore::delete(pool, id).await {
+            tracing::error!("Failed to delete session after password reset for user_id={}: {:?}", id, e);
+        }
+        tracing::info!("Session revoked for user_id={} after admin password reset", id);
+
         Ok(ResetPasswordResp { password })
+    }
+
+    /// Unlock a user that was auto-locked due to repeated failed login attempts.
+    /// Clears `locked_until` and resets `failed_login_attempts`.
+    pub async fn unlock_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+        tracing::debug!("Unlocking user ID: {}", id);
+
+        UserRepository::unlock_user(pool, id).await?;
+
+        tracing::info!("User ID {} unlocked by admin", id);
+        Ok(())
     }
 
     pub async fn update_user_status(
@@ -196,12 +218,15 @@ impl UserService {
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user status for user ID: {}", id);
 
-        let result = UserRepository::update_user_status(pool, id, dto.status).await?;
+        let result = UserRepository::update_user_status(pool, id, dto.status.into()).await?;
 
-        // Revoke active session immediately when disabling (2) or locking (4) an account
-        if dto.status == 2 || dto.status == 4 {
+        // Revoke active session immediately when disabling or locking an account
+        if dto.status == UserStatus::Disabled || dto.status == UserStatus::Locked {
             PermissionService::clear_user_cache(id);
-            tracing::info!("Revoked session cache for user_id={} due to status change to {}", id, dto.status);
+            if let Err(e) = SessionStore::delete(pool, id).await {
+                tracing::error!("Failed to delete session for user_id={} on status change to {:?}: {:?}", id, dto.status, e);
+            }
+            tracing::info!("Session revoked for user_id={} due to status change to {:?}", id, dto.status);
         }
 
         Ok(result)

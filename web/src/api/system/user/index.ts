@@ -57,6 +57,13 @@ export const userAPI = {
             skipSuccessMsg: true,
         }),
 
+    unlock: (id: number) =>
+        apiRequest<void>({
+            url: `/api/system/users/${id}/unlock`,
+            method: "PUT",
+            skipSuccessMsg: true,
+        }),
+
     getStatusOptions: () =>
         apiRequest<OptionItem<string>[]>({
             url: "/api/system/users/status-options",

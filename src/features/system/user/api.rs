@@ -66,6 +66,11 @@ pub fn user_routes() -> Router<sqlx::PgPool> {
             put(update_user_status),
             PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:status"]),
         )
+        .route_with_permission(
+            "/{id}/unlock",
+            put(unlock_user),
+            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:unlock"]),
+        )
 }
 
 /// Get user list
@@ -189,6 +194,24 @@ pub async fn update_user_password(
 
     tracing::info!("Successfully reset user password");
     Ok(ApiResponse::success(result))
+}
+
+#[instrument(skip(pool, id, current_user))]
+pub async fn unlock_user(
+    State(pool): State<PgPool>,
+    Path(id): Path<i64>,
+    current_user: CurrentUser,
+) -> AppResult<()> {
+    tracing::info!("Unlocking user ID: {} by {}", id, current_user.username);
+
+    if id == current_user.user_id {
+        return Err(ServiceError::CannotOperateSelf.into());
+    }
+
+    UserService::unlock_user(&pool, id).await?;
+
+    tracing::info!("User ID {} successfully unlocked", id);
+    Ok(ApiResponse::success(()))
 }
 
 #[instrument(skip(pool, id, dto, current_user))]

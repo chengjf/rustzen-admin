@@ -3,7 +3,13 @@ import type { MessageInstance } from "antd/es/message/interface";
 import type { ModalStaticFunctions } from "antd/es/modal/confirm";
 import type { NotificationInstance } from "antd/es/notification/interface";
 
+import { router } from "@/router";
 import { useAuthStore } from "@/stores/useAuthStore";
+
+// Guard to ensure only one "session expired" redirect happens at a time.
+// Multiple in-flight requests can all receive 401 simultaneously; without
+// this flag each one would show a toast and try to navigate to /login.
+let isHandlingAuthExpiry = false;
 
 let appMessage: MessageInstance;
 let appNotify: NotificationInstance;
@@ -215,6 +221,14 @@ const handleError = async (error: unknown, options?: RequestOptions<any>): Promi
         const statusCode = response.status;
 
         if (statusCode === 401) {
+            // Only the first concurrent 401 shows the toast and redirects.
+            // All subsequent ones are silently dropped because the redirect
+            // is already in progress.
+            if (isHandlingAuthExpiry) {
+                return Promise.reject(error);
+            }
+            isHandlingAuthExpiry = true;
+
             let errorMsg = "会话过期，请重新登录";
             try {
                 const errorData = await response.json();
@@ -222,23 +236,41 @@ const handleError = async (error: unknown, options?: RequestOptions<any>): Promi
             } catch {
                 // Cannot parse JSON, use default message
             }
+
             useAuthStore.getState().clearAuth();
-            // Abort all pending requests
+
+            // Abort all other in-flight requests so they don't each fire
+            // another error toast.
             requestPool.forEach((controller) => {
                 if (!controller.signal.aborted) {
                     controller.abort();
                 }
             });
-            requestPool.clear(); // Clean up the pool
+            requestPool.clear();
+
             if (!options?.silent) {
                 appMessage.error(errorMsg);
             }
+
+            // Navigate to login, then reset the guard so future 401s (after
+            // a new login session) are handled normally.
+            router.navigate({ to: "/login", replace: true }).finally(() => {
+                isHandlingAuthExpiry = false;
+            });
+
             return Promise.reject(error);
         }
 
         if (statusCode === 403) {
+            let errorMsg = "您没有权限执行此操作";
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.message || errorMsg;
+            } catch {
+                // Cannot parse JSON, use default message
+            }
             if (!options?.silent) {
-                appMessage.error("您没有权限执行此操作");
+                appMessage.error(errorMsg);
             }
             return Promise.reject(error);
         }

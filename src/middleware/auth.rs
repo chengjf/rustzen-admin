@@ -1,6 +1,6 @@
 use crate::{
     common::error::{AppError, ServiceError},
-    core::{extractor::CurrentUser, jwt, permission::PermissionService},
+    core::{extractor::CurrentUser, jwt, permission::PermissionService, session::SessionStore},
 };
 
 use axum::{
@@ -57,13 +57,29 @@ pub async fn auth_middleware(
     // the cache is cleared and subsequent requests are rejected even if the
     // JWT signature is still valid.
     if !PermissionService::is_session_active(claims.user_id) {
-        tracing::warn!(
-            "No active session for user_id={} ({}), rejecting request to {}",
-            claims.user_id,
-            claims.username,
-            parts.uri.path()
-        );
-        return Err(AppError::from(ServiceError::InvalidToken));
+        // In-memory cache is empty (e.g. after server restart) — try to
+        // restore the session from the database before rejecting the request.
+        match SessionStore::get(&pool, claims.user_id).await {
+            Ok(Some(session)) => {
+                let permissions = session.permission_list();
+                PermissionService::cache_user_permissions(claims.user_id, &permissions);
+                tracing::info!(
+                    "Restored session from DB for user_id={} ({}), {} permissions",
+                    claims.user_id,
+                    claims.username,
+                    permissions.len()
+                );
+            }
+            _ => {
+                tracing::warn!(
+                    "No active session for user_id={} ({}), rejecting request to {}",
+                    claims.user_id,
+                    claims.username,
+                    parts.uri.path()
+                );
+                return Err(AppError::from(ServiceError::InvalidToken));
+            }
+        }
     }
 
     // Inject user and database pool into request extensions

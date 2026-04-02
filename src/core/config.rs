@@ -40,7 +40,7 @@ impl Default for Config {
             db_conn_timeout: 10,
             db_idle_timeout: 0,
             jwt_secret: "rustzen-admin-secret-key".into(),
-            jwt_expiration: 60 * 60, // 1 hour
+            jwt_expiration: 60 * 60 * 8, // 8 hours
             web_embed_enabled: true,
         }
     }

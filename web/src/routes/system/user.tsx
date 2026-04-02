@@ -2,7 +2,7 @@ import { UserOutlined } from "@ant-design/icons";
 import type { ActionType, ProColumns } from "@ant-design/pro-components";
 import { ProTable, ModalForm, ProFormSelect, ProFormText } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Form, Modal, Space, Typography, Avatar } from "antd";
+import { Button, Form, Modal, Space, Typography, Avatar, Tooltip } from "antd";
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 import { appMessage } from "@/api";
@@ -11,6 +11,7 @@ import { userAPI } from "@/api/system/user";
 import type { CreateUserDto } from "@/api/types/CreateUserDto";
 import type { UpdateUserPayload } from "@/api/types/UpdateUserPayload";
 import type { UserItemResp } from "@/api/types/UserItemResp";
+import type { UserStatus } from "@/api/types/UserStatus";
 import { AuthConfirm, AuthWrap } from "@/components/auth";
 import { MoreButton } from "@/components/button";
 import { useApiQuery } from "@/integrations/react-query";
@@ -44,7 +45,7 @@ const UserModalForm = React.memo(
                         roleIds,
                     });
                 } else {
-                    form.setFieldsValue({ status: 1 });
+                    form.setFieldsValue({ status: "Normal" satisfies UserStatus });
                 }
             }
         }, [open, mode, initialValues, form]);
@@ -183,8 +184,33 @@ function UserPage() {
                 align: "center",
                 dataIndex: "status",
                 valueEnum: {
-                    1: { text: "启用", status: "Success" },
-                    2: { text: "禁用", status: "Default" },
+                    Normal: { text: "正常" },
+                    Disabled: { text: "禁用" },
+                    Pending: { text: "待审核" },
+                    Locked: { text: "锁定" },
+                } satisfies Record<UserStatus, { text: string }>,
+                render: (_, record) => {
+                    const enumMap: Record<UserStatus, { text: string; color: string }> = {
+                        Normal: { text: "正常", color: "green" },
+                        Disabled: { text: "禁用", color: "gray" },
+                        Pending: { text: "待审核", color: "orange" },
+                        Locked: { text: "锁定", color: "red" },
+                    };
+                    const { text, color } = enumMap[record.status];
+                    if (record.status === "Locked" && record.lockExpiresAt) {
+                        const remainingMins = Math.max(
+                            1,
+                            Math.ceil(
+                                (new Date(record.lockExpiresAt).getTime() - Date.now()) / 60000,
+                            ),
+                        );
+                        return (
+                            <Tooltip title={`自动锁定，约 ${remainingMins} 分钟后解锁`}>
+                                <span style={{ color, cursor: "help" }}>{text}</span>
+                            </Tooltip>
+                        );
+                    }
+                    return <span style={{ color }}>{text}</span>;
                 },
             },
             { title: "邮箱", align: "center", dataIndex: "email" },
@@ -211,8 +237,9 @@ function UserPage() {
                 search: false,
                 render: (_, entity) => {
                     if (entity.id === userInfo?.id || entity.id === 1) return null;
-                    const isEnable = entity.status === 1;
-                    const statusText = isEnable ? "禁用" : "启用";
+                    const isNormal = entity.status === "Normal";
+                    const isAutoLocked = entity.status === "Locked" && !!entity.lockExpiresAt;
+                    const statusText = isNormal ? "禁用" : "启用";
 
                     return (
                         <Space size="middle">
@@ -221,12 +248,28 @@ function UserPage() {
                             </AuthWrap>
                             <MoreButton>
                                 <AuthConfirm
+                                    key="unlock"
+                                    code="system:user:unlock"
+                                    hidden={!isAutoLocked}
+                                    title="确定要解除此用户的自动锁定吗？"
+                                    onConfirm={async () => {
+                                        await userAPI.unlock(entity.id);
+                                        appMessage.success("已解除锁定");
+                                        void actionRef.current?.reload();
+                                    }}
+                                >
+                                    解除锁定
+                                </AuthConfirm>
+                                <AuthConfirm
                                     key="status"
                                     code="system:user:status"
+                                    hidden={
+                                        entity.status !== "Normal" && entity.status !== "Disabled"
+                                    }
                                     title={`确定要${statusText}此用户吗？`}
                                     onConfirm={async () => {
                                         await userAPI.updateStatus(entity.id, {
-                                            status: isEnable ? 2 : 1,
+                                            status: isNormal ? "Disabled" : "Normal",
                                         });
                                         appMessage.success(
                                             statusText === "启用" ? "已启用用户" : "已禁用用户",

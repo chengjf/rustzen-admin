@@ -2,7 +2,9 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::common::api::OptionItem;
+use chrono::Utc;
+
+use crate::{common::api::OptionItem, features::auth::model::UserStatus};
 
 use super::model::UserWithRolesEntity;
 
@@ -15,8 +17,8 @@ pub struct CreateUserDto {
     pub email: String,
     pub password: String,
     pub real_name: Option<String>,
-    /// User status: Defaults to 1.
-    pub status: Option<i16>,
+    /// User status. Defaults to Normal.
+    pub status: Option<UserStatus>,
     /// A list of role IDs to assign to the user. If empty, will use default role.
     #[serde(default)]
     pub role_ids: Vec<i64>,
@@ -44,8 +46,8 @@ pub struct UserQuery {
     pub page_size: Option<i64>,
     /// Filter by username (case-insensitive search).
     pub username: Option<String>,
-    /// Filter by user status. Accepts: "normal"/"1", "disabled"/"2", or "all".
-    pub status: Option<String>,
+    /// Filter by user status. Omit to return all.
+    pub status: Option<UserStatus>,
     /// Filter by real name (case-insensitive search).
     pub real_name: Option<String>,
     /// Filter by email (case-insensitive search).
@@ -62,7 +64,7 @@ pub struct UserOptionsQuery {
     /// Maximum number of results to return
     pub limit: Option<i64>,
     /// Filter by user status
-    pub status: Option<i16>,
+    pub status: Option<UserStatus>,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]
@@ -81,7 +83,7 @@ pub struct ResetPasswordResp {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct UpdateUserStatusPayload {
-    pub status: i16,
+    pub status: UserStatus,
 }
 
 /// User item for list display
@@ -94,7 +96,12 @@ pub struct UserItemResp {
     pub email: String,
     pub real_name: Option<String>,
     pub avatar_url: Option<String>,
-    pub status: i16,
+    pub status: UserStatus,
+    /// ISO-8601 timestamp when an auto-lockout expires.
+    /// `None` for users that are not auto-locked.
+    /// Frontend uses this to show remaining lock duration.
+    #[ts(type = "string | null")]
+    pub lock_expires_at: Option<chrono::DateTime<Utc>>,
     pub last_login_at: Option<NaiveDateTime>,
     pub roles: Vec<UserOptionResp>,
     pub created_at: NaiveDateTime,
@@ -112,7 +119,8 @@ impl From<UserWithRolesEntity> for UserItemResp {
             email: user.email,
             real_name: user.real_name,
             avatar_url: user.avatar_url,
-            status: user.status,
+            status: UserStatus::try_from(user.effective_status).unwrap_or(UserStatus::Normal),
+            lock_expires_at: user.locked_until.filter(|&t| t > Utc::now()),
             last_login_at: user.last_login_at,
             created_at: user.created_at,
             updated_at: user.updated_at,

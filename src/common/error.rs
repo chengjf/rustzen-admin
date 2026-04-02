@@ -17,9 +17,14 @@ pub enum ServiceError {
     #[error("用户待审核")]
     UserIsPending,
 
-    /// User is locked.
+    /// User is manually locked by an administrator.
     #[error("用户已被锁定")]
     UserIsLocked,
+
+    /// User is temporarily locked after too many failed login attempts.
+    /// Contains the remaining minutes until auto-unlock.
+    #[error("登录失败次数过多，账号已被锁定，请 {0} 分钟后再试")]
+    UserIsAutoLocked(i64),
 
     /// User status is invalid.
     #[error("用户状态非法")]
@@ -123,9 +128,14 @@ impl From<ServiceError> for AppError {
             ServiceError::PasswordHashingFailed => {
                 (StatusCode::INTERNAL_SERVER_ERROR, 10003, "密码处理失败，请重试。".into())
             }
-            ServiceError::UserIsDisabled => (StatusCode::FORBIDDEN, 10004, "用户已被禁用".into()),
+            ServiceError::UserIsDisabled => (StatusCode::BAD_REQUEST, 10004, "用户已被禁用".into()),
             ServiceError::UserIsPending => (StatusCode::BAD_REQUEST, 10005, "用户待审核".into()),
             ServiceError::UserIsLocked => (StatusCode::BAD_REQUEST, 10006, "用户已被锁定".into()),
+            ServiceError::UserIsAutoLocked(mins) => (
+                StatusCode::BAD_REQUEST,
+                10010,
+                format!("登录失败次数过多，账号已被锁定，请 {} 分钟后再试", mins),
+            ),
             ServiceError::InvalidUserStatus => {
                 (StatusCode::BAD_REQUEST, 10007, "用户状态非法".into())
             }

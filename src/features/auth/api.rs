@@ -20,6 +20,7 @@ use axum::{
     http::HeaderMap,
     routing::{get, post, put},
 };
+use crate::core::session::SessionStore;
 use sqlx::PgPool;
 use std::{net::SocketAddr, time::Instant};
 
@@ -112,14 +113,23 @@ async fn get_login_info_handler(
 }
 
 /// Logout and clear cache
-#[tracing::instrument(name = "logout", skip(current_user))]
-async fn logout_handler(current_user: CurrentUser) -> AppResult<()> {
-    tracing::info!("Logout");
+#[tracing::instrument(name = "logout", skip(pool, current_user))]
+async fn logout_handler(
+    State(pool): State<PgPool>,
+    current_user: CurrentUser,
+) -> AppResult<()> {
+    tracing::info!("Logout for user_id={}", current_user.user_id);
 
-    // Clear user permission cache
+    // Clear in-memory permission cache
     PermissionService::clear_user_cache(current_user.user_id);
 
-    tracing::info!("Logout completed");
+    // Delete persisted session from DB
+    if let Err(e) = SessionStore::delete(&pool, current_user.user_id).await {
+        tracing::error!("Failed to delete DB session for user_id={}: {:?}", current_user.user_id, e);
+        // Non-fatal: in-memory cache is already cleared, token is effectively revoked
+    }
+
+    tracing::info!("Logout completed for user_id={}", current_user.user_id);
     Ok(ApiResponse::success(()))
 }
 

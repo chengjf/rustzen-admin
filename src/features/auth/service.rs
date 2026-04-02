@@ -6,14 +6,15 @@ use super::{
 use crate::{
     common::error::ServiceError,
     core::{
-        jwt::{self},
+        jwt::{self, JWT_CONFIG},
         password::PasswordUtils,
         permission::PermissionService,
+        session::SessionStore,
     },
     features::{auth::dto::ChangePasswordPayload, system::user::repo::UserRepository},
 };
 
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use sqlx::PgPool;
 use tracing;
 
@@ -159,7 +160,7 @@ impl AuthService {
                     user.id,
                     remaining_mins
                 );
-                return Err(ServiceError::UserIsLocked);
+                return Err(ServiceError::UserIsAutoLocked(remaining_mins));
             }
             // Lockout period has expired — reset counter and continue
             tracing::info!("Auto-lock expired for username={}, resetting counter", username);
@@ -200,7 +201,11 @@ impl AuthService {
         Ok(user)
     }
 
-    /// Cache user permissions
+    /// Cache user permissions in memory and persist the session to the database.
+    ///
+    /// The DB write ensures the session survives a server restart: on the next
+    /// request after restart, `auth_middleware` will restore the in-memory
+    /// cache from the DB row instead of forcing a re-login.
     pub async fn cache_user_permissions(
         pool: &PgPool,
         user_id: i64,
@@ -208,20 +213,23 @@ impl AuthService {
     ) -> Result<(), ServiceError> {
         tracing::debug!("Starting to cache user permissions for user_id: {}", user_id);
 
-        if is_system {
-            PermissionService::cache_user_permissions(user_id, &["*".to_string()]);
-            tracing::info!("Successfully cached * permissions for user_id={}", user_id);
-            return Ok(());
-        }
-        let permissions: Vec<String> = AuthRepository::get_user_permissions(pool, user_id).await?;
+        let permissions: Vec<String> = if is_system {
+            vec!["*".to_string()]
+        } else {
+            AuthRepository::get_user_permissions(pool, user_id).await?
+        };
 
+        // 1. Store in the in-memory cache
         PermissionService::cache_user_permissions(user_id, &permissions);
         tracing::info!(
-            "Successfully cached {} permissions for user_id={}: {:?}",
+            "Cached {} permissions in memory for user_id={}",
             permissions.len(),
-            user_id,
-            permissions
+            user_id
         );
+
+        // 2. Persist to DB so the cache can be rebuilt after a server restart
+        let expires_at = Utc::now() + Duration::seconds(JWT_CONFIG.expiration);
+        SessionStore::upsert(pool, user_id, is_system, &permissions, expires_at).await?;
 
         Ok(())
     }
@@ -277,7 +285,13 @@ impl AuthService {
         let new_password_hash = PasswordUtils::hash_password(&dto.new_password)?;
         UserRepository::update_user_password(pool, user_id, &new_password_hash).await?;
 
-        tracing::info!("Password changed successfully for user ID: {}", user_id);
+        // Revoke the current session so the user must re-login with the new password
+        PermissionService::clear_user_cache(user_id);
+        if let Err(e) = SessionStore::delete(pool, user_id).await {
+            tracing::error!("Failed to delete session after password change for user_id={}: {:?}", user_id, e);
+        }
+        tracing::info!("Session revoked for user_id={} after password change", user_id);
+
         Ok(())
     }
 }

@@ -1,6 +1,7 @@
 use crate::common::error::ServiceError;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Minimal user info for authentication (login)
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -27,12 +28,23 @@ pub struct AuthUserEntity {
 }
 
 /// User status enum for authentication and account control.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub enum UserStatus {
-    Normal = 1,   // Active
-    Disabled = 2, // Disabled
-    Pending = 3,  // Pending approval
-    Locked = 4,   // Locked
+    /// Account is active and can log in
+    Normal = 1,
+    /// Manually disabled by an administrator
+    Disabled = 2,
+    /// Awaiting administrator approval
+    Pending = 3,
+    /// Manually locked by an administrator
+    Locked = 4,
+}
+
+impl From<UserStatus> for i16 {
+    fn from(s: UserStatus) -> i16 {
+        s as i16
+    }
 }
 
 impl TryFrom<i16> for UserStatus {

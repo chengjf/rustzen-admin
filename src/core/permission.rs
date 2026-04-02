@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
-/// Permission cache expiration time (1 hour)
-const CACHE_EXPIRE_HOURS: i64 = 1;
+/// Permission cache expiration time (8 hours)
+const CACHE_EXPIRE_HOURS: i64 = 8;
 
 /// Permission check types for flexible access control
 #[derive(Debug, Clone)]

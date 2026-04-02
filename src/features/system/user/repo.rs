@@ -10,7 +10,7 @@ pub struct UserRepository;
 #[derive(Debug, Clone)]
 pub struct UserListQuery {
     pub username: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<i16>,
     pub real_name: Option<String>,
     pub email: Option<String>,
 }
@@ -42,10 +42,8 @@ impl UserRepository {
                 query_builder.push(" AND email ILIKE ").push_bind(format!("%{}%", email));
             }
         }
-        if let Some(status) = &query.status {
-            if let Ok(status_num) = status.parse::<i16>() {
-                query_builder.push(" AND status = ").push_bind(status_num);
-            }
+        if let Some(status) = query.status {
+            query_builder.push(" AND effective_status = ").push_bind(status);
         }
     }
 
@@ -382,6 +380,23 @@ impl UserRepository {
                 tracing::error!("Database error updating user status for ID {}: {:?}", id, e);
                 ServiceError::DatabaseQueryFailed
             })?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    /// Clear auto-lockout: reset failed_login_attempts and locked_until.
+    pub async fn unlock_user(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
+        let result = sqlx::query(
+            "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = $1 WHERE id = $2"
+        )
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error unlocking user ID {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(result.rows_affected() > 0)
     }

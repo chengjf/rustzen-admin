@@ -1,35 +1,10 @@
-import { createRouter, RouterProvider } from "@tanstack/react-router";
+import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 
 import { ErrorBoundary } from "./components/error-boundary";
 import * as TanStackQueryProvider from "./integrations/tanstack-query/root-provider.tsx";
-import { routeTree } from "./routeTree.gen";
-
-// Create a new router instance
-const TanStackQueryProviderContext = TanStackQueryProvider.getContext();
-const router = createRouter({
-    routeTree,
-    context: {
-        ...TanStackQueryProviderContext,
-    },
-    defaultPreload: "intent",
-    scrollRestoration: true,
-    defaultStructuralSharing: true,
-    defaultPreloadStaleTime: 0,
-});
-
-// Register the router instance for type safety
-declare module "@tanstack/react-router" {
-    interface Register {
-        router: typeof router;
-    }
-    interface StaticDataRouteOption {
-        headerTitle?: string;
-        headerHide?: boolean;
-        headerBack?: boolean;
-    }
-}
+import { router, TanStackQueryProviderContext } from "./router";
 
 // Render the root
 const rootElement = document.getElementById("root");
