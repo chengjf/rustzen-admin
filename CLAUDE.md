@@ -150,7 +150,9 @@ web/
 │   │   ├── auth/                   # Login form, auth guards
 │   │   ├── button/                 # Button variants
 │   │   ├── user/                   # User-related components
-│   │   └── permission-group-select/# Permission assignment UI
+│   │   ├── permission-group-select/# Permission assignment UI
+│   │   ├── TabBar.tsx              # Multi-tab navigation bar
+│   │   └── error-boundary.tsx      # React error boundary
 │   ├── layouts/                    # Layout components
 │   ├── stores/                     # Zustand state stores
 │   ├── constant/                   # Constants (e.g., permission enums)
@@ -229,6 +231,7 @@ Errors return `AppError`, which implements `IntoResponse` with appropriate HTTP 
 - **Pool**: `PgPool` passed through function parameters (not stored in repositories)
 - **Migrations**: Located in `migrations/` with sequential numbering (e.g., `0101_`, `0102_`)
 - **Partitioned tables**: `log` table uses monthly partitions via `0106_init_log_partitions.sql`
+- **Login lockout**: `0107_add_login_lockout.sql` adds `failed_login_attempts` and `locked_until` columns; accounts are locked for 30 minutes after 5 consecutive failures
 
 ### Frontend State & API
 
@@ -298,7 +301,7 @@ See `docs/architecture.md` (in Chinese) for detailed conventions. Key points:
 ### Database Migrations
 
 - New database changes must include a migration file in `migrations/`
-- Use sequential numbering (last migration is `0106_` as of now)
+- Use sequential numbering (last migration is `0107_` as of now)
 - Run `sqlx migrate add <description>` to scaffold a new migration
 - After modifying queries, run `cargo check` to ensure SQLx compile-time checks pass
 
@@ -328,6 +331,7 @@ To switch to serving from filesystem (easier for dev), modify `core/app.rs`:
 3. **Middleware**: `auth_middleware` validates token, loads user, injects `CurrentUser` extractor
 4. **Permission check**: Use `route_with_permission` macro to enforce RBAC
 5. **Refresh**: Not yet implemented (if adding, extend `features/auth`)
+6. **Login lockout**: After 5 consecutive failures, account is auto-locked for 30 minutes (`UserStatus::Locked`); lock clears automatically on next login after expiry. Token validation also checks lock status and invalidates tokens for locked users.
 
 ---
 
@@ -394,5 +398,5 @@ For frontend changes:
 
 ---
 
-*Last analyzed: 2025-03-31*  
+*Last analyzed: 2026-04-02*
 *Claude Code: claude.ai/code*
