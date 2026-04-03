@@ -100,40 +100,34 @@ impl UserRepository {
         q: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Vec<(i64, String)>, ServiceError> {
-        let mut query = String::from(
-            "SELECT id, COALESCE(real_name, username) as display_name
-             FROM users
-             WHERE deleted_at IS NULL",
+        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> = QueryBuilder::new(
+            "SELECT id, COALESCE(real_name, username) as display_name \
+             FROM users WHERE deleted_at IS NULL",
         );
 
-        // Handle status filter
         if let Some(status_val) = status {
-            query.push_str(&format!(" AND status = {}", status_val));
+            query_builder.push(" AND status = ").push_bind(status_val);
         }
 
-        // Handle search query
         if let Some(search_term) = q {
             if !search_term.trim().is_empty() {
-                query.push_str(&format!(
-                    " AND (username ILIKE '%{}%' OR real_name ILIKE '%{}%')",
-                    search_term.replace("'", "''"),
-                    search_term.replace("'", "''")
-                ));
+                let pattern = format!("%{}%", search_term);
+                query_builder.push(" AND (username ILIKE ").push_bind(pattern.clone());
+                query_builder.push(" OR real_name ILIKE ").push_bind(pattern);
+                query_builder.push(")");
             }
         }
 
-        query.push_str(" ORDER BY display_name");
+        query_builder.push(" ORDER BY display_name");
 
-        // Handle limit
         if let Some(limit_val) = limit {
-            query.push_str(&format!(" LIMIT {}", limit_val));
+            query_builder.push(" LIMIT ").push_bind(limit_val);
         }
 
-        let result =
-            sqlx::query_as::<_, (i64, String)>(&query).fetch_all(pool).await.map_err(|e| {
-                tracing::error!("Database error finding user options: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?;
+        let result = query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
+            tracing::error!("Database error finding user options: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(result)
     }
@@ -382,6 +376,47 @@ impl UserRepository {
             })?;
 
         Ok(result.rows_affected() > 0)
+    }
+
+    /// Find active user IDs assigned to a given role.
+    pub async fn find_user_ids_by_role_id(
+        pool: &PgPool,
+        role_id: i64,
+    ) -> Result<Vec<i64>, ServiceError> {
+        let ids: Vec<(i64,)> = sqlx::query_as(
+            "SELECT ur.user_id FROM user_roles ur
+             JOIN users u ON u.id = ur.user_id AND u.deleted_at IS NULL
+             WHERE ur.role_id = $1",
+        )
+        .bind(role_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding user IDs by role_id {}: {:?}", role_id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(ids.into_iter().map(|(id,)| id).collect())
+    }
+
+    /// Find active user IDs whose roles include a given menu.
+    pub async fn find_user_ids_by_menu_id(
+        pool: &PgPool,
+        menu_id: i64,
+    ) -> Result<Vec<i64>, ServiceError> {
+        let ids: Vec<(i64,)> = sqlx::query_as(
+            "SELECT DISTINCT ur.user_id FROM role_menus rm
+             JOIN user_roles ur ON ur.role_id = rm.role_id
+             JOIN users u ON u.id = ur.user_id AND u.deleted_at IS NULL
+             WHERE rm.menu_id = $1",
+        )
+        .bind(menu_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding user IDs by menu_id {}: {:?}", menu_id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(ids.into_iter().map(|(id,)| id).collect())
     }
 
     /// Clear auto-lockout: reset failed_login_attempts and locked_until.

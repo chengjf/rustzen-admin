@@ -111,13 +111,11 @@ pub async fn update_user(
 ) -> AppResult<i64> {
     tracing::info!("Updating user ID: {}", id);
 
-    if id == 1 {
-        return Err(ServiceError::UserIsAdmin.into());
-    }
-
     if id == current_user.user_id {
         return Err(ServiceError::CannotOperateSelf.into());
     }
+
+    UserService::ensure_not_system(&pool, id).await?;
 
     let user_id = UserService::update_user(&pool, id, dto).await?;
 
@@ -134,13 +132,11 @@ pub async fn delete_user(
 ) -> AppResult<()> {
     tracing::info!("Deleting user ID: {}", id);
 
-    if id == 1 {
-        return Err(ServiceError::UserIsAdmin.into());
-    }
-
     if id == current_user.user_id {
         return Err(ServiceError::CannotOperateSelf.into());
     }
+
+    UserService::ensure_not_system(&pool, id).await?;
 
     UserService::delete_user(&pool, id).await?;
 
@@ -182,13 +178,11 @@ pub async fn update_user_password(
 ) -> AppResult<ResetPasswordResp> {
     tracing::info!("Resetting password for user: {}", id);
 
-    if id == 1 {
-        return Err(ServiceError::UserIsAdmin.into());
-    }
-
     if id == current_user.user_id {
         return Err(ServiceError::CannotOperateSelf.into());
     }
+
+    UserService::ensure_not_system(&pool, id).await?;
 
     let result = UserService::update_user_password(&pool, id, dto).await?;
 
@@ -223,13 +217,11 @@ pub async fn update_user_status(
 ) -> AppResult<bool> {
     tracing::info!("Updating user status for user: {}", id);
 
-    if id == 1 {
-        return Err(ServiceError::UserIsAdmin.into());
-    }
-
     if id == current_user.user_id {
         return Err(ServiceError::CannotOperateSelf.into());
     }
+
+    UserService::ensure_not_system(&pool, id).await?;
 
     let result = UserService::update_user_status(&pool, id, dto).await?;
 

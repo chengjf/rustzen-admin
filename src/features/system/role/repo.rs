@@ -14,6 +14,43 @@ pub struct RoleListQuery {
 }
 
 impl RoleRepository {
+    /// Return which role IDs from the given list exist and are enabled.
+    pub async fn find_existing_role_ids(
+        pool: &PgPool,
+        role_ids: &[i64],
+    ) -> Result<Vec<i64>, ServiceError> {
+        use crate::common::status::EnableStatus;
+        let ids: Vec<(i64,)> = sqlx::query_as(
+            "SELECT id FROM roles WHERE id = ANY($1) AND status = $2 AND deleted_at IS NULL",
+        )
+        .bind(role_ids)
+        .bind(EnableStatus::Enabled as i16)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding role IDs: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(ids.into_iter().map(|(id,)| id).collect())
+    }
+
+    /// Find role by ID (returns None if not found or deleted)
+    pub async fn find_by_id(
+        pool: &PgPool,
+        id: i64,
+    ) -> Result<Option<RoleWithMenuEntity>, ServiceError> {
+        sqlx::query_as::<_, RoleWithMenuEntity>(
+            "SELECT * FROM role_with_menus WHERE id = $1 AND deleted_at IS NULL",
+        )
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding role by ID {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })
+    }
+
     fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
         if let Some(role_name) = &query.role_name {
             if !role_name.trim().is_empty() {
@@ -201,15 +238,12 @@ impl RoleRepository {
             return Ok(());
         }
         let now = Utc::now().naive_utc();
-        let mut query_builder =
-            String::from("INSERT INTO role_menus (role_id, menu_id, created_at) VALUES ");
-        for (i, menu_id) in menu_ids.iter().enumerate() {
-            if i > 0 {
-                query_builder.push_str(", ");
-            }
-            query_builder.push_str(&format!("({}, {}, '{}')", role_id, menu_id, now));
-        }
-        sqlx::query(&query_builder).execute(&mut **tx).await.map_err(|e| {
+        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+            QueryBuilder::new("INSERT INTO role_menus (role_id, menu_id, created_at) ");
+        query_builder.push_values(menu_ids, |mut b, menu_id| {
+            b.push_bind(role_id).push_bind(menu_id).push_bind(now);
+        });
+        query_builder.build().execute(&mut **tx).await.map_err(|e| {
             tracing::error!("Database error inserting role_menus: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
@@ -222,23 +256,25 @@ impl RoleRepository {
         search_query: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Vec<(i64, String)>, ServiceError> {
-        let mut query = format!(
-            "SELECT id, name FROM roles WHERE status = {} AND deleted_at IS NULL",
-            EnableStatus::Enabled as i16,
-        );
+        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+            QueryBuilder::new("SELECT id, name FROM roles WHERE status = ");
+        query_builder.push_bind(EnableStatus::Enabled as i16);
+        query_builder.push(" AND deleted_at IS NULL");
 
         if let Some(keyword) = search_query {
-            query.push_str(&format!(" AND name ILIKE '%{}%'", keyword.replace("'", "''")));
+            if !keyword.trim().is_empty() {
+                query_builder.push(" AND name ILIKE ").push_bind(format!("%{}%", keyword));
+            }
         }
 
-        query.push_str(" ORDER BY name ASC");
+        query_builder.push(" ORDER BY name ASC");
 
         if let Some(l) = limit {
-            query.push_str(&format!(" LIMIT {}", l));
+            query_builder.push(" LIMIT ").push_bind(l);
         }
 
         let results: Vec<(i64, String)> =
-            sqlx::query_as(&query).fetch_all(pool).await.map_err(|e| {
+            query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
                 tracing::error!("Database error finding role options: {:?}", e);
                 ServiceError::DatabaseQueryFailed
             })?;
@@ -256,6 +292,43 @@ impl RoleRepository {
                     ServiceError::DatabaseQueryFailed
                 })?;
         Ok(result)
+    }
+
+    pub async fn count_by_name(pool: &PgPool, name: &str) -> Result<i64, ServiceError> {
+        let result = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM roles WHERE name = $1 AND deleted_at IS NULL",
+        )
+        .bind(name)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error counting roles by name: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(result)
+    }
+
+    pub async fn name_exists_exclude_self(
+        pool: &PgPool,
+        name: &str,
+        exclude_id: i64,
+    ) -> Result<bool, ServiceError> {
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM roles WHERE name = $1 AND id != $2 AND deleted_at IS NULL)",
+        )
+        .bind(name)
+        .bind(exclude_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(
+                "Database error checking role name existence (exclude self) '{}': {:?}",
+                name,
+                e
+            );
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(exists)
     }
 
     pub async fn count_by_code(pool: &PgPool, role_code: &str) -> Result<i64, ServiceError> {

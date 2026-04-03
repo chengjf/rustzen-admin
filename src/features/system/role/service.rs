@@ -10,7 +10,8 @@ use crate::{
         error::ServiceError,
         pagination::Pagination,
     },
-    features::system::menu::repo::MenuRepository,
+    core::session::SessionStore,
+    features::system::{menu::repo::MenuRepository, user::repo::UserRepository},
 };
 
 use chrono::Utc;
@@ -44,6 +45,13 @@ impl RoleService {
     /// Create new role with validation
     pub async fn create_role(pool: &PgPool, request: CreateRoleDto) -> Result<(), ServiceError> {
         tracing::info!("Creating role: {}", request.name);
+        // 检查角色名称是否已被占用
+        if RoleRepository::count_by_name(pool, &request.name).await? > 0 {
+            return Err(ServiceError::InvalidOperation(format!(
+                "角色名称 {} 已存在",
+                request.name
+            )));
+        }
         // 检查角色编码是否已被占用
         let count = RoleRepository::count_by_code(pool, &request.code).await?;
         if count > 0 {
@@ -78,6 +86,21 @@ impl RoleService {
     ) -> Result<(), ServiceError> {
         tracing::info!("Updating role: {}", id);
 
+        // 系统内置角色不允许修改
+        let role = RoleRepository::find_by_id(pool, id)
+            .await?
+            .ok_or_else(|| ServiceError::NotFound(format!("角色 ID: {}", id)))?;
+        if role.is_system == Some(true) {
+            return Err(ServiceError::InvalidOperation("系统内置角色不能修改".into()));
+        }
+
+        // 检查角色名称是否已被其他角色占用
+        if RoleRepository::name_exists_exclude_self(pool, &request.name, id).await? {
+            return Err(ServiceError::InvalidOperation(format!(
+                "角色名称 {} 已存在",
+                request.name
+            )));
+        }
         // 检查角色编码是否已被其他角色占用
         if RoleRepository::code_exists_exclude_self(pool, &request.code, id).await? {
             tracing::warn!("Role code {} already exists", request.code);
@@ -101,6 +124,20 @@ impl RoleService {
         )
         .await?;
 
+        // Invalidate permission caches for all users assigned to this role
+        match UserRepository::find_user_ids_by_role_id(pool, id).await {
+            Ok(user_ids) => {
+                for uid in user_ids {
+                    if let Err(e) = SessionStore::delete_by_user_id(pool, uid).await {
+                        tracing::error!("Failed to delete session for user_id={} after role update: {:?}", uid, e);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to fetch users for role_id={} during cache invalidation: {:?}", id, e);
+            }
+        }
+
         tracing::info!("Updated role: {}", new_id);
         Ok(())
     }
@@ -108,6 +145,14 @@ impl RoleService {
     /// Delete role with user assignment validation
     pub async fn delete_role(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         tracing::info!("Attempting to delete role: {}", id);
+
+        // 系统内置角色不允许删除
+        let role = RoleRepository::find_by_id(pool, id)
+            .await?
+            .ok_or_else(|| ServiceError::NotFound(format!("角色 ID: {}", id)))?;
+        if role.is_system == Some(true) {
+            return Err(ServiceError::InvalidOperation("系统内置角色不能删除".into()));
+        }
 
         // Check if role is still assigned to users
         let user_count = RoleRepository::get_role_user_count(pool, id).await?;

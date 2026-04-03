@@ -51,7 +51,7 @@ function LoginPage() {
     );
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5] bg-[url('https://gw.alipayobjects.com/zos/rmsportal/TVirNRn9SBeZfWp.png')] bg-cover bg-center">
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-slate-100 to-blue-100">
             <Card
                 bordered={false}
                 className="w-full max-w-[400px] shadow-lg border-t-4 border-blue-500"
@@ -71,10 +71,7 @@ function LoginPage() {
                     autoComplete="off"
                     size="large"
                     layout="vertical"
-                    initialValues={{
-                        username: "superadmin",
-                        password: "rustzen@123",
-                    }}
+
                 >
                     <Form.Item
                         name="username"

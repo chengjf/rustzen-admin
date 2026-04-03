@@ -1,6 +1,6 @@
 use crate::{
     common::error::{AppError, ServiceError},
-    core::{extractor::CurrentUser, jwt, permission::PermissionService, session::SessionStore},
+    core::{extractor::CurrentUser, session::SessionStore},
 };
 
 use axum::{
@@ -10,15 +10,16 @@ use axum::{
     response::Response,
 };
 use sqlx::PgPool;
+use std::collections::HashSet;
 
-/// JWT authentication middleware
+/// Session-based authentication middleware.
 ///
 /// Steps:
-/// 1. Extract JWT from Authorization header
-/// 2. Validate token and extract claims
-/// 3. Inject CurrentUser and PgPool into request extensions
-///
-/// Note: Only handles authentication, not authorization
+/// 1. Extract the opaque session token from the Authorization header.
+/// 2. Look up the session in the database (rejects expired sessions).
+/// 3. Verify the user's current status (disabled/locked users are rejected immediately).
+/// 4. Load the user's permissions fresh from the database.
+/// 5. Inject `CurrentUser` (with permissions) and `PgPool` into request extensions.
 pub async fn auth_middleware(
     State(pool): State<PgPool>,
     request: Request,
@@ -28,68 +29,93 @@ pub async fn auth_middleware(
 
     tracing::debug!("Auth for: {}", parts.uri.path());
 
-    // Extract Bearer token from Authorization header
+    // Extract Bearer token from Authorization header.
     let token = parts
         .headers
         .get(header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
+        .and_then(|v| v.to_str().ok())
         .and_then(|s| s.strip_prefix("Bearer "))
         .ok_or_else(|| {
             tracing::debug!("Missing/invalid Authorization header for {}", parts.uri.path());
             AppError::from(ServiceError::InvalidToken)
         })?;
 
-    // Verify JWT and extract claims
-    let claims = jwt::verify_token(token).map_err(|e| {
-        tracing::warn!("JWT verification failed for {}: {:?}", parts.uri.path(), e);
-        ServiceError::InvalidToken
+    // Look up session by token.
+    let session = SessionStore::get_by_token(&pool, token)
+        .await?
+        .ok_or_else(|| {
+            tracing::debug!("No active session for token on {}", parts.uri.path());
+            AppError::from(ServiceError::InvalidToken)
+        })?;
+
+    let user_id = session.user_id;
+
+    // Fetch user status, username, and is_system flag in one query.
+    let user_row = sqlx::query!(
+        "SELECT username, status, locked_until, is_system \
+         FROM users \
+         WHERE id = $1 AND deleted_at IS NULL",
+        user_id
+    )
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to fetch user status for user_id={}: {:?}", user_id, e);
+        AppError::from(ServiceError::DatabaseQueryFailed)
+    })?
+    .ok_or_else(|| {
+        tracing::warn!("User user_id={} not found or deleted", user_id);
+        AppError::from(ServiceError::InvalidToken)
     })?;
 
-    tracing::debug!(
-        "JWT verified for user {} ({}) accessing {}",
-        claims.user_id,
-        claims.username,
-        parts.uri.path()
-    );
-
-    // Check if session is still active in the permission cache.
-    // This enforces token revocation: when a user logs out or is disabled,
-    // the cache is cleared and subsequent requests are rejected even if the
-    // JWT signature is still valid.
-    if !PermissionService::is_session_active(claims.user_id) {
-        // In-memory cache is empty (e.g. after server restart) — try to
-        // restore the session from the database before rejecting the request.
-        match SessionStore::get(&pool, claims.user_id).await {
-            Ok(Some(session)) => {
-                let permissions = session.permission_list();
-                PermissionService::cache_user_permissions(claims.user_id, &permissions);
-                tracing::info!(
-                    "Restored session from DB for user_id={} ({}), {} permissions",
-                    claims.user_id,
-                    claims.username,
-                    permissions.len()
-                );
-            }
-            _ => {
-                tracing::warn!(
-                    "No active session for user_id={} ({}), rejecting request to {}",
-                    claims.user_id,
-                    claims.username,
-                    parts.uri.path()
-                );
-                return Err(AppError::from(ServiceError::InvalidToken));
-            }
+    // Reject disabled / locked users immediately.
+    if user_row.status != Some(1) {
+        tracing::warn!(
+            "User user_id={} has non-active status={:?}, rejecting",
+            user_id,
+            user_row.status
+        );
+        return Err(AppError::from(ServiceError::InvalidToken));
+    }
+    if let Some(locked_until) = user_row.locked_until {
+        if locked_until > chrono::Utc::now() {
+            tracing::warn!("User user_id={} is temporarily locked", user_id);
+            return Err(AppError::from(ServiceError::InvalidToken));
         }
     }
 
-    // Inject user and database pool into request extensions
-    let current_user = CurrentUser::new(claims.user_id, claims.username.clone());
+    // Load permissions fresh from the database on every request.
+    let permissions: HashSet<String> = if user_row.is_system.unwrap_or(false) {
+        let mut s = HashSet::new();
+        s.insert("*".to_string());
+        s
+    } else {
+        let perms: Vec<String> = sqlx::query_scalar("SELECT get_user_permissions($1)")
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| {
+                tracing::error!(
+                    "Failed to load permissions for user_id={}: {:?}",
+                    user_id,
+                    e
+                );
+                AppError::from(ServiceError::DatabaseQueryFailed)
+            })?;
+        perms.into_iter().collect()
+    };
+
+    tracing::debug!(
+        "Auth OK for user_id={} ({}) on {}, {} permissions",
+        user_id,
+        user_row.username,
+        parts.uri.path(),
+        permissions.len()
+    );
+
+    let current_user = CurrentUser::new(user_id, user_row.username, permissions);
     parts.extensions.insert(current_user);
     parts.extensions.insert(pool);
 
-    let request = Request::from_parts(parts, body);
-
-    tracing::debug!("Auth completed for user {} ({})", claims.user_id, claims.username);
-
-    Ok(next.run(request).await)
+    Ok(next.run(Request::from_parts(parts, body)).await)
 }

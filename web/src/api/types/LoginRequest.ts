@@ -3,13 +3,12 @@
 /**
  * Request payload for user authentication.
  */
-export type LoginRequest = {
-    /**
-     * Username or email for authentication
-     */
-    username: string;
-    /**
-     * User's password in plain text
-     */
-    password: string;
-};
+export type LoginRequest = { 
+/**
+ * Username or email for authentication
+ */
+username: string, 
+/**
+ * User's password in plain text
+ */
+password: string, };

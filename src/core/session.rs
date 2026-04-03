@@ -2,72 +2,63 @@ use crate::common::error::ServiceError;
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
+use uuid::Uuid;
 
-/// Persisted session record loaded from the database.
+/// Active session record loaded from the database.
 #[derive(Debug, sqlx::FromRow)]
 pub struct UserSessionEntity {
+    pub session_token: String,
     pub user_id: i64,
-    /// JSON array of permission code strings, e.g. ["system:user:list", ...]
-    pub permissions: serde_json::Value,
-    pub is_system: bool,
     pub expires_at: DateTime<Utc>,
-}
-
-impl UserSessionEntity {
-    /// Deserialise the JSONB permission array into a `Vec<String>`.
-    pub fn permission_list(&self) -> Vec<String> {
-        serde_json::from_value(self.permissions.clone()).unwrap_or_default()
-    }
 }
 
 /// Database-backed session store.
 ///
-/// Each user has at most one active session row (enforced by UNIQUE on
-/// `user_id`).  The in-memory `PermissionCacheManager` is the primary
-/// authority during normal operation; this store is the persistent fallback
-/// used to rebuild the cache after a server restart.
+/// Each user has at most one active session row (enforced by UNIQUE on `user_id`).
+/// The session token is the sole credential; JWT is no longer used.
 pub struct SessionStore;
 
 impl SessionStore {
-    /// Insert or update the session for a user.
+    /// Create (or replace) a session for a user.
     ///
-    /// Called at login time so that the session survives a server restart.
-    pub async fn upsert(
+    /// Generates a new 64-character hex session token (256 bits of entropy),
+    /// persists it, and returns the token to be handed to the client.
+    pub async fn create(
         pool: &PgPool,
         user_id: i64,
-        is_system: bool,
-        permissions: &[String],
         expires_at: DateTime<Utc>,
-    ) -> Result<(), ServiceError> {
-        let permissions_json = serde_json::to_value(permissions)
-            .unwrap_or(serde_json::Value::Array(vec![]));
+        client_ip: &str,
+        user_agent: &str,
+    ) -> Result<String, ServiceError> {
+        let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
 
         sqlx::query(
             r#"
-            INSERT INTO user_sessions (user_id, permissions, is_system, expires_at)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO user_sessions (session_token, user_id, expires_at, client_ip, user_agent, last_access_at)
+            VALUES ($1, $2, $3, $4::inet, $5, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
-                permissions = EXCLUDED.permissions,
-                is_system   = EXCLUDED.is_system,
-                expires_at  = EXCLUDED.expires_at,
-                updated_at  = NOW()
+                session_token  = EXCLUDED.session_token,
+                expires_at     = EXCLUDED.expires_at,
+                last_access_at = NOW(),
+                client_ip      = EXCLUDED.client_ip,
+                user_agent     = EXCLUDED.user_agent
             "#,
         )
+        .bind(&token)
         .bind(user_id)
-        .bind(permissions_json)
-        .bind(is_system)
         .bind(expires_at)
+        .bind(client_ip)
+        .bind(user_agent)
         .execute(pool)
         .await
         .map_err(|e| {
-            tracing::error!("SessionStore::upsert failed for user_id={}: {:?}", user_id, e);
+            tracing::error!("SessionStore::create failed for user_id={}: {:?}", user_id, e);
             ServiceError::DatabaseQueryFailed
         })?;
 
-        tracing::debug!("Session persisted for user_id={}, expires={}", user_id, expires_at);
+        tracing::debug!("Session created for user_id={}, expires={}", user_id, expires_at);
 
-        // Opportunistically remove expired sessions from other users on each login.
-        // This keeps the table small without a dedicated background job.
+        // Opportunistically remove expired sessions on each login.
         let pool_clone = pool.clone();
         tokio::spawn(async move {
             if let Err(e) =
@@ -79,38 +70,38 @@ impl SessionStore {
             }
         });
 
-        Ok(())
+        Ok(token)
     }
 
-    /// Fetch an unexpired session for the given user.
+    /// Look up an unexpired session by its token.
     ///
-    /// Returns `None` if no session exists or if it has already expired.
-    pub async fn get(
+    /// Returns `None` if no matching session exists or if it has expired.
+    pub async fn get_by_token(
         pool: &PgPool,
-        user_id: i64,
+        token: &str,
     ) -> Result<Option<UserSessionEntity>, ServiceError> {
         sqlx::query_as::<_, UserSessionEntity>(
-            "SELECT user_id, permissions, is_system, expires_at \
+            "SELECT session_token, user_id, expires_at \
              FROM user_sessions \
-             WHERE user_id = $1 AND expires_at > NOW()",
+             WHERE session_token = $1 AND expires_at > NOW()",
         )
-        .bind(user_id)
+        .bind(token)
         .fetch_optional(pool)
         .await
         .map_err(|e| {
-            tracing::error!("SessionStore::get failed for user_id={}: {:?}", user_id, e);
+            tracing::error!("SessionStore::get_by_token failed: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })
     }
 
-    /// Delete the session for the given user (called on logout).
-    pub async fn delete(pool: &PgPool, user_id: i64) -> Result<(), ServiceError> {
+    /// Delete the session for the given user (called on logout, password change, etc.).
+    pub async fn delete_by_user_id(pool: &PgPool, user_id: i64) -> Result<(), ServiceError> {
         sqlx::query("DELETE FROM user_sessions WHERE user_id = $1")
             .bind(user_id)
             .execute(pool)
             .await
             .map_err(|e| {
-                tracing::error!("SessionStore::delete failed for user_id={}: {:?}", user_id, e);
+                tracing::error!("SessionStore::delete_by_user_id failed for user_id={}: {:?}", user_id, e);
                 ServiceError::DatabaseQueryFailed
             })?;
 

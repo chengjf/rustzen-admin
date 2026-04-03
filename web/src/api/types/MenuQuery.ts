@@ -3,21 +3,20 @@
 /**
  * Menu query parameters
  */
-export type MenuQuery = {
-    /**
-     * The name of the menu.
-     */
-    name: string | null;
-    /**
-     * The code of the menu.
-     */
-    code: string | null;
-    /**
-     * The status of the menu.
-     */
-    status: string | null;
-    /**
-     * The type of the menu.
-     */
-    menuType: number | null;
-};
+export type MenuQuery = { 
+/**
+ * The name of the menu.
+ */
+name: string | null, 
+/**
+ * The code of the menu.
+ */
+code: string | null, 
+/**
+ * The status of the menu.
+ */
+status: string | null, 
+/**
+ * The type of the menu.
+ */
+menuType: number | null, };

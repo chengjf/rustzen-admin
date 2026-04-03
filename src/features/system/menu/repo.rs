@@ -38,20 +38,18 @@ impl MenuRepository {
     }
 
     /// Queries a menu by ID
-    /// Returns None if the menu is deleted
+    /// Returns None if the menu does not exist or is deleted
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<MenuEntity>, ServiceError> {
-        let menu = sqlx::query_as::<_, MenuEntity>(
+        sqlx::query_as::<_, MenuEntity>(
             "SELECT id, parent_id, name, code, menu_type, status, is_system, sort_order, created_at, updated_at FROM menus WHERE id = $1 AND deleted_at IS NULL",
         )
         .bind(id)
-        .fetch_one(pool)
+        .fetch_optional(pool)
         .await
         .map_err(|e| {
-            tracing::error!("Database error finding menu by ID: {:?}", e);
+            tracing::error!("Database error finding menu by ID {}: {:?}", id, e);
             ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(Some(menu))
+        })
     }
 
     /// Queries menus by parent ID
@@ -273,5 +271,67 @@ impl MenuRepository {
         })?;
 
         Ok(ids)
+    }
+
+    pub async fn name_exists(pool: &PgPool, name: &str) -> Result<bool, ServiceError> {
+        sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM menus WHERE name = $1 AND deleted_at IS NULL)",
+        )
+        .bind(name)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error checking menu name existence '{}': {:?}", name, e);
+            ServiceError::DatabaseQueryFailed
+        })
+    }
+
+    pub async fn code_exists(pool: &PgPool, code: &str) -> Result<bool, ServiceError> {
+        sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM menus WHERE code = $1 AND deleted_at IS NULL)",
+        )
+        .bind(code)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error checking menu code existence '{}': {:?}", code, e);
+            ServiceError::DatabaseQueryFailed
+        })
+    }
+
+    pub async fn name_exists_exclude_self(
+        pool: &PgPool,
+        name: &str,
+        exclude_id: i64,
+    ) -> Result<bool, ServiceError> {
+        sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM menus WHERE name = $1 AND id != $2 AND deleted_at IS NULL)",
+        )
+        .bind(name)
+        .bind(exclude_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error checking menu name existence (exclude self) '{}': {:?}", name, e);
+            ServiceError::DatabaseQueryFailed
+        })
+    }
+
+    pub async fn code_exists_exclude_self(
+        pool: &PgPool,
+        code: &str,
+        exclude_id: i64,
+    ) -> Result<bool, ServiceError> {
+        sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM menus WHERE code = $1 AND id != $2 AND deleted_at IS NULL)",
+        )
+        .bind(code)
+        .bind(exclude_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error checking menu code existence (exclude self) '{}': {:?}", code, e);
+            ServiceError::DatabaseQueryFailed
+        })
     }
 }

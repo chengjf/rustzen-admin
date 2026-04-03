@@ -7,6 +7,45 @@ use uuid::Uuid;
 const USER_AVATAR_DIR: &str = "uploads/avatars";
 const USER_AVATAR_MAX_SIZE: usize = 1024 * 1024;
 
+#[derive(Debug, Clone, Copy)]
+enum ImageFormat {
+    Jpeg,
+    Png,
+    Gif,
+    Webp,
+}
+
+impl ImageFormat {
+    fn extension(self) -> &'static str {
+        match self {
+            ImageFormat::Jpeg => "jpg",
+            ImageFormat::Png => "png",
+            ImageFormat::Gif => "gif",
+            ImageFormat::Webp => "webp",
+        }
+    }
+}
+
+fn detect_image_format(data: &[u8]) -> Option<ImageFormat> {
+    if data.len() >= 3 && data.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        return Some(ImageFormat::Jpeg);
+    }
+
+    if data.len() >= 8 && data.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
+        return Some(ImageFormat::Png);
+    }
+
+    if data.len() >= 6 && (data.starts_with(b"GIF87a") || data.starts_with(b"GIF89a")) {
+        return Some(ImageFormat::Gif);
+    }
+
+    if data.len() >= 12 && data.starts_with(b"RIFF") && &data[8..12] == b"WEBP" {
+        return Some(ImageFormat::Webp);
+    }
+
+    None
+}
+
 /// 保存头像
 pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceError> {
     // 确保上传目录存在
@@ -19,21 +58,6 @@ pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceErr
         .await
         .map_err(|_| ServiceError::InvalidOperation("Invalid multipart data".into()))?
     {
-        // 验证文件类型
-        let content_type = field.content_type().unwrap_or("");
-        if !content_type.starts_with("image/") {
-            return Err(
-                ServiceError::InvalidOperation("Only image files are allowed".into()).into()
-            );
-        }
-
-        // 获取文件扩展名
-        let filename = field.file_name().unwrap_or("unknown").to_string();
-        let extension = filename.split('.').last().unwrap_or("jpg");
-
-        // 生成唯一文件名
-        let file_path = format!("{}/{}.{}", USER_AVATAR_DIR, Uuid::new_v4(), extension);
-
         // 读取文件数据
         let data = field
             .bytes()
@@ -46,6 +70,20 @@ pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceErr
                 ServiceError::InvalidOperation("File size must be less than 1MB".into()).into()
             );
         }
+
+        let image_format = detect_image_format(&data).ok_or_else(|| {
+            ServiceError::InvalidOperation(
+                "Only JPEG, PNG, GIF and WebP image files are allowed".into(),
+            )
+        })?;
+
+        // Ignore client-provided filename/extensions and persist using server-detected format.
+        let file_path = format!(
+            "{}/{}.{}",
+            USER_AVATAR_DIR,
+            Uuid::new_v4(),
+            image_format.extension()
+        );
 
         // 保存文件
         let mut file =

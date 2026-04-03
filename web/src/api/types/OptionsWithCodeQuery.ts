@@ -3,11 +3,8 @@
 /**
  * Query parameters for options with code endpoints
  */
-export type OptionsWithCodeQuery = {
-    q?: string;
-    limit?: number;
-    /**
-     * Whether to filter out button menus
-     */
-    btn_filter?: boolean;
-};
+export type OptionsWithCodeQuery = { q?: string, limit?: number, 
+/**
+ * Whether to filter out button menus
+ */
+btn_filter?: boolean, };

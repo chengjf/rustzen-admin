@@ -67,6 +67,29 @@ export const proTableRequest = <T, P = Api.BaseParams>(
 
 const requestPool = new Set<AbortController>();
 
+const isAbortLikeError = (error: unknown, signal?: AbortSignal | null): boolean => {
+    if (signal?.aborted) {
+        return true;
+    }
+
+    if (error instanceof DOMException && error.name === "AbortError") {
+        return true;
+    }
+
+    if (error instanceof Error) {
+        const normalizedMessage = error.message.toLowerCase();
+        if (
+            normalizedMessage.includes("signal is aborted")
+            || normalizedMessage.includes("aborted without reason")
+            || normalizedMessage.includes("aborterror")
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
 /**
  * Get auth headers from localStorage
  */
@@ -144,7 +167,7 @@ const coreRequest = async <T, P>(options: RequestOptions<P>): Promise<Api.ApiRes
         }
         return result;
     } catch (error) {
-        return handleError(error, options); // Pass options to handleError
+        return handleError(error, options, config.signal); // Pass options to handleError
     } finally {
         reqDelete();
     }
@@ -191,7 +214,11 @@ const formatFetchConfig = <T>({
 /**
  * Handle all errors
  */
-const handleError = async (error: unknown, options?: RequestOptions<any>): Promise<never> => {
+const handleError = async (
+    error: unknown,
+    options?: RequestOptions<any>,
+    signal?: AbortSignal | null,
+): Promise<never> => {
     // 1. Business logic errors from backend (result.code !== 0)
     if (error && typeof error === "object" && "code" in error && "message" in error) {
         const businessError = error as { code: number; message: string };
@@ -201,13 +228,13 @@ const handleError = async (error: unknown, options?: RequestOptions<any>): Promi
         return Promise.reject(error);
     }
 
-    // 2. AbortError (request cancellation or timeout)
+    // 2. Abort / cancellation (request cancellation, timeout, or auth-expiry mass abort)
+    if (isAbortLikeError(error, signal)) {
+        console.debug("Request aborted");
+        return Promise.reject(error);
+    }
+
     if (error instanceof DOMException) {
-        if (error.name === "AbortError") {
-            console.debug("Request aborted");
-            return Promise.reject(error);
-        }
-        // Other DOMException types
         if (!options?.silent) {
             appMessage.error("请求被取消");
         }

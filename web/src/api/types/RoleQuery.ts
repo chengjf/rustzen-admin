@@ -3,25 +3,24 @@
 /**
  * Role list query parameters
  */
-export type RoleQuery = {
-    /**
-     * The page number to retrieve. Defaults to 1.
-     */
-    current: number | null;
-    /**
-     * The number of items per page. Defaults to 10.
-     */
-    pageSize: number | null;
-    /**
-     * Filter by role name (case-insensitive search).
-     */
-    roleName: string | null;
-    /**
-     * Filter by role code (case-insensitive search).
-     */
-    roleCode: string | null;
-    /**
-     * Filter by role status.
-     */
-    status: string | null;
-};
+export type RoleQuery = { 
+/**
+ * The page number to retrieve. Defaults to 1.
+ */
+current: number | null, 
+/**
+ * The number of items per page. Defaults to 10.
+ */
+pageSize: number | null, 
+/**
+ * Filter by role name (case-insensitive search).
+ */
+roleName: string | null, 
+/**
+ * Filter by role code (case-insensitive search).
+ */
+roleCode: string | null, 
+/**
+ * Filter by role status.
+ */
+status: string | null, };

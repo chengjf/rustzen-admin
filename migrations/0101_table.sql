@@ -98,7 +98,7 @@ COMMENT ON COLUMN menus.deleted_at IS 'Soft delete timestamp, NULL means not del
 
 
 CREATE TABLE operation_logs (
-    id BIGSERIAL,
+    id BIGSERIAL PRIMARY KEY,
     user_id BIGINT,
     username VARCHAR(50),
     action VARCHAR(100) NOT NULL,
@@ -108,11 +108,14 @@ CREATE TABLE operation_logs (
     duration_ms INTEGER,
     ip_address INET,
     user_agent TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id, created_at)
-) PARTITION BY RANGE (created_at);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-COMMENT ON TABLE operation_logs IS 'Operation logs table (partitioned by month): stores operation logs for auditing';
+CREATE INDEX idx_operation_logs_user_id ON operation_logs(user_id);
+CREATE INDEX idx_operation_logs_action ON operation_logs(action);
+CREATE INDEX idx_operation_logs_created_at ON operation_logs(created_at DESC);
+
+COMMENT ON TABLE operation_logs IS 'Operation logs table: stores operation logs for auditing';
 COMMENT ON COLUMN operation_logs.user_id IS 'User ID';
 COMMENT ON COLUMN operation_logs.username IS 'Username';
 COMMENT ON COLUMN operation_logs.action IS 'Request action';
@@ -126,18 +129,21 @@ COMMENT ON COLUMN operation_logs.user_agent IS 'Request user agent string';
 
 CREATE TABLE user_sessions (
     id BIGSERIAL PRIMARY KEY,
+    session_token VARCHAR(64) NOT NULL,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    permissions JSONB NOT NULL DEFAULT '[]',
-    is_system BOOLEAN NOT NULL DEFAULT FALSE,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_access_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    client_ip INET,
+    user_agent TEXT,
     CONSTRAINT uq_user_sessions_user_id UNIQUE (user_id)
 );
 
 CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
+CREATE UNIQUE INDEX uq_user_sessions_token ON user_sessions(session_token);
 
-COMMENT ON TABLE user_sessions IS 'Persistent user sessions; used to restore in-memory permission cache after server restart';
-COMMENT ON COLUMN user_sessions.permissions IS 'JSON array of permission codes held at login time';
-COMMENT ON COLUMN user_sessions.expires_at IS 'Session expiry; matches JWT expiration issued at login';
+COMMENT ON TABLE user_sessions IS 'Persistent server-side user sessions';
+COMMENT ON COLUMN user_sessions.session_token IS 'Opaque session token used as the sole session credential';
+COMMENT ON COLUMN user_sessions.expires_at IS 'Session expiry timestamp';
+COMMENT ON COLUMN user_sessions.last_access_at IS 'Last authenticated access time';

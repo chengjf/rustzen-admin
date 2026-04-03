@@ -5,21 +5,10 @@ import type { UserStatus } from "./UserStatus";
 /**
  * User item for list display
  */
-export type UserItemResp = {
-    id: number;
-    username: string;
-    email: string;
-    realName: string | null;
-    avatarUrl: string | null;
-    status: UserStatus;
-    /**
-     * ISO-8601 timestamp when an auto-lockout expires.
-     * `None` for users that are not auto-locked.
-     * Frontend uses this to show remaining lock duration.
-     */
-    lockExpiresAt: string | null;
-    lastLoginAt: string | null;
-    roles: Array<OptionItem<number>>;
-    createdAt: string;
-    updatedAt: string;
-};
+export type UserItemResp = { id: number, username: string, email: string, realName: string | null, avatarUrl: string | null, status: UserStatus, 
+/**
+ * ISO-8601 timestamp when an auto-lockout expires.
+ * `None` for users that are not auto-locked.
+ * Frontend uses this to show remaining lock duration.
+ */
+lockExpiresAt: string | null, lastLoginAt: string | null, roles: Array<OptionItem<number>>, createdAt: string, updatedAt: string, };

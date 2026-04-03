@@ -2,26 +2,27 @@ use crate::common::error::{AppError, ServiceError};
 
 use axum::{extract::FromRequestParts, http::request::Parts};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
-/// Current authenticated user info from auth middleware
+/// Current authenticated user info injected by auth middleware.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CurrentUser {
-    /// User ID from database
+    /// User ID from database.
     pub user_id: i64,
-    /// Username
+    /// Username.
     pub username: String,
+    /// Permission codes loaded from DB at authentication time.
+    #[serde(default)]
+    pub permissions: HashSet<String>,
 }
 
 impl CurrentUser {
-    /// Create new CurrentUser instance
-    pub fn new(user_id: i64, username: String) -> Self {
-        Self { user_id, username }
+    pub fn new(user_id: i64, username: String, permissions: HashSet<String>) -> Self {
+        Self { user_id, username, permissions }
     }
 }
 
-/// Axum extractor for CurrentUser
-///
-/// Usage: async fn handler(current_user: CurrentUser) -> Response
+/// Axum extractor for CurrentUser.
 impl<S> FromRequestParts<S> for CurrentUser
 where
     S: Send + Sync,

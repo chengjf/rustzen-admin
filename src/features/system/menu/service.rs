@@ -4,9 +4,13 @@ use super::{
     dto::{CreateMenuDto, MenuItemResp, MenuQuery, MenuType, UpdateMenuPayload},
     repo::{MenuListQuery, MenuRepository},
 };
-use crate::common::{
-    api::{OptionItem, OptionsQuery, OptionsWithCodeQuery},
-    error::ServiceError,
+use crate::{
+    common::{
+        api::{OptionItem, OptionsQuery, OptionsWithCodeQuery},
+        error::ServiceError,
+    },
+    core::session::SessionStore,
+    features::system::user::repo::UserRepository,
 };
 
 use chrono::Utc;
@@ -73,6 +77,20 @@ impl MenuService {
     /// Create new menu with validation
     pub async fn create_menu(pool: &PgPool, request: CreateMenuDto) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to create menu with name: {}", request.name);
+
+        if MenuRepository::name_exists(pool, &request.name).await? {
+            return Err(ServiceError::InvalidOperation(format!(
+                "菜单名称 {} 已存在",
+                request.name
+            )));
+        }
+        if MenuRepository::code_exists(pool, &request.code).await? {
+            return Err(ServiceError::InvalidOperation(format!(
+                "菜单编码 {} 已存在",
+                request.code
+            )));
+        }
+
         Self::validate_menu_type_create(pool, &request).await?;
 
         let menu_id = MenuRepository::create(
@@ -108,6 +126,19 @@ impl MenuService {
             return Err(ServiceError::InvalidOperation("系统内置菜单不能修改".into()));
         }
 
+        if MenuRepository::name_exists_exclude_self(pool, &request.name, id).await? {
+            return Err(ServiceError::InvalidOperation(format!(
+                "菜单名称 {} 已存在",
+                request.name
+            )));
+        }
+        if MenuRepository::code_exists_exclude_self(pool, &request.code, id).await? {
+            return Err(ServiceError::InvalidOperation(format!(
+                "菜单编码 {} 已存在",
+                request.code
+            )));
+        }
+
         Self::validate_menu_type_update(pool, id, &request, &menu).await?;
 
         let menu_id = MenuRepository::update(
@@ -122,6 +153,20 @@ impl MenuService {
         )
         .await?;
 
+        // Invalidate permission caches for all users whose roles include this menu
+        match UserRepository::find_user_ids_by_menu_id(pool, id).await {
+            Ok(user_ids) => {
+                for uid in user_ids {
+                    if let Err(e) = SessionStore::delete_by_user_id(pool, uid).await {
+                        tracing::error!("Failed to delete session for user_id={} after menu update: {:?}", uid, e);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to fetch users for menu_id={} during cache invalidation: {:?}", id, e);
+            }
+        }
+
         tracing::info!("Successfully updated menu: {}", menu_id);
         Ok(menu_id)
     }
@@ -134,6 +179,12 @@ impl MenuService {
         if !children.is_empty() {
             return Err(ServiceError::InvalidOperation(format!("当前菜单有子菜单，不能删除")));
         }
+
+        // Collect affected users before role_menus are deleted inside the transaction
+        let affected_users = UserRepository::find_user_ids_by_menu_id(pool, id).await.unwrap_or_else(|e| {
+            tracing::error!("Failed to fetch users for menu_id={} during cache invalidation: {:?}", id, e);
+            vec![]
+        });
 
         let mut tx = pool.begin().await.map_err(|e| {
             tracing::error!("Database error starting transaction for menu deletion: {:?}", e);
@@ -171,6 +222,13 @@ impl MenuService {
             tracing::error!("Database error committing menu deletion transaction: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
+
+        // Invalidate permission caches for affected users
+        for uid in affected_users {
+            if let Err(e) = SessionStore::delete_by_user_id(pool, uid).await {
+                tracing::error!("Failed to delete session for user_id={} after menu deletion: {:?}", uid, e);
+            }
+        }
 
         tracing::info!("Successfully deleted menu: {}", id);
         Ok(())
@@ -297,6 +355,23 @@ impl MenuService {
         // 我的父节点不能是我
         if request.parent_id == id {
             return Err(ServiceError::InvalidOperation(format!("父级菜单不能是自己")));
+        }
+
+        // 父节点不能是当前节点的后代（防止循环树）
+        if request.parent_id != 0 {
+            let mut current_id = request.parent_id;
+            loop {
+                if current_id == id {
+                    return Err(ServiceError::InvalidOperation(
+                        "父级菜单不能是当前菜单的后代".into(),
+                    ));
+                }
+                match MenuRepository::find_by_id(pool, current_id).await? {
+                    None => break,
+                    Some(m) if m.parent_id == 0 => break,
+                    Some(m) => current_id = m.parent_id,
+                }
+            }
         }
 
         // 检查父节点和子节点的类型约束

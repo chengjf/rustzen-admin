@@ -2,21 +2,15 @@ use crate::{
     common::error::{AppError, ServiceError},
     core::{
         extractor::CurrentUser,
-        permission::{PermissionService, PermissionsCheck},
+        permission::PermissionsCheck,
     },
 };
 
 use axum::{Router, extract::Request, middleware::Next, response::Response, routing::MethodRouter};
 use sqlx::PgPool;
 
-/// Router extension for permission-based routing
+/// Router extension for permission-based routing.
 pub trait RouterExt<S> {
-    /// Add route with permission check
-    ///
-    /// Examples:
-    /// - Single: PermissionsCheck::Single("system:user:list")
-    /// - Any: PermissionsCheck::Any(vec!["dashboard:view", "admin:all"])
-    /// - All: PermissionsCheck::All(vec!["admin:delete", "admin:confirm"])
     fn route_with_permission(
         self,
         path: &str,
@@ -48,41 +42,25 @@ impl RouterExt<PgPool> for Router<PgPool> {
     }
 }
 
-/// Permission validation middleware
+/// Permission validation middleware.
 ///
-/// Steps:
-/// 1. Extract current user from request
-/// 2. Get database pool
-/// 3. Check user permissions (cache-first)
-/// 4. Allow or deny access
+/// Reads `CurrentUser.permissions` (already loaded from DB by `auth_middleware`)
+/// and checks them against `permissions_check` synchronously — no extra DB round-trip.
 async fn permission_middleware(
     request: Request,
     next: Next,
     permissions_check: PermissionsCheck,
 ) -> Result<Response, AppError> {
-    tracing::debug!("Checking permission: {}", permissions_check.description());
-
-    // Get current user from auth middleware
     let current_user = request.extensions().get::<CurrentUser>().cloned().ok_or_else(|| {
         tracing::error!("CurrentUser not found - auth middleware missing?");
         AppError::from(ServiceError::InvalidToken)
     })?;
 
-    tracing::debug!(
-        "Checking {} for user {} ({})",
-        permissions_check.description(),
-        current_user.user_id,
-        current_user.username
-    );
+    let has_permission = permissions_check.check(&current_user.permissions);
 
-    // Check permissions with caching
-    let has_permission =
-        PermissionService::check_permissions(current_user.user_id, &permissions_check).await?;
-
-    // Deny if no permission
     if !has_permission {
         tracing::warn!(
-            "Permission denied: User {} ({}) lacks: {}",
+            "Permission denied: user_id={} ({}) lacks: {}",
             current_user.user_id,
             current_user.username,
             permissions_check.description()
@@ -91,11 +69,10 @@ async fn permission_middleware(
     }
 
     tracing::debug!(
-        "Permission granted for user {} ({})",
+        "Permission granted for user_id={} ({})",
         current_user.user_id,
         permissions_check.description()
     );
 
-    // Continue to handler
     Ok(next.run(request).await)
 }

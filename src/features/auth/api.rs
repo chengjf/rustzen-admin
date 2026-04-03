@@ -7,10 +7,10 @@ use crate::{
         api::{ApiResponse, AppResult},
         files::save_avatar,
     },
-    core::{extractor::CurrentUser, permission::PermissionService},
+    core::{extractor::CurrentUser, session::SessionStore},
     features::{
         auth::dto::ChangePasswordPayload,
-        system::{log::service::LogService, user::service::UserService},
+        system::log::service::LogService,
     },
 };
 
@@ -20,16 +20,15 @@ use axum::{
     http::HeaderMap,
     routing::{get, post, put},
 };
-use crate::core::session::SessionStore;
 use sqlx::PgPool;
 use std::{net::SocketAddr, time::Instant};
 
-/// Public auth routes (no token required)
+/// Public auth routes (no session required).
 pub fn public_auth_routes() -> Router<PgPool> {
     Router::new().route("/login", post(login_handler))
 }
 
-/// Protected auth routes (JWT required)
+/// Protected auth routes (session required).
 pub fn protected_auth_routes() -> Router<PgPool> {
     Router::new()
         .route("/me", get(get_login_info_handler))
@@ -38,7 +37,6 @@ pub fn protected_auth_routes() -> Router<PgPool> {
         .route("/self/password", put(change_password_self))
 }
 
-/// Login with username/password
 #[tracing::instrument(name = "login", skip(pool, addr, headers, request))]
 async fn login_handler(
     State(pool): State<PgPool>,
@@ -53,7 +51,7 @@ async fn login_handler(
     let ip_address = addr.ip().to_string();
     let user_agent = headers.get("user-agent").and_then(|h| h.to_str().ok()).unwrap_or("Unknown");
 
-    match AuthService::login(&pool, request).await {
+    match AuthService::login(&pool, request, &ip_address, user_agent).await {
         Ok(response) => {
             if let Err(e) = LogService::log_business_operation(
                 &pool,
@@ -71,14 +69,12 @@ async fn login_handler(
             {
                 tracing::error!("Failed to log login operation: {:?}", e);
             }
-            tracing::info!("Login successful");
             Ok(ApiResponse::success(response))
         }
         Err(err) => {
-            let user_id = 0_i64;
             if let Err(e) = LogService::log_business_operation(
                 &pool,
-                user_id,
+                0_i64,
                 &username,
                 "AUTH_LOGIN",
                 &err.to_string(),
@@ -98,21 +94,15 @@ async fn login_handler(
     }
 }
 
-/// Get current user info with roles and menus
 #[tracing::instrument(name = "get_login_info", skip(current_user, pool))]
 async fn get_login_info_handler(
     current_user: CurrentUser,
     State(pool): State<PgPool>,
 ) -> AppResult<UserInfoResp> {
-    tracing::debug!("Get me info");
-
     let user_info = AuthService::get_login_info(&pool, current_user.user_id).await?;
-
-    tracing::debug!("Me info retrieved: {:?}", user_info);
     Ok(ApiResponse::success(user_info))
 }
 
-/// Logout and clear cache
 #[tracing::instrument(name = "logout", skip(pool, current_user))]
 async fn logout_handler(
     State(pool): State<PgPool>,
@@ -120,32 +110,25 @@ async fn logout_handler(
 ) -> AppResult<()> {
     tracing::info!("Logout for user_id={}", current_user.user_id);
 
-    // Clear in-memory permission cache
-    PermissionService::clear_user_cache(current_user.user_id);
-
-    // Delete persisted session from DB
-    if let Err(e) = SessionStore::delete(&pool, current_user.user_id).await {
-        tracing::error!("Failed to delete DB session for user_id={}: {:?}", current_user.user_id, e);
-        // Non-fatal: in-memory cache is already cleared, token is effectively revoked
+    if let Err(e) = SessionStore::delete_by_user_id(&pool, current_user.user_id).await {
+        tracing::error!(
+            "Failed to delete session for user_id={}: {:?}",
+            current_user.user_id,
+            e
+        );
     }
 
-    tracing::info!("Logout completed for user_id={}", current_user.user_id);
     Ok(ApiResponse::success(()))
 }
 
-/// Update user profile
 #[tracing::instrument(name = "update_avatar", skip(current_user, pool))]
 async fn update_avatar(
     current_user: CurrentUser,
     State(pool): State<PgPool>,
     mut multipart: Multipart,
 ) -> AppResult<String> {
-    tracing::info!("Updating avatar for user: {}", current_user.user_id);
-
     let avatar_url = save_avatar(&mut multipart).await?;
-
     AuthService::update_avatar(&pool, current_user.user_id, &avatar_url).await?;
-
     Ok(ApiResponse::success(avatar_url))
 }
 
@@ -155,10 +138,6 @@ pub async fn change_password_self(
     current_user: CurrentUser,
     Json(dto): Json<ChangePasswordPayload>,
 ) -> AppResult<()> {
-    tracing::info!("User {} changing password", current_user.user_id);
-
     AuthService::change_password(&pool, current_user.user_id, dto).await?;
-
-    tracing::info!("Password changed successfully for user {}", current_user.user_id);
     Ok(ApiResponse::success(()))
 }

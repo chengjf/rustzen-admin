@@ -228,8 +228,8 @@ Errors return `AppError`, which implements `IntoResponse` with appropriate HTTP 
 
 - **SQLx**: `sqlx::query_as` with compile-time checking; run `cargo check` after query changes to verify
 - **Pool**: `PgPool` passed through function parameters (not stored in repositories)
-- **Migrations**: Located in `migrations/` and grouped by category (`0101_table.sql` through `0106_partition.sql`)
-- **Partitioned tables**: `operation_logs` uses monthly partitions via `0106_partition.sql`
+- **Migrations**: Located in `migrations/` and grouped by category (`0101_table.sql` through `0105_seed.sql`)
+- **Operation logs**: `operation_logs` is a plain table defined in `0101_table.sql`
 - **Login lockout**: Defined in `0101_table.sql` and `0104_func.sql`; accounts are locked for 30 minutes after 5 consecutive failures
 
 ### Frontend State & API

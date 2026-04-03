@@ -32,9 +32,6 @@ thiserror = "2.0"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.17", features = ["v4", "serde"] }
 
-# JWT authentication
-jsonwebtoken = "9.3"
-
 # password hashing
 argon2 = "0.5"
 rand = "0.8"

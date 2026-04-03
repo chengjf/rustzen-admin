@@ -3,11 +3,4 @@
 /**
  * Update role request parameters
  */
-export type UpdateRolePayload = {
-    name: string;
-    code: string;
-    status: number;
-    sortOrder: number | null;
-    menuIds: Array<number>;
-    description: string | null;
-};
+export type UpdateRolePayload = { name: string, code: string, status: number, sortOrder: number | null, menuIds: Array<number>, description: string | null, };

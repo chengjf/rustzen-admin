@@ -3,11 +3,4 @@
 /**
  * Log query parameters
  */
-export type LogQuery = {
-    current: number | null;
-    pageSize: number | null;
-    username: string | null;
-    action: string | null;
-    description: string | null;
-    ipAddress: string | null;
-};
+export type LogQuery = { current: number | null, pageSize: number | null, username: string | null, action: string | null, description: string | null, ipAddress: string | null, };

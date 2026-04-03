@@ -7,9 +7,10 @@ use super::{
 };
 use crate::{
     common::{error::ServiceError, pagination::Pagination},
-    core::{password::PasswordUtils, permission::PermissionService, session::SessionStore},
-    features::auth::model::UserStatus,
+    core::{password::PasswordUtils, session::SessionStore},
+    features::{auth::model::UserStatus, system::role::repo::RoleRepository},
 };
+use std::collections::HashSet;
 
 use chrono::Utc;
 use sqlx::PgPool;
@@ -56,6 +57,9 @@ impl UserService {
             return Err(ServiceError::EmailConflict);
         }
 
+        // Validate role_ids
+        Self::validate_role_ids(pool, &dto.role_ids).await?;
+
         // Hash password
         let password_hash = PasswordUtils::hash_password(&dto.password)?;
 
@@ -74,6 +78,39 @@ impl UserService {
         Ok(user_id)
     }
 
+    /// Reject operation if the target user is a system built-in user.
+    pub async fn ensure_not_system(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+        let user = UserRepository::get_by_id(pool, id).await?;
+        if user.is_system {
+            return Err(ServiceError::UserIsAdmin);
+        }
+        Ok(())
+    }
+
+    /// Validate role_ids: no duplicates, all IDs must exist and be enabled.
+    async fn validate_role_ids(pool: &PgPool, role_ids: &[i64]) -> Result<(), ServiceError> {
+        if role_ids.is_empty() {
+            return Ok(());
+        }
+        let unique: HashSet<i64> = role_ids.iter().cloned().collect();
+        if unique.len() != role_ids.len() {
+            return Err(ServiceError::InvalidOperation("角色ID重复".into()));
+        }
+        let found = RoleRepository::find_existing_role_ids(pool, role_ids).await?;
+        if found.len() != role_ids.len() {
+            let missing: Vec<String> = role_ids
+                .iter()
+                .filter(|id| !found.contains(id))
+                .map(|id| id.to_string())
+                .collect();
+            return Err(ServiceError::InvalidOperation(format!(
+                "角色ID {} 不存在或已禁用",
+                missing.join(",")
+            )));
+        }
+        Ok(())
+    }
+
     /// Update user
     pub async fn update_user(
         pool: &PgPool,
@@ -87,6 +124,9 @@ impl UserService {
             return Err(ServiceError::EmailConflict);
         }
 
+        // Validate role_ids
+        Self::validate_role_ids(pool, &request.role_ids).await?;
+
         // Update user
         let user_id = UserRepository::update_user(
             pool,
@@ -96,6 +136,11 @@ impl UserService {
             &request.role_ids,
         )
         .await?;
+
+        // Delete session so the next login picks up updated role assignments.
+        if let Err(e) = SessionStore::delete_by_user_id(pool, id).await {
+            tracing::error!("Failed to delete session for user_id={} after role update: {:?}", id, e);
+        }
 
         Ok(user_id)
     }
@@ -144,9 +189,8 @@ impl UserService {
             ServiceError::DatabaseQueryFailed
         })?;
 
-        // Revoke active session immediately after deletion
-        PermissionService::clear_user_cache(id);
-        if let Err(e) = SessionStore::delete(pool, id).await {
+        // Revoke active session immediately after deletion.
+        if let Err(e) = SessionStore::delete_by_user_id(pool, id).await {
             tracing::error!("Failed to delete session for user_id={} after deletion: {:?}", id, e);
         }
 
@@ -188,11 +232,13 @@ impl UserService {
         let password = PasswordUtils::generate_password(6);
         let password_hash = PasswordUtils::hash_password(&password)?;
 
-        UserRepository::update_user_password(pool, id, &password_hash).await?;
+        let updated = UserRepository::update_user_password(pool, id, &password_hash).await?;
+        if !updated {
+            return Err(ServiceError::NotFound(format!("用户 ID: {}", id)));
+        }
 
-        // Revoke active session so the user must re-login with the new password
-        PermissionService::clear_user_cache(id);
-        if let Err(e) = SessionStore::delete(pool, id).await {
+        // Revoke session so the user must re-login with the new password.
+        if let Err(e) = SessionStore::delete_by_user_id(pool, id).await {
             tracing::error!("Failed to delete session after password reset for user_id={}: {:?}", id, e);
         }
         tracing::info!("Session revoked for user_id={} after admin password reset", id);
@@ -205,7 +251,10 @@ impl UserService {
     pub async fn unlock_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         tracing::debug!("Unlocking user ID: {}", id);
 
-        UserRepository::unlock_user(pool, id).await?;
+        let updated = UserRepository::unlock_user(pool, id).await?;
+        if !updated {
+            return Err(ServiceError::NotFound(format!("用户 ID: {}", id)));
+        }
 
         tracing::info!("User ID {} unlocked by admin", id);
         Ok(())
@@ -218,17 +267,19 @@ impl UserService {
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user status for user ID: {}", id);
 
-        let result = UserRepository::update_user_status(pool, id, dto.status.into()).await?;
+        let updated = UserRepository::update_user_status(pool, id, dto.status.into()).await?;
+        if !updated {
+            return Err(ServiceError::NotFound(format!("用户 ID: {}", id)));
+        }
 
-        // Revoke active session immediately when disabling or locking an account
-        if dto.status == UserStatus::Disabled || dto.status == UserStatus::Locked {
-            PermissionService::clear_user_cache(id);
-            if let Err(e) = SessionStore::delete(pool, id).await {
+        // Revoke active session immediately when disabling, pending, or locking an account
+        if dto.status == UserStatus::Disabled || dto.status == UserStatus::Locked || dto.status == UserStatus::Pending {
+            if let Err(e) = SessionStore::delete_by_user_id(pool, id).await {
                 tracing::error!("Failed to delete session for user_id={} on status change to {:?}: {:?}", id, dto.status, e);
             }
             tracing::info!("Session revoked for user_id={} due to status change to {:?}", id, dto.status);
         }
 
-        Ok(result)
+        Ok(true)
     }
 }

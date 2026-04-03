@@ -32,6 +32,7 @@ VALUES
     (7, 3, '用户删除', 'system:user:delete', 3, 4, 1, TRUE),
     (8, 3, '用户状态', 'system:user:status', 3, 5, 1, TRUE),
     (9, 3, '重置密码', 'system:user:password', 3, 6, 1, TRUE),
+    (28, 3, '用户解锁', 'system:user:unlock', 3, 7, 1, TRUE),
     (10, 2, '角色管理', 'system:role:list', 2, 2, 1, TRUE),
     (11, 10, '角色创建', 'system:role:create', 3, 1, 1, TRUE),
     (12, 10, '角色编辑', 'system:role:update', 3, 2, 1, TRUE),
@@ -60,6 +61,14 @@ SELECT r.id, m.id, NOW()
 FROM roles r, menus m
 WHERE r.code = 'SYSTEM_ADMIN' AND m.code = '*'
 ON CONFLICT (role_id, menu_id) DO NOTHING;
+
+
+INSERT INTO user_roles (user_id, role_id, created_at)
+SELECT u.id, r.id, NOW()
+FROM users u, roles r
+WHERE u.username = 'superadmin' AND u.deleted_at IS NULL
+  AND r.code = 'SYSTEM_ADMIN' AND r.deleted_at IS NULL
+ON CONFLICT (user_id, role_id) DO NOTHING;
 
 
 SELECT setval(pg_get_serial_sequence('menus', 'id'), (SELECT MAX(id) FROM menus));

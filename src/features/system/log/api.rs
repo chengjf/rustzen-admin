@@ -45,13 +45,19 @@ pub async fn export_log_list(
     State(pool): State<PgPool>,
     Query(query): Query<LogQuery>,
 ) -> Result<Response, (StatusCode, String)> {
-    let content = LogService::get_all_log_csv(&pool, query).await.unwrap();
+    let content = LogService::get_all_log_csv(&pool, query)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let filename = format!("log_{}.csv", get_timestamp());
     let disposition = format!("attachment; filename={}", filename);
 
     let mut headers = HeaderMap::new();
-    headers.insert(header::CONTENT_DISPOSITION, HeaderValue::from_str(&disposition).unwrap());
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_str(&disposition)
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?,
+    );
     headers.insert(header::CONTENT_LENGTH, HeaderValue::from(content.len()));
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
 

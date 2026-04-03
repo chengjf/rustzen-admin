@@ -3,11 +3,8 @@
 /**
  * Update user request parameters
  */
-export type UpdateUserPayload = {
-    email: string;
-    realName: string | null;
-    /**
-     * A list of role IDs to assign to the user. If provided, replaces all existing roles.
-     */
-    roleIds: Array<number>;
-};
+export type UpdateUserPayload = { email: string, realName: string | null, 
+/**
+ * A list of role IDs to assign to the user. If provided, replaces all existing roles.
+ */
+roleIds: Array<number>, };

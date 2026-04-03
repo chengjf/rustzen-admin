@@ -67,6 +67,7 @@ JOIN role_menus rm ON r.id = rm.role_id
 JOIN menus m ON rm.menu_id = m.id AND m.deleted_at IS NULL AND m.status = 1
 WHERE u.deleted_at IS NULL
   AND u.status = 1
+  AND (u.locked_until IS NULL OR u.locked_until <= NOW())
   AND m.code IS NOT NULL;
 
 COMMENT ON VIEW user_permissions IS

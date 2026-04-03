@@ -104,17 +104,20 @@ impl LogRepository {
         tracing::debug!("Creating detailed log entry with action: {:?}", action);
 
         let log_id = sqlx::query_scalar::<_, i64>(
-            "SELECT log_operation($1, $2, $3, $4, $5, $6::inet, $7, $8, $9)",
+            "INSERT INTO operation_logs \
+             (user_id, username, action, description, data, status, duration_ms, ip_address, user_agent) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8::inet, $9) \
+             RETURNING id",
         )
         .bind(user_id)
         .bind(username)
         .bind(action)
         .bind(description)
-        .bind(data) // Option<serde_json::Value> will map to JSONB or NULL
-        .bind(ip_address)
-        .bind(user_agent)
+        .bind(data)
         .bind(status)
         .bind(duration_ms)
+        .bind(ip_address)
+        .bind(user_agent)
         .fetch_one(pool)
         .await
         .map_err(|e| {

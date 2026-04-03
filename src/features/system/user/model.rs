@@ -16,6 +16,7 @@ pub struct UserWithRolesEntity {
     /// Auto-locked users (status=1 but locked_until > NOW()) map to 4 (Locked).
     /// Use this field for display and filtering; never write it to the DB.
     pub effective_status: i16,
+    pub is_system: bool,
     pub last_login_at: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,

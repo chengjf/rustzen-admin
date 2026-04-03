@@ -4,16 +4,4 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * Log item for list display
  */
-export type LogItemResp = {
-    id: number;
-    userId: number;
-    username: string;
-    action: string;
-    description: string | null;
-    data: JsonValue | null;
-    status: string;
-    durationMs: number;
-    ipAddress: string;
-    userAgent: string;
-    createdAt: string;
-};
+export type LogItemResp = { id: number, userId: number, username: string, action: string, description: string | null, data: JsonValue | null, status: string, durationMs: number, ipAddress: string, userAgent: string, createdAt: string, };

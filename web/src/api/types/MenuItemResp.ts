@@ -3,16 +3,4 @@
 /**
  * Menu item for tree list display
  */
-export type MenuItemResp = {
-    id: number;
-    parentId: number;
-    name: string;
-    code: string;
-    menuType: number;
-    status: number;
-    isSystem: boolean;
-    sortOrder: number;
-    createdAt: string;
-    updatedAt: string;
-    children: Array<MenuItemResp> | null;
-};
+export type MenuItemResp = { id: number, parentId: number, name: string, code: string, menuType: number, status: number, isSystem: boolean, sortOrder: number, createdAt: string, updatedAt: string, children: Array<MenuItemResp> | null, };

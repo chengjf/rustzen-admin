@@ -3,29 +3,16 @@ use axum::{
     response::{Html, IntoResponse, Response},
 };
 use include_dir::{Dir, include_dir};
-use tracing::{debug, info, warn};
-
-use crate::core::config::CONFIG;
+use tracing::{debug, warn};
 
 // embed dist directory into the binary file
 // path is relative to the Cargo.toml file location
 static WEB_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/web/dist");
 
-/// static file service handler
-/// development environment: proxy to Vite development server
-/// production environment: use embedded static files
+/// Serve embedded frontend static files (single-binary deployment).
 pub async fn web_embed_file_handler(uri: Uri) -> impl IntoResponse {
-    let is_enabled = CONFIG.web_embed_enabled;
-    info!("Web embed is enabled: {}", is_enabled);
-    if is_enabled {
-        let path = uri.path().trim_start_matches('/');
-        serve_embedded_files(path).await
-    } else {
-        Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(axum::body::Body::from("Web is disabled"))
-            .unwrap()
-    }
+    let path = uri.path().trim_start_matches('/');
+    serve_embedded_files(path).await
 }
 /// check if the path is a static resource path
 fn is_static_resource_path(path: &str) -> bool {
