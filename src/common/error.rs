@@ -209,3 +209,60 @@ impl From<sqlx::Error> for AppError {
         service_error.into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::response::IntoResponse;
+
+    fn status_of(err: ServiceError) -> StatusCode {
+        let app_err: AppError = err.into();
+        app_err.into_response().status()
+    }
+
+    #[test]
+    fn not_found_maps_to_404() {
+        assert_eq!(status_of(ServiceError::NotFound("User".into())), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn invalid_credentials_maps_to_401() {
+        assert_eq!(status_of(ServiceError::InvalidCredentials), StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn permission_denied_maps_to_403() {
+        assert_eq!(status_of(ServiceError::PermissionDenied), StatusCode::FORBIDDEN);
+    }
+
+    #[test]
+    fn invalid_token_maps_to_401() {
+        assert_eq!(status_of(ServiceError::InvalidToken), StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn database_error_maps_to_500() {
+        assert_eq!(
+            status_of(ServiceError::DatabaseQueryFailed),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+    }
+
+    #[test]
+    fn username_conflict_maps_to_409() {
+        assert_eq!(status_of(ServiceError::UsernameConflict), StatusCode::CONFLICT);
+    }
+
+    #[test]
+    fn invalid_operation_maps_to_400() {
+        assert_eq!(
+            status_of(ServiceError::InvalidOperation("bad".into())),
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[test]
+    fn user_is_auto_locked_maps_to_400() {
+        assert_eq!(status_of(ServiceError::UserIsAutoLocked(5)), StatusCode::BAD_REQUEST);
+    }
+}

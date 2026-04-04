@@ -144,3 +144,92 @@ impl AuthRepository {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::PgPool;
+
+    /// Seeded by 0105_seed.sql: username="superadmin", status=1 (Normal), is_system=true
+    #[sqlx::test]
+    async fn get_credentials_returns_some_for_existing_user(pool: PgPool) {
+        let result = AuthRepository::get_login_credentials(&pool, "superadmin").await;
+        assert!(result.is_ok(), "query should not fail");
+        let credentials = result.unwrap();
+        assert!(credentials.is_some(), "superadmin should be found");
+        let creds = credentials.unwrap();
+        assert_eq!(creds.status, 1); // UserStatus::Normal
+        assert!(creds.is_system);
+    }
+
+    #[sqlx::test]
+    async fn get_credentials_returns_none_for_missing_user(pool: PgPool) {
+        let result = AuthRepository::get_login_credentials(&pool, "nobody_xyz_404").await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[sqlx::test]
+    async fn get_user_by_id_returns_some_for_superadmin(pool: PgPool) {
+        // First get the id via a raw query since we don't know it upfront
+        let row: (i64,) = sqlx::query_as("SELECT id FROM users WHERE username = 'superadmin'")
+            .fetch_one(&pool)
+            .await
+            .expect("superadmin must exist");
+
+        let result = AuthRepository::get_user_by_id(&pool, row.0).await;
+        assert!(result.is_ok());
+        let user = result.unwrap();
+        assert!(user.is_some());
+        assert_eq!(user.unwrap().username, "superadmin");
+    }
+
+    #[sqlx::test]
+    async fn get_user_by_id_returns_none_for_missing(pool: PgPool) {
+        let result = AuthRepository::get_user_by_id(&pool, 999_999).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[sqlx::test]
+    async fn reset_and_increment_failed_attempts(pool: PgPool) {
+        let (user_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM users WHERE username = 'superadmin'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        // Reset first to get a clean baseline
+        AuthRepository::reset_failed_attempts(&pool, user_id).await.unwrap();
+
+        let (before,): (i16,) =
+            sqlx::query_as("SELECT failed_login_attempts FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(before, 0);
+
+        // Increment twice
+        AuthRepository::increment_failed_attempts(&pool, user_id).await.unwrap();
+        AuthRepository::increment_failed_attempts(&pool, user_id).await.unwrap();
+
+        let (after,): (i16,) =
+            sqlx::query_as("SELECT failed_login_attempts FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(after, 2);
+
+        // Reset clears it
+        AuthRepository::reset_failed_attempts(&pool, user_id).await.unwrap();
+        let (cleared,): (i16,) =
+            sqlx::query_as("SELECT failed_login_attempts FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(cleared, 0);
+    }
+}

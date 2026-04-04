@@ -436,3 +436,96 @@ impl UserRepository {
         Ok(result.rows_affected() > 0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::password::PasswordUtils;
+    use sqlx::PgPool;
+
+    async fn seed_user(pool: &PgPool, username: &str, email: &str) -> i64 {
+        let hash = PasswordUtils::hash_password("Test@12345").unwrap();
+        UserRepository::create_user(
+            pool,
+            &CreateUserCommand {
+                username: username.to_string(),
+                email: email.to_string(),
+                password_hash: hash,
+                real_name: Some("Test User".to_string()),
+                status: Some(1),
+                role_ids: vec![],
+            },
+        )
+        .await
+        .expect("create_user should succeed")
+    }
+
+    #[sqlx::test]
+    async fn create_user_and_find_by_id(pool: PgPool) {
+        let id = seed_user(&pool, "testuser_find", "testuser_find@example.com").await;
+        assert!(id > 0);
+
+        let found = UserRepository::find_by_id(&pool, id).await.unwrap();
+        assert!(found.is_some());
+        let user = found.unwrap();
+        assert_eq!(user.username, "testuser_find");
+    }
+
+    #[sqlx::test]
+    async fn find_by_id_returns_none_for_missing(pool: PgPool) {
+        let result = UserRepository::find_by_id(&pool, 999_999).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[sqlx::test]
+    async fn get_by_id_returns_error_for_missing(pool: PgPool) {
+        let result = UserRepository::get_by_id(&pool, 999_999).await;
+        assert!(result.is_err());
+        matches!(result.unwrap_err(), ServiceError::NotFound(_));
+    }
+
+    #[sqlx::test]
+    async fn email_exists_is_true_after_create(pool: PgPool) {
+        let email = "unique_test@example.com";
+        seed_user(&pool, "testuser_email", email).await;
+        let exists = UserRepository::email_exists(&pool, email).await.unwrap();
+        assert!(exists);
+    }
+
+    #[sqlx::test]
+    async fn username_exists_is_false_for_new(pool: PgPool) {
+        let exists =
+            UserRepository::username_exists(&pool, "definitely_not_seeded_xyz").await.unwrap();
+        assert!(!exists);
+    }
+
+    #[sqlx::test]
+    async fn soft_delete_makes_user_unfindable(pool: PgPool) {
+        let id = seed_user(&pool, "testuser_del", "testuser_del@example.com").await;
+
+        let deleted = UserRepository::soft_delete(&pool, id).await.unwrap();
+        assert!(deleted);
+
+        // user_with_roles view filters out soft-deleted users
+        let found = UserRepository::find_by_id(&pool, id).await.unwrap();
+        assert!(found.is_none());
+    }
+
+    #[sqlx::test]
+    async fn find_with_pagination_returns_seeded_users(pool: PgPool) {
+        seed_user(&pool, "pagtest1", "pagtest1@example.com").await;
+        seed_user(&pool, "pagtest2", "pagtest2@example.com").await;
+
+        let query = UserListQuery {
+            username: Some("pagtest".to_string()),
+            status: None,
+            real_name: None,
+            email: None,
+        };
+        let (users, total) =
+            UserRepository::find_with_pagination(&pool, 0, 10, query).await.unwrap();
+        assert_eq!(total, 2);
+        assert_eq!(users.len(), 2);
+    }
+}
