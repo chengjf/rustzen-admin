@@ -10,3 +10,44 @@ impl Pagination {
         (limit, offset, page)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_when_none() {
+        // page=1, limit=10, offset=0
+        let (limit, offset, page) = Pagination::normalize(None, None);
+        assert_eq!(limit, 10);
+        assert_eq!(offset, 0);
+        assert_eq!(page, 1);
+    }
+
+    #[test]
+    fn correct_offset_for_page_two() {
+        let (limit, offset, page) = Pagination::normalize(Some(2), Some(20));
+        assert_eq!(limit, 20);
+        assert_eq!(offset, 20); // (2-1)*20
+        assert_eq!(page, 2);
+    }
+
+    #[test]
+    fn page_less_than_one_clamps_to_one() {
+        let (_, offset, page) = Pagination::normalize(Some(0), None);
+        assert_eq!(page, 1);
+        assert_eq!(offset, 0);
+    }
+
+    #[test]
+    fn page_size_clamps_to_max_100() {
+        let (limit, _, _) = Pagination::normalize(None, Some(999));
+        assert_eq!(limit, 100);
+    }
+
+    #[test]
+    fn page_size_clamps_to_min_1() {
+        let (limit, _, _) = Pagination::normalize(None, Some(0));
+        assert_eq!(limit, 1);
+    }
+}

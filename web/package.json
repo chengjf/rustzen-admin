@@ -11,7 +11,10 @@
         "build": "vp build",
         "build:prod": "tsc --project tsconfig.build.json --noEmit && vite build",
         "lint": "vp lint",
-        "fmt": "vp fmt"
+        "fmt": "vp fmt",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage"
     },
     "dependencies": {
         "@ant-design/icons": "^6.1.0",
@@ -32,16 +35,23 @@
         "@tanstack/react-query-devtools": "^5.91.3",
         "@tanstack/react-router-devtools": "^1.166.9",
         "@tanstack/router-plugin": "^1.166.14",
+        "@testing-library/jest-dom": "^6.6.3",
+        "@testing-library/react": "^16.3.0",
+        "@testing-library/user-event": "^14.5.2",
         "@types/node": "^25.5.0",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
+        "@vitest/coverage-v8": "^3.2.4",
         "@vitejs/plugin-react": "^6.0.1",
         "autoprefixer": "^10.4.27",
+        "jsdom": "^26.1.0",
+        "msw": "^2.10.3",
         "postcss": "^8.5.8",
         "tailwindcss": "^4.2.2",
         "typescript": "~5.9.3",
         "vite": "8.0.1",
-        "vite-plus": "0.1.12"
+        "vite-plus": "0.1.12",
+        "vitest": "^3.2.4"
     },
     "volta": {
         "node": "24.2.0"

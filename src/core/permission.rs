@@ -38,3 +38,100 @@ impl PermissionsCheck {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn perms(codes: &[&str]) -> HashSet<String> {
+        codes.iter().map(|s| s.to_string()).collect()
+    }
+
+    // --- Single ---
+
+    #[test]
+    fn single_grants_when_permission_present() {
+        let check = PermissionsCheck::Single("system:user:list");
+        assert!(check.check(&perms(&["system:user:list"])));
+    }
+
+    #[test]
+    fn single_denies_when_permission_absent() {
+        let check = PermissionsCheck::Single("system:user:list");
+        assert!(!check.check(&perms(&["system:role:list"])));
+    }
+
+    #[test]
+    fn single_denies_empty_permissions() {
+        let check = PermissionsCheck::Single("system:user:list");
+        assert!(!check.check(&perms(&[])));
+    }
+
+    // --- Any ---
+
+    #[test]
+    fn any_grants_when_at_least_one_matches() {
+        let check = PermissionsCheck::Any(vec!["system:user:create", "system:user:list"]);
+        assert!(check.check(&perms(&["system:user:list"])));
+    }
+
+    #[test]
+    fn any_denies_when_none_match() {
+        let check = PermissionsCheck::Any(vec!["system:user:create", "system:user:delete"]);
+        assert!(!check.check(&perms(&["system:role:list"])));
+    }
+
+    // --- All ---
+
+    #[test]
+    fn all_grants_when_every_permission_present() {
+        let check = PermissionsCheck::All(vec!["system:user:create", "system:user:delete"]);
+        assert!(check.check(&perms(&["system:user:create", "system:user:delete"])));
+    }
+
+    #[test]
+    fn all_denies_when_any_permission_missing() {
+        let check = PermissionsCheck::All(vec!["system:user:create", "system:user:delete"]);
+        assert!(!check.check(&perms(&["system:user:create"])));
+    }
+
+    // --- Wildcard ---
+
+    #[test]
+    fn wildcard_grants_single() {
+        let check = PermissionsCheck::Single("system:user:list");
+        assert!(check.check(&perms(&["*"])));
+    }
+
+    #[test]
+    fn wildcard_grants_any() {
+        let check = PermissionsCheck::Any(vec!["system:user:create"]);
+        assert!(check.check(&perms(&["*"])));
+    }
+
+    #[test]
+    fn wildcard_grants_all() {
+        let check = PermissionsCheck::All(vec!["system:user:create", "system:user:delete"]);
+        assert!(check.check(&perms(&["*"])));
+    }
+
+    // --- description ---
+
+    #[test]
+    fn description_single() {
+        let d = PermissionsCheck::Single("p").description();
+        assert!(d.contains("single") && d.contains("p"));
+    }
+
+    #[test]
+    fn description_any() {
+        let d = PermissionsCheck::Any(vec!["a", "b"]).description();
+        assert!(d.contains("any"));
+    }
+
+    #[test]
+    fn description_all() {
+        let d = PermissionsCheck::All(vec!["a", "b"]).description();
+        assert!(d.contains("all"));
+    }
+}
+

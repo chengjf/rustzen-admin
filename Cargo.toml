@@ -42,3 +42,9 @@ figment = { version = "0.10.19", features = ["env"] }
 
 # TypeScript type generation
 ts-rs = { version = "12.0", features = ["chrono-impl", "serde-json-impl"] }
+
+[dev-dependencies]
+# Enables #[sqlx::test] macro: auto-creates/migrates/tears-down a test DB per test
+sqlx = { version = "0.8", features = ["migrate"] }
+# HTTP-level integration tests for Axum routers
+axum-test = "17"
