@@ -1,19 +1,26 @@
 import { apiRequest } from "@/api";
 import type { CreateMenuDto } from "@/api/types/CreateMenuDto";
 import type { MenuItemResp } from "@/api/types/MenuItemResp";
-import type { MenuQuery } from "@/api/types/MenuQuery";
 import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
 import type { MenuType } from "@/api/types/MenuType";
 import type { OptionItem } from "@/api/types/OptionItem";
 import type { OptionsWithCodeQuery } from "@/api/types/OptionsWithCodeQuery";
 import type { UpdateMenuPayload } from "@/api/types/UpdateMenuPayload";
 
+/** ProTable 实际传递给菜单列表接口的搜索参数（column dataIndex 与后端字段一一对应） */
+export type MenuTableParams = {
+    name?: string;
+    code?: string;
+    status?: string;
+    menuType?: number;
+};
+
 /**
  * 菜单管理API服务
  */
 export const menuAPI = {
-    getTableData: (params?: Partial<MenuQuery>) => {
-        return apiRequest<MenuItemResp[], Partial<MenuQuery>>({
+    getTableData: (params?: MenuTableParams) => {
+        return apiRequest<MenuItemResp[], MenuTableParams>({
             url: "/api/system/menus",
             params,
         });

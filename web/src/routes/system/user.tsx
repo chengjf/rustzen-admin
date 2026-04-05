@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
 
 import { appMessage } from "@/api";
 import { roleAPI } from "@/api/system/role";
-import { userAPI } from "@/api/system/user";
+import { userAPI, type UserTableParams } from "@/api/system/user";
 import type { CreateUserDto } from "@/api/types/CreateUserDto";
 import type { UpdateUserPayload } from "@/api/types/UpdateUserPayload";
 import type { UserItemResp } from "@/api/types/UserItemResp";
@@ -328,7 +328,7 @@ export function UserPage() {
     return (
         <>
             <AuthWrap code="system:user:list">
-                <ProTable<UserItemResp>
+                <ProTable<UserItemResp, UserTableParams>
                     rowKey="id"
                     scroll={{ y: "calc(100vh - 383px)" }}
                     headerTitle="用户列表"

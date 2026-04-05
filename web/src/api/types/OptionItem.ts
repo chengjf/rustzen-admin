@@ -3,4 +3,4 @@
 /**
  * A generic structure for dropdown options.
  */
-export type OptionItem<T> = { label: string, value: T, };
+export type OptionItem<T> = { label: string; value: T };

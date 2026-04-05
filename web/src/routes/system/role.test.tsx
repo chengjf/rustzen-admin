@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 const getLatestForm = () => mocks.forms[mocks.forms.length - 1];
 
@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => ({
     createRole: vi.fn(),
     deleteRole: vi.fn(),
     error: vi.fn(),
-    forms: [] as Array<{ resetFields: ReturnType<typeof vi.fn>; setFieldsValue: ReturnType<typeof vi.fn> }>,
+    forms: [] as Array<{
+        resetFields: ReturnType<typeof vi.fn>;
+        setFieldsValue: ReturnType<typeof vi.fn>;
+    }>,
     getOptionsWithCode: vi.fn(),
     success: vi.fn(),
     updateRole: vi.fn(),
@@ -34,17 +37,21 @@ vi.mock("@ant-design/pro-components", () => ({
             <div>{headerTitle}</div>
             <div>{toolBarRender?.()}</div>
             <div>
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    id: 2,
-                    name: "管理员",
-                    code: "admin",
-                    menus: [{ value: 12 }],
-                })}
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    name: "缺少ID角色",
-                    code: "broken",
-                    menus: [{ value: 12 }],
-                })}
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
+                        id: 2,
+                        name: "管理员",
+                        code: "admin",
+                        menus: [{ value: 12 }],
+                    })}
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
+                        name: "缺少ID角色",
+                        code: "broken",
+                        menus: [{ value: 12 }],
+                    })}
             </div>
             <div>role-table</div>
         </div>
@@ -94,20 +101,17 @@ vi.mock("@ant-design/pro-components", () => ({
 
 vi.mock("antd", () => ({
     Button: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
-    Form: Object.assign(
-        ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-        {
-            useForm: () => {
-                const form = {
-                    resetFields: vi.fn(),
-                    setFieldsValue: vi.fn(),
-                };
-                mocks.forms.push(form);
-                return [form];
-            },
-            Item: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    Form: Object.assign(({ children }: { children?: React.ReactNode }) => <div>{children}</div>, {
+        useForm: () => {
+            const form = {
+                resetFields: vi.fn(),
+                setFieldsValue: vi.fn(),
+            };
+            mocks.forms.push(form);
+            return [form];
         },
-    ),
+        Item: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    }),
     Space: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     Tree: ({
         treeData,
@@ -118,8 +122,9 @@ vi.mock("antd", () => ({
         onCheck?: (info: { checked: React.Key[] }) => void;
         onSelect?: (keys: React.Key[]) => void;
     }) => {
-        const flatten = (nodes: Array<{ title?: React.ReactNode; key?: React.Key; children?: any[] }>) =>
-            nodes.flatMap((node) => [node, ...(node.children ? flatten(node.children) : [])]);
+        const flatten = (
+            nodes: Array<{ title?: React.ReactNode; key?: React.Key; children?: any[] }>,
+        ) => nodes.flatMap((node) => [node, ...(node.children ? flatten(node.children) : [])]);
         const items = flatten(treeData ?? []);
 
         return (
@@ -145,20 +150,15 @@ vi.mock("antd", () => ({
         );
     },
     Typography: { Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span> },
-    Checkbox: ({
-        checked,
-        children,
-    }: {
-        checked?: boolean;
-        children?: React.ReactNode;
-    }) => <div>{checked ? "checked:" : "unchecked:"}{children}</div>,
-    Card: ({
-        children,
-        onClick,
-    }: {
-        children: React.ReactNode;
-        onClick?: () => void;
-    }) => <button onClick={onClick}>{children}</button>,
+    Checkbox: ({ checked, children }: { checked?: boolean; children?: React.ReactNode }) => (
+        <div>
+            {checked ? "checked:" : "unchecked:"}
+            {children}
+        </div>
+    ),
+    Card: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+        <button onClick={onClick}>{children}</button>
+    ),
     Empty: Object.assign(
         ({ description }: { description?: React.ReactNode }) => <div>{description ?? "empty"}</div>,
         { PRESENTED_IMAGE_SIMPLE: "simple" },
@@ -186,13 +186,7 @@ vi.mock("@/api/system/role", () => ({
 }));
 
 vi.mock("@/components/auth", () => ({
-    AuthWrap: ({
-        code,
-        children,
-    }: {
-        code?: string;
-        children?: React.ReactNode;
-    }) => {
+    AuthWrap: ({ code, children }: { code?: string; children?: React.ReactNode }) => {
         if (!code) return <>{children}</>;
         return useAuthStore.getState().checkPermissions(code) ? <>{children}</> : null;
     },
@@ -408,7 +402,12 @@ describe("PermissionManager", () => {
         const onChange = vi.fn();
 
         const { rerender } = render(
-            <PermissionManager loading={false} menuTree={menuTree} value={[]} onChange={onChange} />,
+            <PermissionManager
+                loading={false}
+                menuTree={menuTree}
+                value={[]}
+                onChange={onChange}
+            />,
         );
 
         expect(screen.getByText("请在左侧选择菜单")).toBeInTheDocument();

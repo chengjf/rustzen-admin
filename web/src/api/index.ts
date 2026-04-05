@@ -79,9 +79,9 @@ const isAbortLikeError = (error: unknown, signal?: AbortSignal | null): boolean 
     if (error instanceof Error) {
         const normalizedMessage = error.message.toLowerCase();
         if (
-            normalizedMessage.includes("signal is aborted")
-            || normalizedMessage.includes("aborted without reason")
-            || normalizedMessage.includes("aborterror")
+            normalizedMessage.includes("signal is aborted") ||
+            normalizedMessage.includes("aborted without reason") ||
+            normalizedMessage.includes("aborterror")
         ) {
             return true;
         }

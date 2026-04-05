@@ -3,4 +3,11 @@
 /**
  * Update menu request parameters
  */
-export type UpdateMenuPayload = { parentId: number, name: string, code: string, menuType: number, sortOrder: number, status: number, };
+export type UpdateMenuPayload = {
+    parentId: number;
+    name: string;
+    code: string;
+    menuType: number;
+    sortOrder: number;
+    status: number;
+};

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 import { getMenuData } from "./index";
 

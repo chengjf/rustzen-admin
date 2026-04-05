@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 const mocks = vi.hoisted(() => ({
     confirm: vi.fn(),
@@ -100,11 +100,7 @@ describe("AuthWrap", () => {
         });
 
         render(
-            <AuthPopconfirm
-                code="system:user:delete"
-                title="确认删除"
-                onConfirm={mocks.onConfirm}
-            >
+            <AuthPopconfirm code="system:user:delete" title="确认删除" onConfirm={mocks.onConfirm}>
                 删除用户
             </AuthPopconfirm>,
         );

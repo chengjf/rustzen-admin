@@ -7,13 +7,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@tanstack/react-router", () => ({
     createFileRoute: () => () => ({}),
-    Link: ({
-        to,
-        children,
-    }: {
-        to: string;
-        children?: React.ReactNode;
-    }) => <a href={to}>{children}</a>,
+    Link: ({ to, children }: { to: string; children?: React.ReactNode }) => (
+        <a href={to}>{children}</a>
+    ),
 }));
 
 import { RouteComponent } from "./404";

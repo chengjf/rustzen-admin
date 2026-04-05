@@ -3,20 +3,21 @@
 /**
  * A unified structure for successful API responses.
  */
-export type ApiResponse<T> = { 
-/**
- * Business status code. 0 for success.
- */
-code: number, 
-/**
- * Response message.
- */
-message: string, 
-/**
- * Response data.
- */
-data: T, 
-/**
- * Total number of items.
- */
-total: number | null, };
+export type ApiResponse<T> = {
+    /**
+     * Business status code. 0 for success.
+     */
+    code: number;
+    /**
+     * Response message.
+     */
+    message: string;
+    /**
+     * Response data.
+     */
+    data: T;
+    /**
+     * Total number of items.
+     */
+    total: number | null;
+};

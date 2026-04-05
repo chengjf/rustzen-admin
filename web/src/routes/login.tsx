@@ -71,7 +71,6 @@ export function LoginPage() {
                     autoComplete="off"
                     size="large"
                     layout="vertical"
-
                 >
                     <Form.Item
                         name="username"

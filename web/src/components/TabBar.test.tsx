@@ -18,7 +18,14 @@ vi.mock("antd", () => ({
         onOpenChange,
     }: {
         children: React.ReactNode;
-        menu?: { items?: Array<{ key?: React.Key; label?: React.ReactNode; disabled?: boolean; onClick?: () => void }> };
+        menu?: {
+            items?: Array<{
+                key?: React.Key;
+                label?: React.ReactNode;
+                disabled?: boolean;
+                onClick?: () => void;
+            }>;
+        };
         onOpenChange?: (open: boolean) => void;
     }) => (
         <div>

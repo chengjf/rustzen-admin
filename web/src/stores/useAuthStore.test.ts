@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { mockUserInfo } from "@/test/mocks/handlers";
+
 import { useAuthStore } from "./useAuthStore";
 
 // Reset Zustand state (and the persisted localStorage entry) before each test
@@ -116,8 +117,6 @@ describe("useAuthStore – checkMenuPermissions", () => {
         useAuthStore.setState({
             userInfo: { ...mockUserInfo, permissions: ["system:user:detail"] },
         });
-        expect(useAuthStore.getState().checkMenuPermissions("/system/user/42/detail")).toBe(
-            true,
-        );
+        expect(useAuthStore.getState().checkMenuPermissions("/system/user/42/detail")).toBe(true);
     });
 });

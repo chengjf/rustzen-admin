@@ -88,13 +88,7 @@ vi.mock("antd", () => ({
         status?: string;
         strokeColor?: string;
     }) => <div>{`${percent ?? 0}%|${status ?? "normal"}|${strokeColor ?? "none"}`}</div>,
-    Statistic: ({
-        title,
-        value,
-    }: {
-        title?: React.ReactNode;
-        value?: React.ReactNode;
-    }) => (
+    Statistic: ({ title, value }: { title?: React.ReactNode; value?: React.ReactNode }) => (
         <div>
             <span>{title}</span>
             <span>{value}</span>

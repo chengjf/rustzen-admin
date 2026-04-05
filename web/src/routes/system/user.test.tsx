@@ -1,15 +1,18 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 const getLatestForm = () => mocks.forms[mocks.forms.length - 1];
 
 const mocks = vi.hoisted(() => ({
     createUser: vi.fn(),
     deleteUser: vi.fn(),
-    forms: [] as Array<{ resetFields: ReturnType<typeof vi.fn>; setFieldsValue: ReturnType<typeof vi.fn> }>,
+    forms: [] as Array<{
+        resetFields: ReturnType<typeof vi.fn>;
+        setFieldsValue: ReturnType<typeof vi.fn>;
+    }>,
     resetPassword: vi.fn(),
     success: vi.fn(),
     unlockUser: vi.fn(),
@@ -35,59 +38,73 @@ vi.mock("@ant-design/pro-components", () => ({
             <div>{headerTitle}</div>
             <div>{toolBarRender?.()}</div>
             <div>
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    id: 2,
-                    username: "normal-user",
-                    email: "normal@test.dev",
-                    status: "Normal",
-                    lockExpiresAt: null,
-                    roles: [{ label: "管理员", value: 9 }],
-                })}
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    id: 3,
-                    username: "disabled-user",
-                    status: "Disabled",
-                    lockExpiresAt: null,
-                    roles: [],
-                })}
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    id: 4,
-                    username: "locked-user",
-                    status: "Locked",
-                    lockExpiresAt: "2099-01-01T00:00:00.000Z",
-                    roles: [],
-                })}
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    id: 7,
-                    username: "self-user",
-                    status: "Normal",
-                    lockExpiresAt: null,
-                    roles: [],
-                })}
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    id: 1,
-                    username: "root-user",
-                    status: "Normal",
-                    lockExpiresAt: null,
-                    roles: [],
-                })}
-                <div>
-                    {columns?.find((column) => column.dataIndex === "status")?.render?.(null, {
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
+                        id: 2,
+                        username: "normal-user",
+                        email: "normal@test.dev",
+                        status: "Normal",
+                        lockExpiresAt: null,
+                        roles: [{ label: "管理员", value: 9 }],
+                    })}
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
+                        id: 3,
+                        username: "disabled-user",
+                        status: "Disabled",
+                        lockExpiresAt: null,
+                        roles: [],
+                    })}
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
                         id: 4,
                         username: "locked-user",
                         status: "Locked",
                         lockExpiresAt: "2099-01-01T00:00:00.000Z",
                         roles: [],
                     })}
-                </div>
-                <div>
-                    {columns?.find((column) => column.dataIndex === "status")?.render?.(null, {
-                        id: 5,
-                        username: "pending-user",
-                        status: "Pending",
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
+                        id: 7,
+                        username: "self-user",
+                        status: "Normal",
                         lockExpiresAt: null,
                         roles: [],
                     })}
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
+                        id: 1,
+                        username: "root-user",
+                        status: "Normal",
+                        lockExpiresAt: null,
+                        roles: [],
+                    })}
+                <div>
+                    {columns
+                        ?.find((column) => column.dataIndex === "status")
+                        ?.render?.(null, {
+                            id: 4,
+                            username: "locked-user",
+                            status: "Locked",
+                            lockExpiresAt: "2099-01-01T00:00:00.000Z",
+                            roles: [],
+                        })}
+                </div>
+                <div>
+                    {columns
+                        ?.find((column) => column.dataIndex === "status")
+                        ?.render?.(null, {
+                            id: 5,
+                            username: "pending-user",
+                            status: "Pending",
+                            lockExpiresAt: null,
+                            roles: [],
+                        })}
                 </div>
             </div>
             <div>user-table</div>
@@ -123,10 +140,7 @@ vi.mock("@ant-design/pro-components", () => ({
                     >
                         submit-{title}
                     </button>
-                    <button
-                        aria-label={`close-${title}`}
-                        onClick={() => onOpenChange?.(false)}
-                    >
+                    <button aria-label={`close-${title}`} onClick={() => onOpenChange?.(false)}>
                         close-{title}
                     </button>
                 </>
@@ -139,13 +153,9 @@ vi.mock("@ant-design/pro-components", () => ({
 }));
 
 vi.mock("antd", () => ({
-    Button: ({
-        children,
-        onClick,
-    }: {
-        children: React.ReactNode;
-        onClick?: () => void;
-    }) => <button onClick={onClick}>{children}</button>,
+    Button: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+        <button onClick={onClick}>{children}</button>
+    ),
     Form: {
         useForm: () => {
             const form = {
@@ -184,13 +194,7 @@ vi.mock("antd", () => ({
     Space: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     Typography: { Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span> },
     Avatar: () => <span>avatar</span>,
-    Tooltip: ({
-        children,
-        title,
-    }: {
-        children: React.ReactNode;
-        title?: React.ReactNode;
-    }) => (
+    Tooltip: ({ children, title }: { children: React.ReactNode; title?: React.ReactNode }) => (
         <div>
             <div>{title}</div>
             {children}
@@ -219,13 +223,7 @@ vi.mock("@/api/system/user", () => ({
 }));
 
 vi.mock("@/components/auth", () => ({
-    AuthWrap: ({
-        code,
-        children,
-    }: {
-        code?: string;
-        children?: React.ReactNode;
-    }) => {
+    AuthWrap: ({ code, children }: { code?: string; children?: React.ReactNode }) => {
         if (!code) return <>{children}</>;
         return useAuthStore.getState().checkPermissions(code) ? <>{children}</> : null;
     },

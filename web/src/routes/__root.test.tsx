@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 vi.mock("@/api", () => ({
     MessageContent: () => null,

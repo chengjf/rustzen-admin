@@ -4,4 +4,14 @@ import type { OptionItem } from "./OptionItem";
 /**
  * Role item for list display
  */
-export type RoleItemResp = { id: number, name: string, code: string, description: string | null, status: number, sortOrder: number, createdAt: string, updatedAt: string, menus: Array<OptionItem<number>>, };
+export type RoleItemResp = {
+    id: number;
+    name: string;
+    code: string;
+    description: string | null;
+    status: number;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+    menus: Array<OptionItem<number>>;
+};

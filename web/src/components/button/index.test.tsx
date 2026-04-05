@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 vi.mock("antd", () => ({
     Dropdown: ({
@@ -41,9 +41,15 @@ describe("MoreButton", () => {
         render(
             <MoreButton>
                 {[
-                    <button key="edit" code="system:user:update">编辑</button>,
-                    <button key="delete" code="system:user:delete">删除</button>,
-                    <button key="hidden" hidden>隐藏</button>,
+                    <button key="edit" code="system:user:update">
+                        编辑
+                    </button>,
+                    <button key="delete" code="system:user:delete">
+                        删除
+                    </button>,
+                    <button key="hidden" hidden>
+                        隐藏
+                    </button>,
                     <button key="plain">查看</button>,
                 ]}
             </MoreButton>,
@@ -65,8 +71,12 @@ describe("MoreButton", () => {
         const { container } = render(
             <MoreButton>
                 {[
-                    <button key="delete" code="system:user:delete">删除</button>,
-                    <button key="hidden" hidden>隐藏</button>,
+                    <button key="delete" code="system:user:delete">
+                        删除
+                    </button>,
+                    <button key="hidden" hidden>
+                        隐藏
+                    </button>,
                 ]}
             </MoreButton>,
         );

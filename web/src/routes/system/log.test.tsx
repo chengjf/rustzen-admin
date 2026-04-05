@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 const mocks = vi.hoisted(() => ({
     controlledExport: null as null | Promise<string>,
@@ -104,7 +104,9 @@ vi.mock("antd", () => ({
     }) => (
         <div>
             <span>{value}</span>
-            {options?.map((option) => <span key={option.value}>{option.label}</span>)}
+            {options?.map((option) => (
+                <span key={option.value}>{option.label}</span>
+            ))}
             <button onClick={() => onChange?.("AUTH_LOGIN")}>change-action</button>
         </div>
     ),

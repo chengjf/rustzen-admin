@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 const mocks = vi.hoisted(() => ({
     useQuery: vi.fn(),
@@ -43,13 +43,12 @@ vi.mock("@/integrations/tanstack-query/layout", () => ({
 }));
 
 vi.mock("@/layouts/BasicLayout", () => ({
-    BasicLayout: ({
-        children,
-        hidden,
-    }: {
-        children?: React.ReactNode;
-        hidden?: boolean;
-    }) => <div>{hidden ? "hidden-layout" : "visible-layout"}{children}</div>,
+    BasicLayout: ({ children, hidden }: { children?: React.ReactNode; hidden?: boolean }) => (
+        <div>
+            {hidden ? "hidden-layout" : "visible-layout"}
+            {children}
+        </div>
+    ),
 }));
 
 import { RootLayout } from "./__root";

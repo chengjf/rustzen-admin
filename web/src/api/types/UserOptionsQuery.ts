@@ -4,16 +4,17 @@ import type { UserStatus } from "./UserStatus";
 /**
  * User options query parameters
  */
-export type UserOptionsQuery = { 
-/**
- * Search keyword
- */
-q: string | null, 
-/**
- * Maximum number of results to return
- */
-limit: number | null, 
-/**
- * Filter by user status
- */
-status: UserStatus | null, };
+export type UserOptionsQuery = {
+    /**
+     * Search keyword
+     */
+    q: string | null;
+    /**
+     * Maximum number of results to return
+     */
+    limit: number | null;
+    /**
+     * Filter by user status
+     */
+    status: UserStatus | null;
+};

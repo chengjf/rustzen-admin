@@ -1,15 +1,20 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 const mocks = vi.hoisted(() => ({
     createMenu: vi.fn(),
     deleteMenu: vi.fn(),
     error: vi.fn(),
-    forms: [] as Array<{ resetFields: ReturnType<typeof vi.fn>; setFieldsValue: ReturnType<typeof vi.fn> }>,
-    treeRequests: [] as Array<() => Promise<Array<{ children?: Array<{ label: string; value: number }> }>>>,
+    forms: [] as Array<{
+        resetFields: ReturnType<typeof vi.fn>;
+        setFieldsValue: ReturnType<typeof vi.fn>;
+    }>,
+    treeRequests: [] as Array<
+        () => Promise<Array<{ children?: Array<{ label: string; value: number }> }>>
+    >,
     success: vi.fn(),
     updateMenu: vi.fn(),
 }));
@@ -32,31 +37,41 @@ vi.mock("@ant-design/pro-components", () => ({
             <div>{headerTitle}</div>
             <div>{toolBarRender?.()}</div>
             <div>
-                {columns?.find((column) => column.dataIndex === "menuType")?.render?.(null, {
-                    id: 4,
-                    menuType: 1,
-                })}
-                {columns?.find((column) => column.dataIndex === "menuType")?.render?.(null, {
-                    id: 7,
-                    menuType: 3,
-                })}
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    id: 5,
-                    isSystem: false,
-                    name: "普通菜单",
-                    parentId: 0,
-                })}
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    id: 6,
-                    isSystem: true,
-                    name: "系统菜单",
-                    parentId: 0,
-                })}
-                {columns?.find((column) => column.key === "action")?.render?.(null, {
-                    isSystem: false,
-                    name: "缺失ID菜单",
-                    parentId: 0,
-                })}
+                {columns
+                    ?.find((column) => column.dataIndex === "menuType")
+                    ?.render?.(null, {
+                        id: 4,
+                        menuType: 1,
+                    })}
+                {columns
+                    ?.find((column) => column.dataIndex === "menuType")
+                    ?.render?.(null, {
+                        id: 7,
+                        menuType: 3,
+                    })}
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
+                        id: 5,
+                        isSystem: false,
+                        name: "普通菜单",
+                        parentId: 0,
+                    })}
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
+                        id: 6,
+                        isSystem: true,
+                        name: "系统菜单",
+                        parentId: 0,
+                    })}
+                {columns
+                    ?.find((column) => column.key === "action")
+                    ?.render?.(null, {
+                        isSystem: false,
+                        name: "缺失ID菜单",
+                        parentId: 0,
+                    })}
             </div>
             <div>menu-table</div>
         </div>
@@ -154,13 +169,7 @@ vi.mock("@/api/system/menu", () => ({
 }));
 
 vi.mock("@/components/auth", () => ({
-    AuthWrap: ({
-        code,
-        children,
-    }: {
-        code?: string;
-        children?: React.ReactNode;
-    }) => {
+    AuthWrap: ({ code, children }: { code?: string; children?: React.ReactNode }) => {
         if (!code) return <>{children}</>;
         return useAuthStore.getState().checkPermissions(code) ? <>{children}</> : null;
     },

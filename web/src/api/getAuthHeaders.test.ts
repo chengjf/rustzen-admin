@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
-import { useAuthStore } from "@/stores/useAuthStore";
 import { getAuthHeaders } from "@/api";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 beforeEach(() => {
     useAuthStore.setState({ userInfo: null, token: null });

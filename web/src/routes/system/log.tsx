@@ -5,7 +5,7 @@ import { Button, Segmented, Tag } from "antd";
 import { useRef, useCallback, useMemo, useState } from "react";
 
 import { appMessage } from "@/api";
-import { logAPI } from "@/api/system/log";
+import { logAPI, type LogTableParams } from "@/api/system/log";
 import type { LogItemResp } from "@/api/types/LogItemResp";
 import { AuthWrap } from "@/components/auth";
 import { useLocalStore } from "@/stores/useLocalStore";
@@ -158,7 +158,7 @@ export function LogPage() {
 
     return (
         <AuthWrap code="system:log:list">
-            <ProTable<LogItemResp>
+            <ProTable<LogItemResp, LogTableParams>
                 headerTitle={
                     <Segmented
                         value={actionType}

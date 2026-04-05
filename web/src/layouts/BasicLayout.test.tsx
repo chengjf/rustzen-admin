@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useTabStore } from "@/stores/useTabStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 const mocks = vi.hoisted(() => ({
     logout: vi.fn(() => Promise.resolve()),
@@ -34,9 +34,7 @@ vi.mock("@ant-design/pro-components", () => ({
     }) => (
         <div>
             <button onClick={onMenuHeaderClick}>{title}</button>
-            <div data-testid="avatar-area">
-                {avatarProps?.render?.({}, <span>avatar</span>)}
-            </div>
+            <div data-testid="avatar-area">{avatarProps?.render?.({}, <span>avatar</span>)}</div>
             {children}
         </div>
     ),
@@ -48,7 +46,9 @@ vi.mock("antd", () => ({
         menu,
     }: {
         children: React.ReactNode;
-        menu?: { items?: Array<{ key?: React.Key; label?: React.ReactNode; onClick?: () => void }> };
+        menu?: {
+            items?: Array<{ key?: React.Key; label?: React.ReactNode; onClick?: () => void }>;
+        };
     }) => (
         <div>
             {children}

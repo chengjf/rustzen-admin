@@ -15,7 +15,7 @@ import { useRef, useMemo, useState, useCallback, useEffect, type ReactNode } fro
 
 import { appMessage } from "@/api";
 import { menuAPI } from "@/api/system/menu";
-import { roleAPI } from "@/api/system/role";
+import { roleAPI, type RoleTableParams } from "@/api/system/role";
 import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
 import type { RoleItemResp } from "@/api/types/RoleItemResp";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
@@ -62,10 +62,32 @@ export function RolePage() {
 
     const columns: ProColumns<RoleItemResp>[] = useMemo(
         () => [
-            { title: "ID", dataIndex: "id", width: 60, align: "center", search: false },
-            { title: "角色名称", dataIndex: "name", width: 150, align: "center" },
-            { title: "角色编码", dataIndex: "code", width: 150, align: "center" },
-            { title: "排序", dataIndex: "sortOrder", width: 80, align: "center", search: false },
+            {
+                title: "ID",
+                dataIndex: "id",
+                width: 60,
+                align: "center",
+                search: false,
+            },
+            {
+                title: "角色名称",
+                dataIndex: "name",
+                width: 150,
+                align: "center",
+            },
+            {
+                title: "角色编码",
+                dataIndex: "code",
+                width: 150,
+                align: "center",
+            },
+            {
+                title: "排序",
+                dataIndex: "sortOrder",
+                width: 80,
+                align: "center",
+                search: false,
+            },
             {
                 title: "状态",
                 dataIndex: "status",
@@ -79,6 +101,7 @@ export function RolePage() {
                 width: 120,
                 align: "center",
                 fixed: "right",
+                search: false,
                 render: (_, entity) => (
                     <Space>
                         <AuthWrap code="system:role:update">
@@ -125,7 +148,7 @@ export function RolePage() {
 
     return (
         <AuthWrap code="system:role:list">
-            <ProTable<RoleItemResp>
+            <ProTable<RoleItemResp, RoleTableParams>
                 rowKey="id"
                 columns={columns}
                 request={roleAPI.getTableData}
@@ -177,7 +200,11 @@ export const PermissionManager = ({
                 }));
         };
 
-        return { filteredTree: buildPureTree(menuTree), buttonMap: bMap, flatMap: fMap };
+        return {
+            filteredTree: buildPureTree(menuTree),
+            buttonMap: bMap,
+            flatMap: fMap,
+        };
     }, [menuTree]);
 
     const currentButtons = useMemo(() => {
@@ -235,7 +262,14 @@ export const PermissionManager = ({
                 />
             </div>
 
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "#fff" }}>
+            <div
+                style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    background: "#fff",
+                }}
+            >
                 <div
                     style={{
                         padding: "12px 16px",
@@ -244,7 +278,8 @@ export const PermissionManager = ({
                     }}
                 >
                     <Text strong>
-                        功能配置：{selectedKey ? flatMap.get(selectedKey)?.label : "请选择左侧菜单"}
+                        功能配置：
+                        {selectedKey ? flatMap.get(selectedKey)?.label : "请选择左侧菜单"}
                     </Text>
                 </div>
                 <div style={{ flex: 1, padding: 16, overflow: "auto" }}>
@@ -323,7 +358,9 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: RoleModalFo
 
             setLoading(true);
             try {
-                const res = await menuAPI.getOptionsWithCode({ btn_filter: false });
+                const res = await menuAPI.getOptionsWithCode({
+                    btn_filter: false,
+                });
                 if (controller.signal.aborted) return;
 
                 setMenuTree(res);
@@ -332,7 +369,10 @@ const RoleModalForm = ({ children, initialValues, mode, onSuccess }: RoleModalFo
                     const displayIds = (initialValues.menus || [])
                         .map((m) => m.value)
                         .filter((id) => fMap.has(id));
-                    form.setFieldsValue({ ...initialValues, menuIds: displayIds });
+                    form.setFieldsValue({
+                        ...initialValues,
+                        menuIds: displayIds,
+                    });
                 }
             } catch (e) {
                 console.error("加载菜单失败", e);

@@ -13,9 +13,8 @@ import { Button, Space, Tag, Form } from "antd";
 import React, { useRef, useCallback, useMemo } from "react";
 
 import { appMessage } from "@/api";
-import { menuAPI } from "@/api/system/menu";
+import { menuAPI, type MenuTableParams } from "@/api/system/menu";
 import type { MenuItemResp } from "@/api/types/MenuItemResp";
-import type { MenuQuery } from "@/api/types/MenuQuery";
 import type { MenuTreeOption } from "@/api/types/MenuTreeOption";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 import {
@@ -277,14 +276,14 @@ export function MenuPage() {
 
     return (
         <AuthWrap code="system:menu:list">
-            <ProTable<MenuItemResp>
+            <ProTable<MenuItemResp, MenuTableParams>
                 rowKey="id"
                 search={{ labelWidth: "auto" }}
                 scroll={{ y: "calc(100vh - 280px)" }}
                 headerTitle="菜单权限架构"
                 columns={columns}
                 request={async (params) => {
-                    const res = await menuAPI.getTableData(params as Partial<MenuQuery>);
+                    const res = await menuAPI.getTableData(params);
                     return { data: res, success: true };
                 }}
                 actionRef={actionRef}

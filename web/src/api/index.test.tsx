@@ -1,8 +1,8 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mockUserInfo } from "@/test/mocks/handlers";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { mockUserInfo } from "@/test/mocks/handlers";
 
 const mocks = vi.hoisted(() => ({
     fetchMock: vi.fn(),
@@ -148,7 +148,10 @@ describe("apiRequest error handling", () => {
                     }),
             );
 
-        await Promise.allSettled([apiRequest({ url: "/api/one" }), apiRequest({ url: "/api/two" })]);
+        await Promise.allSettled([
+            apiRequest({ url: "/api/one" }),
+            apiRequest({ url: "/api/two" }),
+        ]);
 
         expect(mocks.messageError).toHaveBeenCalledTimes(1);
         expect(console.debug).toHaveBeenCalledWith("Request aborted");
@@ -236,7 +239,9 @@ describe("apiRequest error handling", () => {
     });
 
     it("treats AbortError as a silent cancellation", async () => {
-        mocks.fetchMock.mockRejectedValue(new DOMException("The operation was aborted", "AbortError"));
+        mocks.fetchMock.mockRejectedValue(
+            new DOMException("The operation was aborted", "AbortError"),
+        );
 
         await expect(apiRequest({ url: "/api/abort" })).rejects.toBeInstanceOf(DOMException);
 
