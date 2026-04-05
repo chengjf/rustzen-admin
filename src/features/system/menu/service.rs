@@ -437,3 +437,300 @@ pub struct MenuTreeOption {
     pub menu_type: i16,
     pub children: Option<Vec<MenuTreeOption>>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        common::error::ServiceError,
+        features::system::menu::dto::{CreateMenuDto, MenuType, UpdateMenuPayload},
+    };
+    use sqlx::PgPool;
+
+    fn dir() -> i16 {
+        MenuType::Directory as i16
+    }
+    fn menu() -> i16 {
+        MenuType::Menu as i16
+    }
+    fn btn() -> i16 {
+        MenuType::Button as i16
+    }
+
+    fn make_create_dto(parent_id: i64, name: &str, code: &str, menu_type: i16) -> CreateMenuDto {
+        CreateMenuDto { parent_id, name: name.to_string(), code: code.to_string(), menu_type, sort_order: 1, status: 1 }
+    }
+
+    // ── create_menu ──────────────────────────────────────────────────────
+
+    #[sqlx::test]
+    async fn create_directory_at_root_succeeds(pool: PgPool) {
+        let id = MenuService::create_menu(&pool, make_create_dto(0, "测试目录", "test:root", dir()))
+            .await
+            .expect("should succeed");
+        assert!(id > 0);
+    }
+
+    #[sqlx::test]
+    async fn create_button_at_root_returns_error(pool: PgPool) {
+        let result =
+            MenuService::create_menu(&pool, make_create_dto(0, "根按钮", "root:btn", btn())).await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn create_menu_duplicate_name_returns_error(pool: PgPool) {
+        // id=2 name="系统管理" already exists in seed data
+        let result =
+            MenuService::create_menu(&pool, make_create_dto(0, "系统管理", "new:code", dir())).await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn create_menu_duplicate_code_returns_error(pool: PgPool) {
+        // id=2 code="system" already exists in seed data
+        let result =
+            MenuService::create_menu(&pool, make_create_dto(0, "新目录名", "system", dir())).await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn create_button_under_menu_succeeds(pool: PgPool) {
+        // id=3 is a Menu (system:user:list), buttons are valid children
+        let id =
+            MenuService::create_menu(&pool, make_create_dto(3, "新按钮", "test:new:btn", btn()))
+                .await
+                .expect("button under menu should succeed");
+        assert!(id > 0);
+    }
+
+    #[sqlx::test]
+    async fn create_button_under_directory_returns_error(pool: PgPool) {
+        // id=2 is a Directory; buttons can't be direct children of a directory
+        let result =
+            MenuService::create_menu(&pool, make_create_dto(2, "错误按钮", "dir:btn", btn())).await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    // ── update_menu ──────────────────────────────────────────────────────
+
+    #[sqlx::test]
+    async fn update_menu_changes_name(pool: PgPool) {
+        let id = MenuService::create_menu(&pool, make_create_dto(0, "原名称", "upd:code", dir()))
+            .await
+            .unwrap();
+
+        MenuService::update_menu(
+            &pool,
+            id,
+            UpdateMenuPayload {
+                parent_id: 0,
+                name: "新名称".to_string(),
+                code: "upd:code".to_string(),
+                menu_type: dir(),
+                sort_order: 1,
+                status: 1,
+            },
+        )
+        .await
+        .expect("update should succeed");
+
+        let updated = MenuRepository::find_by_id(&pool, id).await.unwrap().unwrap();
+        assert_eq!(updated.name, "新名称");
+    }
+
+    #[sqlx::test]
+    async fn update_system_menu_returns_error(pool: PgPool) {
+        // id=2 (系统管理) is a system menu
+        let result = MenuService::update_menu(
+            &pool,
+            2,
+            UpdateMenuPayload {
+                parent_id: 0,
+                name: "黑客改名".to_string(),
+                code: "hack".to_string(),
+                menu_type: dir(),
+                sort_order: 1,
+                status: 1,
+            },
+        )
+        .await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn update_menu_self_reference_returns_error(pool: PgPool) {
+        let id = MenuService::create_menu(&pool, make_create_dto(0, "自引用", "self:ref", dir()))
+            .await
+            .unwrap();
+
+        let result = MenuService::update_menu(
+            &pool,
+            id,
+            UpdateMenuPayload {
+                parent_id: id, // parent = self
+                name: "自引用".to_string(),
+                code: "self:ref".to_string(),
+                menu_type: dir(),
+                sort_order: 1,
+                status: 1,
+            },
+        )
+        .await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn update_menu_cycle_detection_returns_error(pool: PgPool) {
+        // Create: root → child1 → child2
+        let root =
+            MenuService::create_menu(&pool, make_create_dto(0, "根", "cyc:root", dir())).await.unwrap();
+        let child1 =
+            MenuService::create_menu(&pool, make_create_dto(root, "子1", "cyc:c1", dir())).await.unwrap();
+        let child2 =
+            MenuService::create_menu(&pool, make_create_dto(child1, "子2", "cyc:c2", dir()))
+                .await
+                .unwrap();
+
+        // Trying to set root's parent to child2 would create a cycle
+        let result = MenuService::update_menu(
+            &pool,
+            root,
+            UpdateMenuPayload {
+                parent_id: child2, // cycle: root → ... → child2 → root
+                name: "根".to_string(),
+                code: "cyc:root".to_string(),
+                menu_type: dir(),
+                sort_order: 1,
+                status: 1,
+            },
+        )
+        .await;
+        assert!(
+            matches!(result, Err(ServiceError::InvalidOperation(_))),
+            "cycle detection should block this update"
+        );
+    }
+
+    // ── delete_menu ──────────────────────────────────────────────────────
+
+    #[sqlx::test]
+    async fn delete_menu_succeeds(pool: PgPool) {
+        let id = MenuService::create_menu(&pool, make_create_dto(0, "待删目录", "del:dir", dir()))
+            .await
+            .unwrap();
+
+        MenuService::delete_menu(&pool, id).await.expect("delete should succeed");
+
+        let found = MenuRepository::find_by_id(&pool, id).await.unwrap();
+        assert!(found.is_none());
+    }
+
+    #[sqlx::test]
+    async fn delete_menu_with_children_returns_error(pool: PgPool) {
+        // id=2 (系统管理) has children — this is non-system so we create our own tree
+        let parent =
+            MenuService::create_menu(&pool, make_create_dto(0, "父目录", "par:dir", dir())).await.unwrap();
+        MenuService::create_menu(&pool, make_create_dto(parent, "子菜单", "child:menu", menu()))
+            .await
+            .unwrap();
+
+        let result = MenuService::delete_menu(&pool, parent).await;
+        assert!(
+            matches!(result, Err(ServiceError::InvalidOperation(_))),
+            "should block deletion when menu has children"
+        );
+    }
+
+    #[sqlx::test]
+    async fn delete_system_menu_returns_not_found(pool: PgPool) {
+        // id=4 (用户创建) is a leaf system button (no children, is_system=true).
+        // The SQL filter `is_system = false` means rows_affected = 0 → NotFound.
+        let result = MenuService::delete_menu(&pool, 4).await;
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    // Directory parent
+    #[test]
+    fn directory_can_contain_directory() {
+        assert!(MenuService::check_type_constraint(dir(), dir()).is_ok());
+    }
+
+    #[test]
+    fn directory_can_contain_menu() {
+        assert!(MenuService::check_type_constraint(dir(), menu()).is_ok());
+    }
+
+    #[test]
+    fn directory_cannot_contain_button() {
+        let err = MenuService::check_type_constraint(dir(), btn());
+        assert!(err.is_err());
+    }
+
+    // Menu parent
+    #[test]
+    fn menu_can_contain_button() {
+        assert!(MenuService::check_type_constraint(menu(), btn()).is_ok());
+    }
+
+    #[test]
+    fn menu_cannot_contain_directory() {
+        assert!(MenuService::check_type_constraint(menu(), dir()).is_err());
+    }
+
+    #[test]
+    fn menu_cannot_contain_menu() {
+        assert!(MenuService::check_type_constraint(menu(), menu()).is_err());
+    }
+
+    // Button parent
+    #[test]
+    fn button_cannot_be_parent_of_anything() {
+        assert!(MenuService::check_type_constraint(btn(), dir()).is_err());
+        assert!(MenuService::check_type_constraint(btn(), menu()).is_err());
+        assert!(MenuService::check_type_constraint(btn(), btn()).is_err());
+    }
+
+    // Tree building
+    #[test]
+    fn build_response_tree_nests_children() {
+        use crate::features::system::menu::dto::MenuItemResp;
+        let now = chrono::Utc::now().naive_utc();
+        let items = vec![
+            MenuItemResp {
+                id: 1,
+                parent_id: 0,
+                name: "Root".into(),
+                code: "root".into(),
+                menu_type: dir(),
+                status: 1,
+                is_system: false,
+                sort_order: 1,
+                created_at: now,
+                updated_at: now,
+                children: None,
+            },
+            MenuItemResp {
+                id: 2,
+                parent_id: 1,
+                name: "Child".into(),
+                code: "child".into(),
+                menu_type: menu(),
+                status: 1,
+                is_system: false,
+                sort_order: 1,
+                created_at: now,
+                updated_at: now,
+                children: None,
+            },
+        ];
+
+        let tree = MenuService::build_response_tree(items);
+        assert_eq!(tree.len(), 1);
+        let root = &tree[0];
+        assert_eq!(root.id, 1);
+        let children = root.children.as_ref().expect("root should have children");
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].id, 2);
+    }
+}

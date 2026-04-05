@@ -142,3 +142,104 @@ impl LogRepository {
         Ok(logs)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::PgPool;
+
+    async fn seed_log(pool: &PgPool, username: &str, action: &str) -> i64 {
+        LogRepository::create_with_details(
+            pool,
+            1,
+            username,
+            Some(action),
+            Some("test description"),
+            None,
+            Some("SUCCESS"),
+            Some(10),
+            Some("127.0.0.1"),
+            Some("test-agent"),
+        )
+        .await
+        .expect("create log should succeed")
+    }
+
+    #[sqlx::test]
+    async fn insert_and_query_log(pool: PgPool) {
+        let id = seed_log(&pool, "testuser", "LOGIN").await;
+        assert!(id > 0);
+
+        let (logs, total) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            LogListQuery { username: None, action: None, description: None, ip_address: None },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(total, 1);
+        assert_eq!(logs.len(), 1);
+        assert_eq!(logs[0].username, "testuser");
+        assert_eq!(logs[0].action, "LOGIN");
+    }
+
+    #[sqlx::test]
+    async fn query_with_filters(pool: PgPool) {
+        seed_log(&pool, "alice", "CREATE_USER").await;
+        seed_log(&pool, "bob", "DELETE_USER").await;
+
+        let (logs, total) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            LogListQuery {
+                username: Some("alice".to_string()),
+                action: None,
+                description: None,
+                ip_address: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(total, 1);
+        assert_eq!(logs[0].username, "alice");
+
+        let (_, all_total) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            LogListQuery {
+                username: Some("_USER".to_string()),
+                action: None,
+                description: None,
+                ip_address: None,
+            },
+        )
+        .await
+        .unwrap();
+        // Neither alice nor bob has "_USER" in username, but action filter is not username
+        // The logs count remains by username filter
+        assert_eq!(all_total, 0);
+
+        // Filter by action
+        let (action_logs, action_total) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            LogListQuery {
+                username: None,
+                action: Some("DELETE".to_string()),
+                description: None,
+                ip_address: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(action_total, 1);
+        assert_eq!(action_logs[0].username, "bob");
+    }
+}

@@ -141,6 +141,45 @@ rustzen-admin/
 
 ---
 
+## 🧪 测试
+
+### 后端
+
+```bash
+# 运行所有测试（单元 + 数据库集成）
+cargo test
+
+# 仅运行 RBAC 端到端集成测试
+cargo test --test integration_rbac_flow
+
+# 带输出运行
+cargo test -- --nocapture
+```
+
+### 覆盖率（需一次性安装 cargo-llvm-cov）
+
+```bash
+cargo install cargo-llvm-cov
+
+just coverage        # 终端摘要（按文件显示覆盖率 %）
+just coverage-html   # 生成 HTML 报告并打开浏览器
+```
+
+当前行覆盖率约 **44%**，覆盖：
+
+- 核心工具层（pagination、permission、password）**~100%**
+- Service 业务逻辑层（验证、锁定流程、RBAC 闭环）**~60%**
+- Repo 数据层（CRUD、软删除、唯一性检测）**~55%**
+- API Handler 层（0%，暂未覆盖）
+
+### 前端
+
+```bash
+cd web && pnpm test
+```
+
+---
+
 ## 📚 基础功能
 
 -   **认证系统**: 数据库会话登录、用户信息获取、权限验证、会话数据库存储

@@ -1,9 +1,4 @@
-mod common;
-mod core;
-mod features;
-mod middleware;
-
-use crate::core::app::create_server;
+use rustzen_admin::core::app::create_server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

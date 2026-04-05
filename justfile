@@ -45,3 +45,12 @@ init-db:
 export-types:
     cargo test export_bindings
     @echo "✅ TypeScript types exported to web/src/api/types/"
+
+# Run tests with coverage report (terminal summary)
+coverage:
+    cargo llvm-cov --summary-only
+
+# Run tests with coverage and open HTML report
+coverage-html:
+    cargo llvm-cov --html
+    open target/llvm-cov/html/index.html

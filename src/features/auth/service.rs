@@ -135,6 +135,14 @@ impl AuthService {
         AuthRepository::update_avatar(pool, user_id, avatar_url).await
     }
 
+    /// Simulate N consecutive wrong-password login attempts.
+    #[cfg(test)]
+    async fn simulate_failed_logins(pool: &PgPool, username: &str, n: usize) {
+        for _ in 0..n {
+            let _ = Self::verify_login(pool, username, "wrong_password_xyz").await;
+        }
+    }
+
     pub async fn change_password(
         pool: &PgPool,
         user_id: i64,
@@ -159,5 +167,129 @@ impl AuthService {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        common::error::ServiceError,
+        features::system::user::{
+            repo::{CreateUserCommand, UserRepository},
+            service::UserService,
+        },
+    };
+    use sqlx::PgPool;
+
+    /// Seed a non-system user with a known password.
+    async fn seed_test_user(pool: &PgPool, username: &str, password: &str) -> i64 {
+        let hash = PasswordUtils::hash_password(password).unwrap();
+        UserRepository::create_user(
+            pool,
+            &CreateUserCommand {
+                username: username.to_string(),
+                email: format!("{}@test.com", username),
+                password_hash: hash,
+                real_name: None,
+                status: Some(1), // Normal
+                role_ids: vec![],
+            },
+        )
+        .await
+        .expect("seed user should succeed")
+    }
+
+    #[sqlx::test]
+    async fn verify_login_wrong_password_returns_invalid_credentials(pool: PgPool) {
+        // superadmin is seeded by 0105_seed.sql
+        let result = AuthService::verify_login(&pool, "superadmin", "wrong_password").await;
+        assert!(matches!(result, Err(ServiceError::InvalidCredentials)));
+    }
+
+    #[sqlx::test]
+    async fn verify_login_correct_password_succeeds(pool: PgPool) {
+        let username = "login_ok_user";
+        let password = "Correct@Pass1";
+        seed_test_user(&pool, username, password).await;
+
+        let result = AuthService::verify_login(&pool, username, password).await;
+        assert!(result.is_ok(), "correct password should succeed: {:?}", result.err());
+    }
+
+    #[sqlx::test]
+    async fn verify_login_nonexistent_user_returns_invalid_credentials(pool: PgPool) {
+        let result = AuthService::verify_login(&pool, "no_such_user_xyz", "any").await;
+        assert!(matches!(result, Err(ServiceError::InvalidCredentials)));
+    }
+
+    #[sqlx::test]
+    async fn verify_login_disabled_user_returns_error(pool: PgPool) {
+        let id = seed_test_user(&pool, "disabled_user", "Pass@1234").await;
+
+        // Manually disable the user
+        sqlx::query("UPDATE users SET status = 2 WHERE id = $1")
+            .bind(id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let result = AuthService::verify_login(&pool, "disabled_user", "Pass@1234").await;
+        assert!(matches!(result, Err(ServiceError::UserIsDisabled)));
+    }
+
+    #[sqlx::test]
+    async fn five_wrong_passwords_trigger_auto_lock(pool: PgPool) {
+        let username = "lockout_user";
+        let password = "Right@Pass1";
+        seed_test_user(&pool, username, password).await;
+
+        // 5 wrong attempts
+        AuthService::simulate_failed_logins(&pool, username, 5).await;
+
+        // Next attempt (even with correct password) should be blocked
+        let result = AuthService::verify_login(&pool, username, password).await;
+        assert!(
+            matches!(result, Err(ServiceError::UserIsAutoLocked(_))),
+            "expected UserIsAutoLocked, got {:?}",
+            result
+        );
+    }
+
+    #[sqlx::test]
+    async fn unlock_clears_auto_lock(pool: PgPool) {
+        let username = "unlock_test_user";
+        let password = "Unlock@Pass1";
+        let id = seed_test_user(&pool, username, password).await;
+
+        // Trigger lockout
+        AuthService::simulate_failed_logins(&pool, username, 5).await;
+        let locked = AuthService::verify_login(&pool, username, password).await;
+        assert!(matches!(locked, Err(ServiceError::UserIsAutoLocked(_))));
+
+        // Admin unlocks
+        UserService::unlock_user(&pool, id).await.unwrap();
+
+        // Now login should succeed
+        let result = AuthService::verify_login(&pool, username, password).await;
+        assert!(result.is_ok(), "login should succeed after unlock: {:?}", result.err());
+    }
+
+    #[sqlx::test]
+    async fn change_password_wrong_old_returns_error(pool: PgPool) {
+        let username = "chpass_user";
+        let id = seed_test_user(&pool, username, "OldPass@1").await;
+
+        let result = AuthService::change_password(
+            &pool,
+            id,
+            ChangePasswordPayload {
+                old_password: "wrong_old".to_string(),
+                new_password: "NewPass@1".to_string(),
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
     }
 }

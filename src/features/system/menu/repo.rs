@@ -335,3 +335,89 @@ impl MenuRepository {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::PgPool;
+
+    /// Seed data (0105_seed.sql) provides:
+    /// id=2 (Directory: 系统管理, parent_id=0)
+    /// id=3 (Menu: 用户管理, parent_id=2)
+    /// id=4 (Button: 用户创建, parent_id=3)
+
+    #[sqlx::test]
+    async fn find_by_id_returns_seeded_menu(pool: PgPool) {
+        let menu = MenuRepository::find_by_id(&pool, 2).await.unwrap();
+        assert!(menu.is_some());
+        let m = menu.unwrap();
+        assert_eq!(m.code, "system");
+        assert_eq!(m.parent_id, 0);
+    }
+
+    #[sqlx::test]
+    async fn find_by_id_returns_none_for_missing(pool: PgPool) {
+        let menu = MenuRepository::find_by_id(&pool, 999_999).await.unwrap();
+        assert!(menu.is_none());
+    }
+
+    #[sqlx::test]
+    async fn find_by_parent_id_returns_children(pool: PgPool) {
+        // id=2 (系统管理) has children: id=3 (用户管理), id=10 (角色管理), id=15 (菜单管理), id=25 (操作日志)
+        let children = MenuRepository::find_by_parent_id(&pool, 2).await.unwrap();
+        assert!(!children.is_empty());
+        let codes: Vec<&str> = children.iter().map(|m| m.code.as_str()).collect();
+        assert!(codes.contains(&"system:user:list"));
+    }
+
+    #[sqlx::test]
+    async fn find_by_ids_returns_batch(pool: PgPool) {
+        let menus = MenuRepository::find_by_ids(&pool, vec![2, 3, 4]).await.unwrap();
+        assert_eq!(menus.len(), 3);
+    }
+
+    #[sqlx::test]
+    async fn name_exists_and_code_exists(pool: PgPool) {
+        // Seeded menu: name="系统管理", code="system"
+        let name_exists = MenuRepository::name_exists(&pool, "系统管理").await.unwrap();
+        assert!(name_exists);
+
+        let code_exists = MenuRepository::code_exists(&pool, "system").await.unwrap();
+        assert!(code_exists);
+
+        let no_name = MenuRepository::name_exists(&pool, "不存在菜单").await.unwrap();
+        assert!(!no_name);
+    }
+
+    #[sqlx::test]
+    async fn create_menu_and_find(pool: PgPool) {
+        let id = MenuRepository::create(&pool, 0, "测试目录", "test:dir", 1, 1, 1).await.unwrap();
+        assert!(id > 0);
+
+        let found = MenuRepository::find_by_id(&pool, id).await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "测试目录");
+    }
+
+    #[sqlx::test]
+    async fn soft_delete_non_system_menu(pool: PgPool) {
+        let id = MenuRepository::create(&pool, 0, "待删目录", "test:del", 1, 1, 1).await.unwrap();
+
+        let deleted = MenuRepository::soft_delete(&pool, id).await.unwrap();
+        assert!(deleted);
+
+        let found = MenuRepository::find_by_id(&pool, id).await.unwrap();
+        assert!(found.is_none(), "soft-deleted menu should not be found");
+    }
+
+    #[sqlx::test]
+    async fn soft_delete_system_menu_returns_false(pool: PgPool) {
+        // id=2 is a system menu (is_system = true)
+        let deleted = MenuRepository::soft_delete(&pool, 2).await.unwrap();
+        assert!(!deleted, "system menus cannot be soft-deleted");
+
+        // Verify it still exists
+        let found = MenuRepository::find_by_id(&pool, 2).await.unwrap();
+        assert!(found.is_some());
+    }
+}

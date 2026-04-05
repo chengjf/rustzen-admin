@@ -283,3 +283,239 @@ impl UserService {
         Ok(true)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        common::error::ServiceError,
+        features::{
+            auth::model::UserStatus,
+            system::{
+                role::repo::RoleRepository,
+                user::dto::{CreateUserDto, UpdateUserPayload, UpdateUserStatusPayload},
+            },
+        },
+    };
+    use sqlx::PgPool;
+
+    fn make_create_dto(username: &str, email: &str, role_ids: Vec<i64>) -> CreateUserDto {
+        CreateUserDto {
+            username: username.to_string(),
+            email: email.to_string(),
+            password: "TestPass@123".to_string(),
+            real_name: None,
+            status: None,
+            role_ids,
+        }
+    }
+
+    #[sqlx::test]
+    async fn create_user_with_no_roles_succeeds(pool: PgPool) {
+        let id = UserService::create_user(&pool, make_create_dto("newuser1", "newuser1@test.com", vec![])).await;
+        assert!(id.is_ok());
+        assert!(id.unwrap() > 0);
+    }
+
+    #[sqlx::test]
+    async fn create_user_duplicate_username_returns_conflict(pool: PgPool) {
+        UserService::create_user(&pool, make_create_dto("dupuser", "dup1@test.com", vec![])).await.unwrap();
+
+        let result = UserService::create_user(&pool, make_create_dto("dupuser", "dup2@test.com", vec![])).await;
+        assert!(matches!(result, Err(ServiceError::UsernameConflict)));
+    }
+
+    #[sqlx::test]
+    async fn create_user_duplicate_email_returns_conflict(pool: PgPool) {
+        UserService::create_user(&pool, make_create_dto("emailuser1", "same@test.com", vec![])).await.unwrap();
+
+        let result = UserService::create_user(&pool, make_create_dto("emailuser2", "same@test.com", vec![])).await;
+        assert!(matches!(result, Err(ServiceError::EmailConflict)));
+    }
+
+    #[sqlx::test]
+    async fn create_user_with_nonexistent_role_returns_error(pool: PgPool) {
+        let result = UserService::create_user(
+            &pool,
+            make_create_dto("roletest", "roletest@test.com", vec![999_999]),
+        )
+        .await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn create_user_with_duplicate_role_ids_returns_error(pool: PgPool) {
+        let role_id = RoleRepository::create(&pool, "测试角色", "TEST_USER_R", None, 1, 0, &[])
+            .await
+            .unwrap();
+
+        let result = UserService::create_user(
+            &pool,
+            make_create_dto("duproleid", "duproleid@test.com", vec![role_id, role_id]),
+        )
+        .await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn create_user_with_disabled_role_returns_error(pool: PgPool) {
+        let disabled_role_id =
+            RoleRepository::create(&pool, "禁用角色", "DISABLED_R2", None, 2, 0, &[]).await.unwrap();
+
+        let result = UserService::create_user(
+            &pool,
+            make_create_dto("disroleuser", "disroleuser@test.com", vec![disabled_role_id]),
+        )
+        .await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn ensure_not_system_blocks_system_user(pool: PgPool) {
+        let (superadmin_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM users WHERE username = 'superadmin'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        let result = UserService::ensure_not_system(&pool, superadmin_id).await;
+        assert!(matches!(result, Err(ServiceError::UserIsAdmin)));
+    }
+
+    #[sqlx::test]
+    async fn ensure_not_system_allows_regular_user(pool: PgPool) {
+        let id = UserService::create_user(
+            &pool,
+            make_create_dto("regular_user", "regular@test.com", vec![]),
+        )
+        .await
+        .unwrap();
+
+        let result = UserService::ensure_not_system(&pool, id).await;
+        assert!(result.is_ok());
+    }
+
+    // ── update_user ──────────────────────────────────────────────────────
+
+    #[sqlx::test]
+    async fn update_user_changes_email_and_real_name(pool: PgPool) {
+        let id = UserService::create_user(&pool, make_create_dto("upd_user", "upd@test.com", vec![]))
+            .await
+            .unwrap();
+
+        let result = UserService::update_user(
+            &pool,
+            id,
+            UpdateUserPayload {
+                email: "upd_new@test.com".to_string(),
+                real_name: Some("新名字".to_string()),
+                role_ids: vec![],
+            },
+        )
+        .await;
+
+        assert!(result.is_ok());
+
+        // Verify the change persisted
+        let user = UserRepository::get_by_id(&pool, id).await.unwrap();
+        assert_eq!(user.email, "upd_new@test.com");
+    }
+
+    #[sqlx::test]
+    async fn update_user_duplicate_email_returns_conflict(pool: PgPool) {
+        let _id1 = UserService::create_user(&pool, make_create_dto("upd_u1", "taken@test.com", vec![]))
+            .await
+            .unwrap();
+        let id2 = UserService::create_user(&pool, make_create_dto("upd_u2", "own@test.com", vec![]))
+            .await
+            .unwrap();
+
+        let result = UserService::update_user(
+            &pool,
+            id2,
+            UpdateUserPayload {
+                email: "taken@test.com".to_string(), // already owned by id1
+                real_name: None,
+                role_ids: vec![],
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::EmailConflict)));
+    }
+
+    #[sqlx::test]
+    async fn update_user_not_found_returns_error(pool: PgPool) {
+        let result = UserService::update_user(
+            &pool,
+            999_999,
+            UpdateUserPayload {
+                email: "nobody@test.com".to_string(),
+                real_name: None,
+                role_ids: vec![],
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    // ── delete_user ──────────────────────────────────────────────────────
+
+    #[sqlx::test]
+    async fn delete_user_removes_user(pool: PgPool) {
+        let id = UserService::create_user(&pool, make_create_dto("del_user", "del@test.com", vec![]))
+            .await
+            .unwrap();
+
+        UserService::delete_user(&pool, id).await.expect("delete should succeed");
+
+        let found = UserRepository::find_by_id(&pool, id).await.unwrap();
+        assert!(found.is_none(), "deleted user should not be findable");
+    }
+
+    #[sqlx::test]
+    async fn delete_user_not_found_returns_error(pool: PgPool) {
+        let result = UserService::delete_user(&pool, 999_999).await;
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    // ── update_user_status ───────────────────────────────────────────────
+
+    #[sqlx::test]
+    async fn update_user_status_to_disabled(pool: PgPool) {
+        let id = UserService::create_user(
+            &pool,
+            make_create_dto("status_user", "status@test.com", vec![]),
+        )
+        .await
+        .unwrap();
+
+        let result = UserService::update_user_status(
+            &pool,
+            id,
+            UpdateUserStatusPayload { status: UserStatus::Disabled },
+        )
+        .await;
+
+        assert!(result.is_ok());
+
+        let (status,): (i16,) = sqlx::query_as("SELECT status FROM users WHERE id = $1")
+            .bind(id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(status, UserStatus::Disabled as i16);
+    }
+
+    #[sqlx::test]
+    async fn update_user_status_not_found_returns_error(pool: PgPool) {
+        let result = UserService::update_user_status(
+            &pool,
+            999_999,
+            UpdateUserStatusPayload { status: UserStatus::Disabled },
+        )
+        .await;
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+}

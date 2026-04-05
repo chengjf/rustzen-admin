@@ -66,20 +66,39 @@ just export-types
 ### Testing
 
 ```bash
-# Run Rust tests
+# Run all Rust tests (unit + sqlx integration)
 cargo test
 
-# Run specific test
+# Run specific test by name
 cargo test test_name
 
-# Run tests with output
+# Run tests with stdout output
 cargo test -- --nocapture
+
+# Run only the RBAC end-to-end integration tests
+cargo test --test integration_rbac_flow
 
 # Run frontend type checking
 cd web && pnpm build:prod
 
 # Run frontend lint
 cd web && pnpm lint
+```
+
+### Coverage
+
+Requires `cargo-llvm-cov` (one-time install):
+
+```bash
+cargo install cargo-llvm-cov
+```
+
+```bash
+# Terminal summary (per-file line/function/region %)
+just coverage
+
+# Generate HTML report and open in browser
+just coverage-html
 ```
 
 ### Cleanup
@@ -336,8 +355,23 @@ To switch to serving from filesystem (easier for dev), modify `core/app.rs`:
 
 ## Testing
 
-- **Rust**: No test suite currently; add `#[cfg(test)]` modules or `tests/` directory
-- **Frontend**: No test suite currently; consider Vitest for unit tests, Playwright for E2E
+### Backend test structure
+
+Tests are organized in three layers, all using `#[sqlx::test]` which auto-creates/migrates/tears-down a real PostgreSQL database per test:
+
+| Layer | Location | What's tested |
+|-------|----------|--------------|
+| **Unit** | `#[test]` inline in source | Pure logic: pagination, password hashing, permission checks, CSV escaping, menu type constraints |
+| **Repo** | `#[sqlx::test]` at end of each `repo.rs` | SQL correctness: CRUD, uniqueness queries, soft delete, filters |
+| **Service** | `#[sqlx::test]` at end of each `service.rs` | Business validation: uniqueness guards, role/menu path integrity, lockout flow, status transitions |
+| **Integration** | `tests/integration_rbac_flow.rs` | End-to-end RBAC lifecycle: role creation → user creation → login lockout → admin unlock → permission verification |
+
+Current line coverage: **~44%** (business logic layers ~60%, API handlers 0% — not yet covered by HTTP-level tests).
+
+### Frontend
+
+- **Unit/integration**: Vitest (`web/vitest.config.ts`) — stores and API auth headers are covered
+- Run: `cd web && pnpm test`
 
 ---
 
@@ -397,5 +431,5 @@ For frontend changes:
 
 ---
 
-*Last analyzed: 2026-04-02*
+*Last analyzed: 2026-04-05*
 *Claude Code: claude.ai/code*

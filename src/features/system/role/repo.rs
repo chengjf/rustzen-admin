@@ -369,3 +369,121 @@ impl RoleRepository {
         Ok(exists)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::PgPool;
+
+    async fn seed_role(pool: &PgPool, name: &str, code: &str) -> i64 {
+        RoleRepository::create(pool, name, code, None, 1, 0, &[])
+            .await
+            .expect("create role should succeed")
+    }
+
+    #[sqlx::test]
+    async fn create_role_and_find_by_id(pool: PgPool) {
+        let id = seed_role(&pool, "测试角色", "TEST_ROLE").await;
+        assert!(id > 0);
+
+        let found = RoleRepository::find_by_id(&pool, id).await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "测试角色");
+    }
+
+    #[sqlx::test]
+    async fn count_by_name_detects_duplicate(pool: PgPool) {
+        seed_role(&pool, "重复角色", "DUP_ROLE").await;
+
+        let count = RoleRepository::count_by_name(&pool, "重复角色").await.unwrap();
+        assert_eq!(count, 1);
+
+        let zero = RoleRepository::count_by_name(&pool, "不存在角色").await.unwrap();
+        assert_eq!(zero, 0);
+    }
+
+    #[sqlx::test]
+    async fn count_by_code_detects_duplicate(pool: PgPool) {
+        seed_role(&pool, "编码测试角色", "CODE_TEST").await;
+
+        let count = RoleRepository::count_by_code(&pool, "CODE_TEST").await.unwrap();
+        assert_eq!(count, 1);
+
+        let zero = RoleRepository::count_by_code(&pool, "NO_SUCH_CODE").await.unwrap();
+        assert_eq!(zero, 0);
+    }
+
+    #[sqlx::test]
+    async fn name_exists_exclude_self(pool: PgPool) {
+        let id = seed_role(&pool, "排除自身角色", "EXCL_SELF").await;
+
+        // Same name but excluding self → should be false
+        let exists = RoleRepository::name_exists_exclude_self(&pool, "排除自身角色", id).await.unwrap();
+        assert!(!exists, "should not detect self as duplicate");
+
+        // Different ID → should be true
+        let another_id = seed_role(&pool, "另一个角色", "ANOTHER_ROLE").await;
+        let exists2 =
+            RoleRepository::name_exists_exclude_self(&pool, "排除自身角色", another_id).await.unwrap();
+        assert!(exists2, "should detect another role with same name");
+    }
+
+    #[sqlx::test]
+    async fn code_exists_exclude_self(pool: PgPool) {
+        let id = seed_role(&pool, "编码排除角色", "CODE_EXCL").await;
+
+        let exists = RoleRepository::code_exists_exclude_self(&pool, "CODE_EXCL", id).await.unwrap();
+        assert!(!exists, "should not detect self as code duplicate");
+
+        let another_id = seed_role(&pool, "另一角色", "ANOTHER_CODE").await;
+        let exists2 =
+            RoleRepository::code_exists_exclude_self(&pool, "CODE_EXCL", another_id).await.unwrap();
+        assert!(exists2, "should detect another role with same code");
+    }
+
+    #[sqlx::test]
+    async fn find_existing_role_ids_filters_disabled(pool: PgPool) {
+        // Create one enabled role and one disabled role
+        let enabled_id = RoleRepository::create(&pool, "启用角色", "ENABLED_R", None, 1, 0, &[])
+            .await
+            .unwrap();
+        let disabled_id = RoleRepository::create(&pool, "禁用角色", "DISABLED_R", None, 2, 0, &[])
+            .await
+            .unwrap();
+
+        let found =
+            RoleRepository::find_existing_role_ids(&pool, &[enabled_id, disabled_id]).await.unwrap();
+
+        assert!(found.contains(&enabled_id), "enabled role should be found");
+        assert!(!found.contains(&disabled_id), "disabled role should be excluded");
+    }
+
+    #[sqlx::test]
+    async fn get_role_user_count(pool: PgPool) {
+        let role_id = seed_role(&pool, "统计角色", "COUNT_ROLE").await;
+
+        // No users assigned initially
+        let count = RoleRepository::get_role_user_count(&pool, role_id).await.unwrap();
+        assert_eq!(count, 0);
+
+        // Seed system admin role - it has 1 user (superadmin)
+        let (sys_role_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let sys_count = RoleRepository::get_role_user_count(&pool, sys_role_id).await.unwrap();
+        assert_eq!(sys_count, 1);
+    }
+
+    #[sqlx::test]
+    async fn soft_delete_makes_role_unfindable(pool: PgPool) {
+        let id = seed_role(&pool, "待删角色", "TO_DELETE").await;
+
+        let deleted = RoleRepository::soft_delete(&pool, id).await.unwrap();
+        assert!(deleted);
+
+        let found = RoleRepository::find_by_id(&pool, id).await.unwrap();
+        assert!(found.is_none(), "soft-deleted role should not be found");
+    }
+}

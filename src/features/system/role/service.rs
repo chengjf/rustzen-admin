@@ -267,3 +267,140 @@ impl RoleService {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        common::error::ServiceError,
+        features::system::{
+            role::dto::{CreateRoleDto, UpdateRolePayload},
+            user::{dto::CreateUserDto, service::UserService},
+        },
+    };
+    use sqlx::PgPool;
+
+    fn make_role_dto(name: &str, code: &str, menu_ids: Vec<i64>) -> CreateRoleDto {
+        CreateRoleDto {
+            name: name.to_string(),
+            code: code.to_string(),
+            status: 1,
+            sort_order: None,
+            menu_ids,
+            description: None,
+        }
+    }
+
+    #[sqlx::test]
+    async fn create_role_succeeds(pool: PgPool) {
+        // Use seed menus: 目录(2) -> 菜单(3) -> 按钮(4) — complete path
+        let result = RoleService::create_role(&pool, make_role_dto("新角色", "NEW_ROLE", vec![2, 3, 4])).await;
+        assert!(result.is_ok());
+    }
+
+    #[sqlx::test]
+    async fn create_role_duplicate_name_returns_error(pool: PgPool) {
+        RoleService::create_role(&pool, make_role_dto("重复名称", "UNIQ_CODE1", vec![])).await.unwrap();
+
+        let result = RoleService::create_role(&pool, make_role_dto("重复名称", "UNIQ_CODE2", vec![])).await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn create_role_duplicate_code_returns_error(pool: PgPool) {
+        RoleService::create_role(&pool, make_role_dto("角色A", "SAME_CODE", vec![])).await.unwrap();
+
+        let result = RoleService::create_role(&pool, make_role_dto("角色B", "SAME_CODE", vec![])).await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn create_role_missing_parent_menu_returns_error(pool: PgPool) {
+        // id=3 (菜单) has parent id=2 (目录). Providing only [3] is incomplete.
+        let result = RoleService::create_role(&pool, make_role_dto("路径不全角色", "BROKEN_PATH", vec![3])).await;
+        assert!(
+            matches!(result, Err(ServiceError::InvalidOperation(_))),
+            "incomplete menu path should fail"
+        );
+    }
+
+    #[sqlx::test]
+    async fn create_role_with_nonexistent_menu_returns_error(pool: PgPool) {
+        let result =
+            RoleService::create_role(&pool, make_role_dto("无效菜单角色", "BAD_MENU", vec![999_999])).await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn create_role_with_duplicate_menu_ids_returns_error(pool: PgPool) {
+        // id=2 duplicated
+        let result =
+            RoleService::create_role(&pool, make_role_dto("重复菜单角色", "DUP_MENU", vec![2, 2])).await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn delete_role_blocked_when_assigned_to_users(pool: PgPool) {
+        // Create role, assign to user, then try to delete
+        let role_id = RoleRepository::create(&pool, "有用户角色", "ASSIGNED_R", None, 1, 0, &[])
+            .await
+            .unwrap();
+
+        UserService::create_user(
+            &pool,
+            CreateUserDto {
+                username: "roleuser".to_string(),
+                email: "roleuser@test.com".to_string(),
+                password: "Test@Pass1".to_string(),
+                real_name: None,
+                status: None,
+                role_ids: vec![role_id],
+            },
+        )
+        .await
+        .unwrap();
+
+        let result = RoleService::delete_role(&pool, role_id).await;
+        assert!(
+            matches!(result, Err(ServiceError::InvalidOperation(_))),
+            "should block deletion when role has users"
+        );
+    }
+
+    #[sqlx::test]
+    async fn delete_system_role_returns_error(pool: PgPool) {
+        let (sys_role_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        let result = RoleService::delete_role(&pool, sys_role_id).await;
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn update_system_role_returns_error(pool: PgPool) {
+        let (sys_role_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        let result = RoleService::update_role(
+            &pool,
+            sys_role_id,
+            UpdateRolePayload {
+                name: "新名称".to_string(),
+                code: "NEW_CODE".to_string(),
+                status: 1,
+                sort_order: None,
+                menu_ids: vec![],
+                description: None,
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+}
