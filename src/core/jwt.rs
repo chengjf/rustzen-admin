@@ -89,3 +89,95 @@ pub fn verify_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> 
     tracing::trace!("Successfully verified token for user '{}'", token_data.claims.username);
     Ok(token_data.claims)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jsonwebtoken::{EncodingKey, Header, encode};
+
+    /// Round-trip: generate_token → verify_token should return the original claims.
+    #[test]
+    fn generate_then_verify_round_trip() {
+        let token = generate_token(42, "alice").expect("token generation must succeed");
+        assert!(!token.is_empty());
+
+        let claims = verify_token(&token).expect("verify must succeed on a freshly generated token");
+        assert_eq!(claims.user_id, 42);
+        assert_eq!(claims.username, "alice");
+        assert!(claims.exp > claims.iat, "expiry must be after issue time");
+    }
+
+    /// Claims fields must exactly match the values passed to generate_token.
+    #[test]
+    fn claims_fields_match_input() {
+        let token = generate_token(99, "bob").unwrap();
+        let claims = verify_token(&token).unwrap();
+        assert_eq!(claims.user_id, 99);
+        assert_eq!(claims.username, "bob");
+    }
+
+    /// A random garbage string is not a valid JWT.
+    #[test]
+    fn verify_rejects_garbage_string() {
+        let result = verify_token("this.is.not.a.jwt");
+        assert!(result.is_err(), "garbage token must be rejected");
+    }
+
+    /// An empty string is not a valid JWT.
+    #[test]
+    fn verify_rejects_empty_string() {
+        let result = verify_token("");
+        assert!(result.is_err());
+    }
+
+    /// A token signed with a different secret must be rejected.
+    #[test]
+    fn verify_rejects_token_with_wrong_secret() {
+        let wrong_key = EncodingKey::from_secret(b"completely-different-secret-xyz");
+        let now = Utc::now();
+        let claims = Claims {
+            user_id: 1,
+            username: "attacker".to_string(),
+            exp: (now + Duration::hours(1)).timestamp() as usize,
+            iat: now.timestamp() as usize,
+        };
+        let forged = encode(&Header::default(), &claims, &wrong_key)
+            .expect("encoding with wrong key should succeed");
+
+        let result = verify_token(&forged);
+        assert!(result.is_err(), "token signed with wrong secret must be rejected");
+    }
+
+    /// A token whose `exp` is in the past must be rejected.
+    #[test]
+    fn verify_rejects_expired_token() {
+        let now = Utc::now();
+        let claims = Claims {
+            user_id: 7,
+            username: "expired_user".to_string(),
+            exp: (now - Duration::seconds(1)).timestamp() as usize,
+            iat: (now - Duration::hours(1)).timestamp() as usize,
+        };
+        let expired = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(JWT_CONFIG.secret.as_bytes()),
+        )
+        .expect("encoding expired token must succeed");
+
+        let result = verify_token(&expired);
+        assert!(result.is_err(), "expired token must be rejected");
+    }
+
+    /// A structurally valid JWT with a tampered payload must be rejected.
+    #[test]
+    fn verify_rejects_tampered_payload() {
+        let token = generate_token(1, "original").unwrap();
+        // Replace the payload segment with a base64-encoded different payload
+        let parts: Vec<&str> = token.splitn(3, '.').collect();
+        assert_eq!(parts.len(), 3, "JWT must have 3 parts");
+        let tampered = format!("{}.AAAAAAAAAAAAAAAAAAAAAAAAA.{}", parts[0], parts[2]);
+        let result = verify_token(&tampered);
+        assert!(result.is_err(), "tampered token must be rejected");
+    }
+}

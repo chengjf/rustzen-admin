@@ -28,11 +28,7 @@ impl RoleService {
         tracing::info!("Fetching role list with query: {:?}", query);
 
         let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
-        let repo_query = RoleListQuery {
-            role_name: query.role_name,
-            role_code: query.role_code,
-            status: query.status,
-        };
+        let repo_query = RoleListQuery { name: query.name, code: query.code, status: query.status };
 
         let (roles, total) =
             RoleRepository::find_with_pagination(pool, offset, limit, repo_query).await?;
@@ -365,12 +361,12 @@ mod tests {
     async fn get_role_list_returns_paginated_filtered_roles(pool: PgPool) {
         let first_id =
             RoleRepository::create(&pool, "分页角色一", "PAGE_ROLE_1", None, 1, 0, &[2, 3])
-            .await
-            .unwrap();
+                .await
+                .unwrap();
         let second_id =
             RoleRepository::create(&pool, "分页角色二", "PAGE_ROLE_2", None, 1, 0, &[2, 10])
-            .await
-            .unwrap();
+                .await
+                .unwrap();
         RoleRepository::create(&pool, "分页角色禁用", "PAGE_ROLE_DISABLED", None, 2, 0, &[2, 3])
             .await
             .unwrap();
@@ -380,8 +376,8 @@ mod tests {
             RoleQuery {
                 current: Some(1),
                 page_size: Some(10),
-                role_name: None,
-                role_code: None,
+                name: None,
+                code: None,
                 status: Some("1".to_string()),
             },
         )
@@ -397,9 +393,10 @@ mod tests {
 
     #[sqlx::test]
     async fn get_role_options_returns_enabled_matches_only(pool: PgPool) {
-        let enabled_id = RoleRepository::create(&pool, "角色选项启用", "ROLE_OPT_ENABLED", None, 1, 0, &[2, 3])
-            .await
-            .unwrap();
+        let enabled_id =
+            RoleRepository::create(&pool, "角色选项启用", "ROLE_OPT_ENABLED", None, 1, 0, &[2, 3])
+                .await
+                .unwrap();
         let disabled_id =
             RoleRepository::create(&pool, "角色选项禁用", "ROLE_OPT_DISABLED", None, 2, 0, &[2, 3])
                 .await
@@ -412,7 +409,9 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(options.iter().any(|item| item.value == enabled_id && item.label == "角色选项启用"));
+        assert!(
+            options.iter().any(|item| item.value == enabled_id && item.label == "角色选项启用")
+        );
         assert!(!options.iter().any(|item| item.value == disabled_id));
     }
 

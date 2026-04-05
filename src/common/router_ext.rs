@@ -96,18 +96,18 @@ mod tests {
         )
     }
 
-    fn server_with_user(pool: PgPool, current_user: Option<CurrentUser>) -> TestServer {
+    fn server_with_check(
+        pool: PgPool,
+        check: PermissionsCheck,
+        current_user: Option<CurrentUser>,
+    ) -> TestServer {
         let router = Router::new()
-            .route_with_permission(
-                "/protected",
-                get(ok_handler),
-                PermissionsCheck::Single("system:user:list"),
-            )
+            .route_with_permission("/protected", get(ok_handler), check)
             .layer(middleware::from_fn(move |mut req: Request, next: Next| {
                 let current_user = current_user.clone();
                 async move {
-                    if let Some(current_user) = current_user {
-                        req.extensions_mut().insert(current_user);
+                    if let Some(cu) = current_user {
+                        req.extensions_mut().insert(cu);
                     }
                     Ok::<_, AppError>(next.run(req).await)
                 }
@@ -117,28 +117,91 @@ mod tests {
         TestServer::new(router).unwrap()
     }
 
+    // ── Single ──────────────────────────────────────────────────────
+
+    /// Single: user holds the required permission → 200.
     #[sqlx::test]
     async fn route_with_permission_allows_user_with_required_permission(pool: PgPool) {
-        let server = server_with_user(pool, Some(user_with_permissions(&["system:user:list"])));
-
+        let server = server_with_check(
+            pool,
+            PermissionsCheck::Single("system:user:list"),
+            Some(user_with_permissions(&["system:user:list"])),
+        );
         let response = server.get("/protected").await;
         response.assert_status_ok();
         assert_eq!(response.json::<serde_json::Value>()["ok"], true);
     }
 
+    /// Single: user lacks the required permission → 403.
     #[sqlx::test]
     async fn route_with_permission_rejects_user_without_required_permission(pool: PgPool) {
-        let server = server_with_user(pool, Some(user_with_permissions(&["system:role:list"])));
-
+        let server = server_with_check(
+            pool,
+            PermissionsCheck::Single("system:user:list"),
+            Some(user_with_permissions(&["system:role:list"])),
+        );
         let response = server.get("/protected").await;
         response.assert_status(axum::http::StatusCode::FORBIDDEN);
     }
 
+    /// Single: no CurrentUser extension at all → 401.
     #[sqlx::test]
     async fn route_with_permission_rejects_when_current_user_missing(pool: PgPool) {
-        let server = server_with_user(pool, None);
-
+        let server =
+            server_with_check(pool, PermissionsCheck::Single("system:user:list"), None);
         let response = server.get("/protected").await;
         response.assert_status(axum::http::StatusCode::UNAUTHORIZED);
+    }
+
+    // ── Any ─────────────────────────────────────────────────────────
+
+    /// Any: user holds one of the listed permissions → 200.
+    #[sqlx::test]
+    async fn route_with_any_permission_grants_when_one_matches(pool: PgPool) {
+        let server = server_with_check(
+            pool,
+            PermissionsCheck::Any(vec!["system:user:create", "system:user:delete"]),
+            Some(user_with_permissions(&["system:user:delete"])),
+        );
+        let response = server.get("/protected").await;
+        response.assert_status_ok();
+    }
+
+    /// Any: user holds none of the listed permissions → 403.
+    #[sqlx::test]
+    async fn route_with_any_permission_denies_when_none_match(pool: PgPool) {
+        let server = server_with_check(
+            pool,
+            PermissionsCheck::Any(vec!["system:user:create", "system:user:delete"]),
+            Some(user_with_permissions(&["system:role:list"])),
+        );
+        let response = server.get("/protected").await;
+        response.assert_status(axum::http::StatusCode::FORBIDDEN);
+    }
+
+    // ── All ──────────────────────────────────────────────────────────
+
+    /// All: user holds every required permission → 200.
+    #[sqlx::test]
+    async fn route_with_all_permissions_grants_when_all_present(pool: PgPool) {
+        let server = server_with_check(
+            pool,
+            PermissionsCheck::All(vec!["system:user:create", "system:user:delete"]),
+            Some(user_with_permissions(&["system:user:create", "system:user:delete"])),
+        );
+        let response = server.get("/protected").await;
+        response.assert_status_ok();
+    }
+
+    /// All: user is missing one required permission → 403.
+    #[sqlx::test]
+    async fn route_with_all_permissions_denies_when_one_missing(pool: PgPool) {
+        let server = server_with_check(
+            pool,
+            PermissionsCheck::All(vec!["system:user:create", "system:user:delete"]),
+            Some(user_with_permissions(&["system:user:create"])), // missing delete
+        );
+        let response = server.get("/protected").await;
+        response.assert_status(axum::http::StatusCode::FORBIDDEN);
     }
 }

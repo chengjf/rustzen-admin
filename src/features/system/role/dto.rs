@@ -42,9 +42,9 @@ pub struct RoleQuery {
     /// The number of items per page. Defaults to 10.
     pub page_size: Option<i64>,
     /// Filter by role name (case-insensitive search).
-    pub role_name: Option<String>,
+    pub name: Option<String>,
     /// Filter by role code (case-insensitive search).
-    pub role_code: Option<String>,
+    pub code: Option<String>,
     /// Filter by role status.
     pub status: Option<String>,
 }

@@ -44,9 +44,16 @@ fn user_dto(username: &str, password: &str, role_ids: Vec<i64>) -> CreateUserDto
 }
 
 async fn simulate_failed_logins(pool: &PgPool, username: &str, n: usize) {
-    for _ in 0..n {
-        let _ =
+    for i in 0..n {
+        let result =
             AuthService::verify_login(pool, username, "intentionally_wrong_password_xyz!!").await;
+        assert!(
+            matches!(
+                result,
+                Err(ServiceError::InvalidCredentials) | Err(ServiceError::UserIsAutoLocked(_))
+            ),
+            "attempt {i}: expected InvalidCredentials or UserIsAutoLocked, got {result:?}"
+        );
     }
 }
 
@@ -57,11 +64,27 @@ async fn simulate_failed_logins(pool: &PgPool, username: &str, n: usize) {
 /// 角色创建闭环：名称/编码唯一性 + 菜单路径完整性
 #[sqlx::test]
 async fn test_role_creation_with_validation(pool: PgPool) {
-    // Seed data provides menus: 2 (目录:system), 3 (菜单:system:user:list), 4 (按钮:system:user:create)
-    // Complete path: [2, 3, 4]
+    // Resolve seeded menu IDs by code so the test is not coupled to auto-increment values.
+    let (dir_id,): (i64,) = sqlx::query_as("SELECT id FROM menus WHERE code = 'system'")
+        .fetch_one(&pool)
+        .await
+        .expect("seed menu 'system' must exist");
+
+    let (menu_id,): (i64,) = sqlx::query_as("SELECT id FROM menus WHERE code = 'system:user:list'")
+        .fetch_one(&pool)
+        .await
+        .expect("seed menu 'system:user:list' must exist");
+
+    let (btn_create,): (i64,) =
+        sqlx::query_as("SELECT id FROM menus WHERE code = 'system:user:create'")
+            .fetch_one(&pool)
+            .await
+            .expect("seed menu 'system:user:create' must exist");
+
+    let full_path = vec![dir_id, menu_id, btn_create];
 
     // 1. First creation should succeed
-    RoleService::create_role(&pool, role_dto("验证角色", "VALIDATION_R", vec![2, 3, 4]))
+    RoleService::create_role(&pool, role_dto("验证角色", "VALIDATION_R", full_path.clone()))
         .await
         .expect("first creation should succeed");
 
@@ -81,9 +104,12 @@ async fn test_role_creation_with_validation(pool: PgPool) {
         "duplicate code should be rejected"
     );
 
-    // 4. Incomplete menu path: providing [3, 4] without parent [2]
-    let broken =
-        RoleService::create_role(&pool, role_dto("路径残缺角色", "BROKEN_R", vec![3, 4])).await;
+    // 4. Incomplete menu path: child nodes without their parent
+    let broken = RoleService::create_role(
+        &pool,
+        role_dto("路径残缺角色", "BROKEN_R", vec![menu_id, btn_create]),
+    )
+    .await;
     assert!(
         matches!(broken, Err(ServiceError::InvalidOperation(_))),
         "incomplete menu path should be rejected"
@@ -94,8 +120,8 @@ async fn test_role_creation_with_validation(pool: PgPool) {
         RoleService::create_role(&pool, role_dto("坏菜单角色", "BAD_MENU_R", vec![999_999])).await;
     assert!(matches!(bad_id, Err(ServiceError::InvalidOperation(_))));
 
-    // 6. Full valid path succeeds
-    RoleService::create_role(&pool, role_dto("完整路径角色", "FULL_PATH_R", vec![2, 3, 4]))
+    // 6. Full valid path succeeds again
+    RoleService::create_role(&pool, role_dto("完整路径角色", "FULL_PATH_R", full_path))
         .await
         .expect("complete menu path should succeed");
 }
@@ -205,15 +231,28 @@ async fn test_login_lockout_flow(pool: PgPool) {
 /// 完整 RBAC 闭环：菜单 → 角色 → 用户 → 登录 → 权限验证
 #[sqlx::test]
 async fn test_full_rbac_lifecycle(pool: PgPool) {
-    // ── Step 1: Create a custom menu tree ──────────────────────────────────
-    // The seed data already provides: id=2 (目录:system) → id=3 (菜单:user:list)
-    //   → id=4 (按钮:user:create), id=7 (按钮:user:delete)
-    // We use the seeded menus to avoid relying on auto-increment IDs.
+    // ── Step 1: Resolve seeded menu IDs by code (avoids hardcoding auto-increment values) ──
+    let (dir_id,): (i64,) = sqlx::query_as("SELECT id FROM menus WHERE code = 'system'")
+        .fetch_one(&pool)
+        .await
+        .expect("seed menu 'system' must exist");
 
-    let dir_id: i64 = 2; // 系统管理 (Directory)
-    let menu_id: i64 = 3; // 用户管理 (Menu)
-    let btn_create: i64 = 4; // 用户创建 (Button)
-    let btn_delete: i64 = 7; // 用户删除 (Button)
+    let (menu_id,): (i64,) = sqlx::query_as("SELECT id FROM menus WHERE code = 'system:user:list'")
+        .fetch_one(&pool)
+        .await
+        .expect("seed menu 'system:user:list' must exist");
+
+    let (btn_create,): (i64,) =
+        sqlx::query_as("SELECT id FROM menus WHERE code = 'system:user:create'")
+            .fetch_one(&pool)
+            .await
+            .expect("seed menu 'system:user:create' must exist");
+
+    let (btn_delete,): (i64,) =
+        sqlx::query_as("SELECT id FROM menus WHERE code = 'system:user:delete'")
+            .fetch_one(&pool)
+            .await
+            .expect("seed menu 'system:user:delete' must exist");
 
     // ── Step 2: Create role with complete menu path ────────────────────────
     RoleService::create_role(

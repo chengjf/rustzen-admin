@@ -245,4 +245,129 @@ mod tests {
         assert_eq!(action_total, 1);
         assert_eq!(action_logs[0].username, "bob");
     }
+
+    #[sqlx::test]
+    async fn find_with_pagination_returns_empty_when_no_logs(pool: PgPool) {
+        let (logs, total) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            LogListQuery { username: None, action: None, description: None, ip_address: None },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(total, 0);
+        assert!(logs.is_empty());
+    }
+
+    #[sqlx::test]
+    async fn find_with_pagination_filters_by_description(pool: PgPool) {
+        LogRepository::create_with_details(
+            &pool,
+            1,
+            "charlie",
+            Some("UPDATE"),
+            Some("updated user profile"),
+            None,
+            Some("SUCCESS"),
+            Some(5),
+            Some("127.0.0.1"),
+            Some("agent"),
+        )
+        .await
+        .unwrap();
+        seed_log(&pool, "dave", "LOGIN").await; // description = "test description"
+
+        let (logs, total) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            LogListQuery {
+                username: None,
+                action: None,
+                description: Some("user profile".to_string()),
+                ip_address: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(total, 1);
+        assert_eq!(logs[0].username, "charlie");
+    }
+
+    #[sqlx::test]
+    async fn find_all_returns_every_log(pool: PgPool) {
+        seed_log(&pool, "u1", "ACT_A").await;
+        seed_log(&pool, "u2", "ACT_B").await;
+        seed_log(&pool, "u3", "ACT_C").await;
+
+        let logs = LogRepository::find_all(
+            &pool,
+            LogListQuery { username: None, action: None, description: None, ip_address: None },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(logs.len(), 3);
+    }
+
+    #[sqlx::test]
+    async fn find_all_respects_action_filter(pool: PgPool) {
+        seed_log(&pool, "u1", "LOGIN").await;
+        seed_log(&pool, "u2", "LOGOUT").await;
+        seed_log(&pool, "u3", "LOGIN").await;
+
+        let logs = LogRepository::find_all(
+            &pool,
+            LogListQuery {
+                username: None,
+                action: Some("LOGOUT".to_string()),
+                description: None,
+                ip_address: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(logs.len(), 1);
+        assert_eq!(logs[0].username, "u2");
+    }
+
+    #[sqlx::test]
+    async fn find_with_pagination_honors_offset_and_limit(pool: PgPool) {
+        for i in 0..5 {
+            seed_log(&pool, &format!("user{}", i), "ACT").await;
+        }
+
+        let (page1, total) =
+            LogRepository::find_with_pagination(
+                &pool,
+                0,
+                2,
+                LogListQuery { username: None, action: None, description: None, ip_address: None },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(total, 5);
+        assert_eq!(page1.len(), 2);
+
+        let (page2, _) =
+            LogRepository::find_with_pagination(
+                &pool,
+                2,
+                2,
+                LogListQuery { username: None, action: None, description: None, ip_address: None },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(page2.len(), 2);
+        // Pages must not overlap
+        let ids1: Vec<_> = page1.iter().map(|l| l.id).collect();
+        let ids2: Vec<_> = page2.iter().map(|l| l.id).collect();
+        assert!(ids1.iter().all(|id| !ids2.contains(id)));
+    }
 }

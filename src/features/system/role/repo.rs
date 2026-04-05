@@ -8,8 +8,8 @@ pub struct RoleRepository;
 
 #[derive(Debug, Clone)]
 pub struct RoleListQuery {
-    pub role_name: Option<String>,
-    pub role_code: Option<String>,
+    pub name: Option<String>,
+    pub code: Option<String>,
     pub status: Option<String>,
 }
 
@@ -52,14 +52,14 @@ impl RoleRepository {
     }
 
     fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
-        if let Some(role_name) = &query.role_name {
-            if !role_name.trim().is_empty() {
-                query_builder.push(" AND name ILIKE ").push_bind(format!("%{}%", role_name));
+        if let Some(name) = &query.name {
+            if !name.trim().is_empty() {
+                query_builder.push(" AND name ILIKE ").push_bind(format!("%{}%", name));
             }
         }
-        if let Some(role_code) = &query.role_code {
-            if !role_code.trim().is_empty() {
-                query_builder.push(" AND code ILIKE ").push_bind(format!("%{}%", role_code));
+        if let Some(code) = &query.code {
+            if !code.trim().is_empty() {
+                query_builder.push(" AND code ILIKE ").push_bind(format!("%{}%", code));
             }
         }
         if let Some(status) = &query.status {
@@ -376,7 +376,7 @@ mod tests {
     use sqlx::PgPool;
 
     fn empty_query() -> RoleListQuery {
-        RoleListQuery { role_name: None, role_code: None, status: None }
+        RoleListQuery { name: None, code: None, status: None }
     }
 
     async fn seed_role(pool: &PgPool, name: &str, code: &str) -> i64 {
@@ -406,8 +406,7 @@ mod tests {
         RoleRepository::create(&pool, "分页角色A", "ROLE_PAGE_A", None, 1, 2, &[3]).await.unwrap();
         RoleRepository::create(&pool, "分页角色B", "ROLE_PAGE_B", None, 2, 3, &[]).await.unwrap();
 
-        let query =
-            RoleListQuery { role_name: None, role_code: None, status: Some("1".to_string()) };
+        let query = RoleListQuery { name: None, code: None, status: Some("1".to_string()) };
 
         let (roles, total) =
             RoleRepository::find_with_pagination(&pool, 0, 10, query).await.unwrap();
@@ -428,8 +427,8 @@ mod tests {
             .unwrap();
 
         let query = RoleListQuery {
-            role_name: Some("筛选角色甲".to_string()),
-            role_code: Some("FILTER_ALPHA".to_string()),
+            name: Some("筛选角色甲".to_string()),
+            code: Some("FILTER_ALPHA".to_string()),
             status: Some("1".to_string()),
         };
 
@@ -448,8 +447,8 @@ mod tests {
         let role_id = seed_role(&pool, "空筛选角色", "ROLE_BLANK_FILTER").await;
 
         let query = RoleListQuery {
-            role_name: Some("   ".to_string()),
-            role_code: Some(String::new()),
+            name: Some("   ".to_string()),
+            code: Some(String::new()),
             status: Some("invalid".to_string()),
         };
 
@@ -601,12 +600,13 @@ mod tests {
         let role = RoleRepository::find_by_id(&pool, role_id).await.unwrap().unwrap();
         assert!(role.description.is_none());
 
-        let menu_ids: Vec<i64> =
-            sqlx::query_scalar("SELECT menu_id FROM role_menus WHERE role_id = $1 ORDER BY menu_id")
-                .bind(role_id)
-                .fetch_all(&pool)
-                .await
-                .unwrap();
+        let menu_ids: Vec<i64> = sqlx::query_scalar(
+            "SELECT menu_id FROM role_menus WHERE role_id = $1 ORDER BY menu_id",
+        )
+        .bind(role_id)
+        .fetch_all(&pool)
+        .await
+        .unwrap();
         assert!(menu_ids.is_empty());
         assert_eq!(role.menus, serde_json::json!([]));
     }

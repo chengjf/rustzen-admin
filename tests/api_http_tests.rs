@@ -242,6 +242,7 @@ async fn change_password_wrong_old_returns_400(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
 }
 
+/// POST /api/auth/avatar — valid PNG upload is accepted and avatar_url is persisted.
 #[sqlx::test]
 async fn upload_avatar_accepts_supported_image(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -271,6 +272,7 @@ async fn upload_avatar_accepts_supported_image(pool: PgPool) {
     assert_eq!(stored_avatar_url.as_deref(), Some(avatar_url));
 }
 
+/// POST /api/auth/avatar — non-image MIME type → 400.
 #[sqlx::test]
 async fn upload_avatar_rejects_invalid_file_type(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -290,6 +292,7 @@ async fn upload_avatar_rejects_invalid_file_type(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
 }
 
+/// POST /api/auth/avatar — file exceeding 1 MB limit → 400.
 #[sqlx::test]
 async fn upload_avatar_rejects_oversized_file(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -310,6 +313,7 @@ async fn upload_avatar_rejects_oversized_file(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
 }
 
+/// POST /api/auth/avatar — multipart request with no file part → 400.
 #[sqlx::test]
 async fn upload_avatar_rejects_missing_file(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -399,6 +403,7 @@ async fn expired_session_is_rejected(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::UNAUTHORIZED);
 }
 
+/// GET /api/health — unauthenticated health check returns status "ok".
 #[sqlx::test]
 async fn root_health_returns_ok(pool: PgPool) {
     let server = make_server(pool);
@@ -410,6 +415,7 @@ async fn root_health_returns_ok(pool: PgPool) {
     assert_eq!(body["data"]["status"], "ok");
 }
 
+/// GET /api/summary — returns API welcome message and github link.
 #[sqlx::test]
 async fn root_summary_returns_api_description(pool: PgPool) {
     let server = make_server(pool);
@@ -426,6 +432,7 @@ async fn root_summary_returns_api_description(pool: PgPool) {
 // Dashboard API
 // ─────────────────────────────────────────────────────────────────
 
+/// GET /api/dashboard/stats — returns aggregated stats (user/role/menu counts).
 #[sqlx::test]
 async fn get_stats_returns_ok(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -438,6 +445,7 @@ async fn get_stats_returns_ok(pool: PgPool) {
     assert_eq!(body["code"], 0);
 }
 
+/// GET /api/dashboard/health — returns system resource metrics (CPU, memory).
 #[sqlx::test]
 async fn get_health_returns_ok(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -456,6 +464,7 @@ async fn get_health_returns_ok(pool: PgPool) {
     );
 }
 
+/// GET /api/dashboard/metrics — returns application performance metrics.
 #[sqlx::test]
 async fn get_metrics_returns_ok(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -468,6 +477,7 @@ async fn get_metrics_returns_ok(pool: PgPool) {
     assert_eq!(body["code"], 0);
 }
 
+/// GET /api/dashboard/trends — returns login activity trend data.
 #[sqlx::test]
 async fn get_trends_returns_ok(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -492,6 +502,7 @@ async fn dashboard_requires_auth(pool: PgPool) {
 // User Management API
 // ─────────────────────────────────────────────────────────────────
 
+/// GET /api/system/users — returns paginated user list with data array and total count.
 #[sqlx::test]
 async fn get_user_list_returns_paginated_result(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -506,6 +517,7 @@ async fn get_user_list_returns_paginated_result(pool: PgPool) {
     assert!(body["total"].is_number());
 }
 
+/// POST /api/system/users — valid payload creates user and returns new user ID.
 #[sqlx::test]
 async fn create_user_via_api_returns_new_id(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -528,6 +540,7 @@ async fn create_user_via_api_returns_new_id(pool: PgPool) {
     assert!(body["data"].is_number(), "should return the new user id");
 }
 
+/// POST /api/system/users — duplicate username → 409 Conflict.
 #[sqlx::test]
 async fn create_user_duplicate_username_returns_409(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -562,6 +575,7 @@ async fn create_user_duplicate_username_returns_409(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::CONFLICT);
 }
 
+/// PUT /api/system/users/:id — updates email and real_name successfully.
 #[sqlx::test]
 async fn update_user_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -596,6 +610,7 @@ async fn update_user_via_api_succeeds(pool: PgPool) {
     assert_eq!(body["code"], 0);
 }
 
+/// DELETE /api/system/users/:id — soft-deletes the user successfully.
 #[sqlx::test]
 async fn delete_user_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -622,6 +637,7 @@ async fn delete_user_via_api_succeeds(pool: PgPool) {
     resp.assert_status_ok();
 }
 
+/// PUT /api/system/users/:id/status — changes user status to Disabled successfully.
 #[sqlx::test]
 async fn update_user_status_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -649,6 +665,7 @@ async fn update_user_status_via_api_succeeds(pool: PgPool) {
     resp.assert_status_ok();
 }
 
+/// GET /api/system/users/status-options — returns non-empty list of status option items.
 #[sqlx::test]
 async fn get_user_status_options_returns_list(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -665,6 +682,7 @@ async fn get_user_status_options_returns_list(pool: PgPool) {
     assert!(body["data"].as_array().map(|a| !a.is_empty()).unwrap_or(false));
 }
 
+/// GET /api/system/users/options — returns user option items for select dropdowns.
 #[sqlx::test]
 async fn get_user_options_returns_list(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -679,6 +697,7 @@ async fn get_user_options_returns_list(pool: PgPool) {
     assert!(body["data"].is_array());
 }
 
+/// PUT /api/system/users/:id/password — admin resets password; response includes new password.
 #[sqlx::test]
 async fn update_user_password_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -710,6 +729,7 @@ async fn update_user_password_via_api_succeeds(pool: PgPool) {
     assert!(body["data"]["password"].is_string());
 }
 
+/// PUT /api/system/users/:id/unlock — clears auto-lock and allows subsequent login.
 #[sqlx::test]
 async fn unlock_user_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -760,6 +780,7 @@ async fn update_self_returns_400(pool: PgPool) {
 // Role Management API
 // ─────────────────────────────────────────────────────────────────
 
+/// GET /api/system/roles — returns paginated role list with data array and total count.
 #[sqlx::test]
 async fn get_role_list_returns_paginated_result(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -774,6 +795,7 @@ async fn get_role_list_returns_paginated_result(pool: PgPool) {
     assert!(body["total"].is_number());
 }
 
+/// GET /api/system/roles?name=…&code=… — query filters narrow the result set.
 #[sqlx::test]
 async fn get_role_list_honors_name_and_code_filters(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -797,7 +819,7 @@ async fn get_role_list_honors_name_and_code_filters(pool: PgPool) {
 
     let server = make_server(pool);
     let resp = server
-        .get("/api/system/roles?roleName=API%E7%AD%9B%E9%80%89%E8%A7%92%E8%89%B2&roleCode=FILTER_MATCH&status=1")
+        .get("/api/system/roles?name=API%E7%AD%9B%E9%80%89%E8%A7%92%E8%89%B2&code=FILTER_MATCH&status=1")
         .add_header(AUTHORIZATION, bearer(&token))
         .await;
 
@@ -810,6 +832,7 @@ async fn get_role_list_honors_name_and_code_filters(pool: PgPool) {
     assert_eq!(data[0]["code"], "API_ROLE_FILTER_MATCH");
 }
 
+/// POST /api/system/roles — valid payload creates role successfully.
 #[sqlx::test]
 async fn create_role_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -832,6 +855,7 @@ async fn create_role_via_api_succeeds(pool: PgPool) {
     assert_eq!(body["code"], 0);
 }
 
+/// POST /api/system/roles — duplicate role name → 400.
 #[sqlx::test]
 async fn create_role_duplicate_name_returns_400(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -863,6 +887,7 @@ async fn create_role_duplicate_name_returns_400(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
 }
 
+/// PUT /api/system/roles/:id — valid payload updates role name successfully.
 #[sqlx::test]
 async fn update_role_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -901,6 +926,7 @@ async fn update_role_via_api_succeeds(pool: PgPool) {
     resp.assert_status_ok();
 }
 
+/// DELETE /api/system/roles/:id — soft-deletes an unassigned role successfully.
 #[sqlx::test]
 async fn delete_role_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -935,6 +961,7 @@ async fn delete_role_via_api_succeeds(pool: PgPool) {
     assert_eq!(body["code"], 0);
 }
 
+/// GET /api/system/roles/options — returns enabled role option items for select dropdowns.
 #[sqlx::test]
 async fn get_role_options_returns_list(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -953,6 +980,7 @@ async fn get_role_options_returns_list(pool: PgPool) {
 // Menu Management API
 // ─────────────────────────────────────────────────────────────────
 
+/// GET /api/system/menus — returns nested menu tree; seeded menus must be present.
 #[sqlx::test]
 async fn get_menu_list_returns_tree(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -971,6 +999,7 @@ async fn get_menu_list_returns_tree(pool: PgPool) {
     );
 }
 
+/// POST /api/system/menus — valid directory at root is created successfully.
 #[sqlx::test]
 async fn create_menu_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -995,6 +1024,7 @@ async fn create_menu_via_api_succeeds(pool: PgPool) {
     assert_eq!(body["code"], 0);
 }
 
+/// POST /api/system/menus — duplicate menu name → 400.
 #[sqlx::test]
 async fn create_menu_duplicate_name_returns_400(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -1030,6 +1060,7 @@ async fn create_menu_duplicate_name_returns_400(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
 }
 
+/// PUT /api/system/menus/:id — valid payload updates menu name and sort_order successfully.
 #[sqlx::test]
 async fn update_menu_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -1074,6 +1105,7 @@ async fn update_menu_via_api_succeeds(pool: PgPool) {
     assert_eq!(body["code"], 0);
 }
 
+/// DELETE /api/system/menus/:id — non-system leaf menu is deleted successfully.
 #[sqlx::test]
 async fn delete_menu_via_api_succeeds(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -1110,6 +1142,7 @@ async fn delete_menu_via_api_succeeds(pool: PgPool) {
     assert_eq!(body["code"], 0);
 }
 
+/// DELETE /api/system/menus/1 — system-protected menu (id=1) cannot be deleted → 404.
 #[sqlx::test]
 async fn delete_system_menu_returns_404(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -1121,6 +1154,7 @@ async fn delete_system_menu_returns_404(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::NOT_FOUND);
 }
 
+/// GET /api/system/menus/options — returns enabled menu option items for role assignment UI.
 #[sqlx::test]
 async fn get_menu_options_returns_list(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -1139,6 +1173,7 @@ async fn get_menu_options_returns_list(pool: PgPool) {
 // Log Management API
 // ─────────────────────────────────────────────────────────────────
 
+/// GET /api/system/logs — returns paginated operation log list with data array and total.
 #[sqlx::test]
 async fn get_log_list_returns_paginated_result(pool: PgPool) {
     let token = admin_token(&pool).await;
@@ -1153,6 +1188,7 @@ async fn get_log_list_returns_paginated_result(pool: PgPool) {
     assert!(body["total"].is_number());
 }
 
+/// GET /api/system/logs/export — returns CSV file download with content-disposition header.
 #[sqlx::test]
 async fn export_log_list_returns_csv(pool: PgPool) {
     let token = admin_token(&pool).await;
