@@ -43,3 +43,36 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::Request;
+    use axum::response::IntoResponse;
+
+    #[tokio::test]
+    async fn extractor_returns_current_user_from_extensions() {
+        let current_user = CurrentUser::new(
+            42,
+            "tester".to_string(),
+            ["system:user:list".to_string()].into_iter().collect(),
+        );
+        let (mut parts, _) = Request::builder().uri("/test").body(()).unwrap().into_parts();
+        parts.extensions.insert(current_user.clone());
+
+        let extracted = CurrentUser::from_request_parts(&mut parts, &()).await.unwrap();
+        assert_eq!(extracted.user_id, current_user.user_id);
+        assert_eq!(extracted.username, current_user.username);
+        assert_eq!(extracted.permissions, current_user.permissions);
+    }
+
+    #[tokio::test]
+    async fn extractor_rejects_when_current_user_is_missing() {
+        let (mut parts, _) = Request::builder().uri("/test").body(()).unwrap().into_parts();
+
+        let error = CurrentUser::from_request_parts(&mut parts, &()).await.unwrap_err();
+        let response = error.into_response();
+
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+}

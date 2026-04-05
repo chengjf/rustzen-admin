@@ -79,3 +79,29 @@ impl UserStatus {
 pub type LoginCredentials = LoginCredentialsEntity;
 /// Type alias for auth user model.
 pub type AuthUser = AuthUserEntity;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn try_from_maps_all_known_status_values() {
+        assert_eq!(UserStatus::try_from(1).unwrap(), UserStatus::Normal);
+        assert_eq!(UserStatus::try_from(2).unwrap(), UserStatus::Disabled);
+        assert_eq!(UserStatus::try_from(3).unwrap(), UserStatus::Pending);
+        assert_eq!(UserStatus::try_from(4).unwrap(), UserStatus::Locked);
+    }
+
+    #[test]
+    fn try_from_rejects_unknown_status_value() {
+        assert!(matches!(UserStatus::try_from(99), Err(ServiceError::InvalidUserStatus)));
+    }
+
+    #[test]
+    fn check_status_allows_only_normal_users() {
+        assert!(UserStatus::Normal.check_status().is_ok());
+        assert!(matches!(UserStatus::Disabled.check_status(), Err(ServiceError::UserIsDisabled)));
+        assert!(matches!(UserStatus::Pending.check_status(), Err(ServiceError::UserIsPending)));
+        assert!(matches!(UserStatus::Locked.check_status(), Err(ServiceError::UserIsLocked)));
+    }
+}

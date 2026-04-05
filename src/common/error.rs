@@ -213,11 +213,21 @@ impl From<sqlx::Error> for AppError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::to_bytes;
     use axum::response::IntoResponse;
+    use serde_json::Value;
 
     fn status_of(err: ServiceError) -> StatusCode {
         let app_err: AppError = err.into();
         app_err.into_response().status()
+    }
+
+    async fn response_parts(err: impl Into<AppError>) -> (StatusCode, Value) {
+        let response = Into::<AppError>::into(err).into_response();
+        let status = response.status();
+        let body = to_bytes(response.into_body(), usize::MAX).await.expect("body should be readable");
+        let body: Value = serde_json::from_slice(&body).expect("body should be valid json");
+        (status, body)
     }
 
     #[test]
@@ -261,5 +271,50 @@ mod tests {
     #[test]
     fn user_is_auto_locked_maps_to_400() {
         assert_eq!(status_of(ServiceError::UserIsAutoLocked(5)), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn service_errors_map_to_expected_payloads() {
+        let cases = vec![
+            (
+                ServiceError::PasswordHashingFailed,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                10003,
+                "密码处理失败，请重试。",
+            ),
+            (ServiceError::UserIsDisabled, StatusCode::BAD_REQUEST, 10004, "用户已被禁用"),
+            (ServiceError::UserIsPending, StatusCode::BAD_REQUEST, 10005, "用户待审核"),
+            (ServiceError::UserIsLocked, StatusCode::BAD_REQUEST, 10006, "用户已被锁定"),
+            (ServiceError::InvalidUserStatus, StatusCode::BAD_REQUEST, 10007, "用户状态非法"),
+            (ServiceError::UserIsAdmin, StatusCode::BAD_REQUEST, 10008, "用户是管理员"),
+            (ServiceError::CannotOperateSelf, StatusCode::BAD_REQUEST, 10009, "不能操作自己的账号"),
+            (
+                ServiceError::UserIsAutoLocked(15),
+                StatusCode::BAD_REQUEST,
+                10010,
+                "登录失败次数过多，账号已被锁定，请 15 分钟后再试",
+            ),
+            (ServiceError::TokenCreationFailed, StatusCode::INTERNAL_SERVER_ERROR, 10103, "令牌创建失败"),
+            (ServiceError::EmailConflict, StatusCode::CONFLICT, 10202, "邮箱已存在"),
+            (ServiceError::CreateAvatarFolderFailed, StatusCode::INTERNAL_SERVER_ERROR, 20002, "创建头像文件夹失败"),
+            (ServiceError::CreateAvatarFileFailed, StatusCode::INTERNAL_SERVER_ERROR, 20003, "创建头像文件失败"),
+        ];
+
+        for (err, status, code, message) in cases {
+            let (actual_status, body) = response_parts(err).await;
+            assert_eq!(actual_status, status);
+            assert_eq!(body["code"], code);
+            assert_eq!(body["message"], message);
+            assert!(body["data"].is_null());
+        }
+    }
+
+    #[tokio::test]
+    async fn sqlx_error_maps_to_database_query_failed_payload() {
+        let (status, body) = response_parts(sqlx::Error::RowNotFound).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(body["code"], 20001);
+        assert_eq!(body["message"], "数据库查询失败");
+        assert!(body["data"].is_null());
     }
 }

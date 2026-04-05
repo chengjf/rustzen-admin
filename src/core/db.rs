@@ -82,3 +82,33 @@ pub async fn test_connection(pool: &PgPool) -> Result<(), sqlx::Error> {
     tracing::info!("Database connection test successful.");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn create_pool_returns_error_for_invalid_url() {
+        let result = create_pool(DatabaseConfig {
+            url: "postgres://invalid:invalid@127.0.0.1:1/does_not_exist".to_string(),
+            max_connections: 1,
+            min_connections: 0,
+            connect_timeout: Duration::from_millis(100),
+            idle_timeout: Duration::from_secs(1),
+        })
+        .await;
+
+        assert!(result.is_err(), "invalid connection settings should fail");
+    }
+
+    #[tokio::test]
+    async fn create_default_pool_connects_with_runtime_config() {
+        let pool = create_default_pool().await.expect("default config should open a pool");
+        test_connection(&pool).await.expect("default pool should answer test query");
+    }
+
+    #[sqlx::test]
+    async fn test_connection_succeeds_for_sqlx_test_pool(pool: PgPool) {
+        test_connection(&pool).await.expect("sqlx test pool should answer SELECT 1");
+    }
+}

@@ -310,6 +310,7 @@ mod tests {
     use super::*;
     use crate::{
         common::error::ServiceError,
+        core::session::SessionStore,
         features::{
             auth::model::UserStatus,
             system::{
@@ -318,6 +319,7 @@ mod tests {
             },
         },
     };
+    use chrono::{Duration, Utc};
     use sqlx::PgPool;
 
     fn make_create_dto(username: &str, email: &str, role_ids: Vec<i64>) -> CreateUserDto {
@@ -519,7 +521,182 @@ mod tests {
         assert!(matches!(result, Err(ServiceError::NotFound(_))));
     }
 
+    #[sqlx::test]
+    async fn get_user_list_returns_paginated_filtered_users(pool: PgPool) {
+        let matched_id = UserService::create_user(
+            &pool,
+            CreateUserDto {
+                username: "list_user_alpha".to_string(),
+                email: "list_user_alpha@test.com".to_string(),
+                password: "TestPass@123".to_string(),
+                real_name: Some("列表用户甲".to_string()),
+                status: Some(UserStatus::Normal),
+                role_ids: vec![],
+            },
+        )
+        .await
+        .unwrap();
+
+        UserService::create_user(
+            &pool,
+            CreateUserDto {
+                username: "list_user_beta".to_string(),
+                email: "list_user_beta@test.com".to_string(),
+                password: "TestPass@123".to_string(),
+                real_name: Some("其他用户".to_string()),
+                status: Some(UserStatus::Disabled),
+                role_ids: vec![],
+            },
+        )
+        .await
+        .unwrap();
+
+        let (users, total) = UserService::get_user_list(
+            &pool,
+            UserQuery {
+                current: Some(1),
+                page_size: Some(10),
+                username: Some("list_user_alpha".to_string()),
+                status: Some(UserStatus::Normal),
+                real_name: Some("列表用户".to_string()),
+                email: Some("alpha@".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(total, 1);
+        assert_eq!(users.len(), 1);
+        assert_eq!(users[0].id, matched_id);
+    }
+
+    #[sqlx::test]
+    async fn get_user_options_returns_filtered_values(pool: PgPool) {
+        let enabled_id = UserService::create_user(
+            &pool,
+            CreateUserDto {
+                username: "option_user_enabled".to_string(),
+                email: "option_user_enabled@test.com".to_string(),
+                password: "TestPass@123".to_string(),
+                real_name: Some("用户选项启用".to_string()),
+                status: Some(UserStatus::Normal),
+                role_ids: vec![],
+            },
+        )
+        .await
+        .unwrap();
+        let disabled_id = UserService::create_user(
+            &pool,
+            CreateUserDto {
+                username: "option_user_disabled".to_string(),
+                email: "option_user_disabled@test.com".to_string(),
+                password: "TestPass@123".to_string(),
+                real_name: Some("用户选项禁用".to_string()),
+                status: Some(UserStatus::Disabled),
+                role_ids: vec![],
+            },
+        )
+        .await
+        .unwrap();
+
+        let options = UserService::get_user_options(
+            &pool,
+            UserOptionsQuery {
+                status: Some(UserStatus::Normal),
+                q: Some("用户选项".to_string()),
+                limit: Some(10),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(options.iter().any(|item| item.value == enabled_id && item.label == "用户选项启用"));
+        assert!(!options.iter().any(|item| item.value == disabled_id));
+    }
+
+    #[test]
+    fn get_user_status_options_returns_normal_and_disabled() {
+        let options = UserService::get_user_status_options();
+        assert_eq!(options.len(), 2);
+        assert_eq!(options[0].label, "Normal");
+        assert_eq!(options[0].value, UserStatus::Normal as i64);
+        assert_eq!(options[1].label, "Disabled");
+        assert_eq!(options[1].value, UserStatus::Disabled as i64);
+    }
+
     // ── update_user_status ───────────────────────────────────────────────
+
+    #[sqlx::test]
+    async fn update_user_password_resets_password_and_invalidates_session(pool: PgPool) {
+        let id = UserService::create_user(
+            &pool,
+            make_create_dto("password_reset_user", "password_reset_user@test.com", vec![]),
+        )
+        .await
+        .unwrap();
+        let token = SessionStore::create(
+            &pool,
+            id,
+            Utc::now() + Duration::hours(1),
+            "127.0.0.1",
+            "test-agent",
+        )
+        .await
+        .unwrap();
+
+        let response = UserService::update_user_password(
+            &pool,
+            id,
+            UpdateUserPasswordPayload {},
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(response.password.len(), 6);
+        assert!(SessionStore::get_by_token(&pool, &token).await.unwrap().is_none());
+    }
+
+    #[sqlx::test]
+    async fn update_user_password_returns_not_found_for_missing(pool: PgPool) {
+        let result =
+            UserService::update_user_password(&pool, 999_999, UpdateUserPasswordPayload {}).await;
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    #[sqlx::test]
+    async fn unlock_user_clears_auto_lock(pool: PgPool) {
+        let id = UserService::create_user(
+            &pool,
+            make_create_dto("unlock_service_user", "unlock_service_user@test.com", vec![]),
+        )
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "UPDATE users SET failed_login_attempts = 5, locked_until = NOW() + INTERVAL '30 minutes' WHERE id = $1",
+        )
+        .bind(id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        UserService::unlock_user(&pool, id).await.unwrap();
+
+        let (attempts, locked_until): (i16, Option<chrono::DateTime<chrono::Utc>>) =
+            sqlx::query_as("SELECT failed_login_attempts, locked_until FROM users WHERE id = $1")
+                .bind(id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(attempts, 0);
+        assert!(locked_until.is_none());
+    }
+
+    #[sqlx::test]
+    async fn unlock_user_returns_not_found_for_missing(pool: PgPool) {
+        let result = UserService::unlock_user(&pool, 999_999).await;
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
 
     #[sqlx::test]
     async fn update_user_status_to_disabled(pool: PgPool) {
@@ -543,8 +720,37 @@ mod tests {
             .bind(id)
             .fetch_one(&pool)
             .await
-            .unwrap();
+        .unwrap();
         assert_eq!(status, UserStatus::Disabled as i16);
+    }
+
+    #[sqlx::test]
+    async fn update_user_status_to_normal_keeps_session(pool: PgPool) {
+        let id = UserService::create_user(
+            &pool,
+            make_create_dto("status_normal_user", "status_normal_user@test.com", vec![]),
+        )
+        .await
+        .unwrap();
+        let token = SessionStore::create(
+            &pool,
+            id,
+            Utc::now() + Duration::hours(1),
+            "127.0.0.1",
+            "test-agent",
+        )
+        .await
+        .unwrap();
+
+        let result = UserService::update_user_status(
+            &pool,
+            id,
+            UpdateUserStatusPayload { status: UserStatus::Normal },
+        )
+        .await;
+
+        assert_eq!(result.unwrap(), true);
+        assert!(SessionStore::get_by_token(&pool, &token).await.unwrap().is_some());
     }
 
     #[sqlx::test]

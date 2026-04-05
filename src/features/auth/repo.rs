@@ -151,6 +151,13 @@ impl AuthRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        core::password::PasswordUtils,
+        features::system::{
+            role::repo::RoleRepository,
+            user::repo::{CreateUserCommand, UserRepository},
+        },
+    };
     use sqlx::PgPool;
 
     /// Seeded by 0105_seed.sql: username="superadmin", status=1 (Normal), is_system=true
@@ -249,6 +256,34 @@ mod tests {
             .expect("permissions query should succeed");
 
         assert!(permissions.is_empty());
+    }
+
+    #[sqlx::test]
+    async fn get_user_permissions_returns_assigned_menu_codes_for_normal_user(pool: PgPool) {
+        let role_id =
+            RoleRepository::create(&pool, "权限角色", "PERMISSION_ROLE", None, 1, 0, &[3, 4])
+                .await
+                .unwrap();
+
+        let user_id = UserRepository::create_user(
+            &pool,
+            &CreateUserCommand {
+                username: "perm_user".to_string(),
+                email: "perm_user@example.com".to_string(),
+                password_hash: PasswordUtils::hash_password("Perm@Test1").unwrap(),
+                real_name: None,
+                status: Some(1),
+                role_ids: vec![role_id],
+            },
+        )
+        .await
+        .unwrap();
+
+        let permissions = AuthRepository::get_user_permissions(&pool, user_id).await.unwrap();
+
+        assert!(permissions.iter().any(|permission| permission == "system:user:list"));
+        assert!(permissions.iter().any(|permission| permission == "system:user:create"));
+        assert!(!permissions.iter().any(|permission| permission == "*"));
     }
 
     #[sqlx::test]

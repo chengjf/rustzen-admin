@@ -162,6 +162,7 @@ fn get_content_type(path: &str) -> &'static str {
 mod tests {
     use super::*;
     use axum::body::to_bytes;
+    use axum::http::Uri;
 
     #[test]
     fn static_resource_path_detection_matches_spa_rules() {
@@ -217,5 +218,40 @@ mod tests {
         let response = serve_embedded_files("index.html").await;
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.headers().get("content-type").unwrap(), "text/html; charset=utf-8");
+    }
+
+    #[tokio::test]
+    async fn embedded_static_asset_is_served_with_cache_headers() {
+        let response = serve_embedded_files("assets/index-Gt1c3vwm.css").await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers().get("content-type").unwrap(), "text/css; charset=utf-8");
+        assert_eq!(response.headers().get("cache-control").unwrap(), "public, max-age=604800");
+
+        let body =
+            to_bytes(response.into_body(), usize::MAX).await.expect("body should be readable");
+        assert!(!body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn web_embed_file_handler_routes_root_and_spa_paths_to_index() {
+        let root = web_embed_file_handler(Uri::from_static("/")).await.into_response();
+        assert_eq!(root.status(), StatusCode::OK);
+        assert_eq!(root.headers().get("content-type").unwrap(), "text/html; charset=utf-8");
+
+        let spa = web_embed_file_handler(Uri::from_static("/dashboard")).await.into_response();
+        assert_eq!(spa.status(), StatusCode::OK);
+        assert_eq!(spa.headers().get("content-type").unwrap(), "text/html; charset=utf-8");
+    }
+
+    #[tokio::test]
+    async fn web_embed_file_handler_serves_static_files_from_uri() {
+        let response =
+            web_embed_file_handler(Uri::from_static("/assets/index-CJ57PzAY.js")).await.into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "application/javascript; charset=utf-8"
+        );
+        assert_eq!(response.headers().get("cache-control").unwrap(), "public, max-age=604800");
     }
 }

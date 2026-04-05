@@ -54,12 +54,12 @@ impl RoleRepository {
     fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
         if let Some(role_name) = &query.role_name {
             if !role_name.trim().is_empty() {
-                query_builder.push(" AND role_name ILIKE  ").push_bind(format!("%{}%", role_name));
+                query_builder.push(" AND name ILIKE ").push_bind(format!("%{}%", role_name));
             }
         }
         if let Some(role_code) = &query.role_code {
             if !role_code.trim().is_empty() {
-                query_builder.push(" AND role_code ILIKE  ").push_bind(format!("%{}%", role_code));
+                query_builder.push(" AND code ILIKE ").push_bind(format!("%{}%", role_code));
             }
         }
         if let Some(status) = &query.status {
@@ -406,11 +406,8 @@ mod tests {
         RoleRepository::create(&pool, "分页角色A", "ROLE_PAGE_A", None, 1, 2, &[3]).await.unwrap();
         RoleRepository::create(&pool, "分页角色B", "ROLE_PAGE_B", None, 2, 3, &[]).await.unwrap();
 
-        let query = RoleListQuery {
-            role_name: None,
-            role_code: None,
-            status: Some("1".to_string()),
-        };
+        let query =
+            RoleListQuery { role_name: None, role_code: None, status: Some("1".to_string()) };
 
         let (roles, total) =
             RoleRepository::find_with_pagination(&pool, 0, 10, query).await.unwrap();
@@ -418,6 +415,32 @@ mod tests {
         assert!(total >= 1);
         assert!(!roles.is_empty());
         assert!(roles.iter().all(|role| role.status == 1));
+    }
+
+    #[sqlx::test]
+    async fn find_with_pagination_filters_by_name_and_code(pool: PgPool) {
+        let matched_id =
+            RoleRepository::create(&pool, "筛选角色甲", "ROLE_FILTER_ALPHA", None, 1, 0, &[])
+                .await
+                .unwrap();
+        RoleRepository::create(&pool, "筛选角色乙", "ROLE_OTHER_BETA", None, 1, 0, &[])
+            .await
+            .unwrap();
+
+        let query = RoleListQuery {
+            role_name: Some("筛选角色甲".to_string()),
+            role_code: Some("FILTER_ALPHA".to_string()),
+            status: Some("1".to_string()),
+        };
+
+        let (roles, total) =
+            RoleRepository::find_with_pagination(&pool, 0, 10, query).await.unwrap();
+
+        assert_eq!(total, 1);
+        assert_eq!(roles.len(), 1);
+        assert_eq!(roles[0].id, matched_id);
+        assert_eq!(roles[0].name, "筛选角色甲");
+        assert_eq!(roles[0].code, "ROLE_FILTER_ALPHA");
     }
 
     #[sqlx::test]
@@ -441,9 +464,8 @@ mod tests {
     async fn find_with_pagination_returns_empty_when_offset_exceeds_total(pool: PgPool) {
         seed_role(&pool, "偏移分页角色", "ROLE_PAGE_OFFSET").await;
 
-        let (_, total) = RoleRepository::find_with_pagination(&pool, 0, 50, empty_query())
-            .await
-            .unwrap();
+        let (_, total) =
+            RoleRepository::find_with_pagination(&pool, 0, 50, empty_query()).await.unwrap();
         let (roles, total_again) =
             RoleRepository::find_with_pagination(&pool, total + 10, 10, empty_query())
                 .await
@@ -523,6 +545,12 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn find_existing_role_ids_returns_empty_for_empty_input(pool: PgPool) {
+        let found = RoleRepository::find_existing_role_ids(&pool, &[]).await.unwrap();
+        assert!(found.is_empty());
+    }
+
+    #[sqlx::test]
     async fn update_role_replaces_fields_and_menus(pool: PgPool) {
         let role_id = RoleRepository::create(&pool, "原角色", "ROLE_OLD", Some("old"), 1, 1, &[3])
             .await
@@ -560,6 +588,30 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn update_role_can_clear_description_and_menus(pool: PgPool) {
+        let role_id =
+            RoleRepository::create(&pool, "可清空角色", "ROLE_CLEAR", Some("has-desc"), 1, 1, &[3])
+                .await
+                .unwrap();
+
+        RoleRepository::update(&pool, role_id, "可清空角色", "ROLE_CLEAR", None, 1, 1, &[])
+            .await
+            .unwrap();
+
+        let role = RoleRepository::find_by_id(&pool, role_id).await.unwrap().unwrap();
+        assert!(role.description.is_none());
+
+        let menu_ids: Vec<i64> =
+            sqlx::query_scalar("SELECT menu_id FROM role_menus WHERE role_id = $1 ORDER BY menu_id")
+                .bind(role_id)
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert!(menu_ids.is_empty());
+        assert_eq!(role.menus, serde_json::json!([]));
+    }
+
+    #[sqlx::test]
     async fn update_missing_role_returns_not_found(pool: PgPool) {
         let result =
             RoleRepository::update(&pool, 999_999, "missing", "MISSING", None, 1, 1, &[]).await;
@@ -584,6 +636,23 @@ mod tests {
         let role_id = seed_role(&pool, "空查询角色", "ROLE_EMPTY_QUERY").await;
         let options = RoleRepository::find_options(&pool, Some("   "), None).await.unwrap();
         assert!(options.iter().any(|(id, _)| *id == role_id));
+    }
+
+    #[sqlx::test]
+    async fn find_options_orders_by_name_and_honors_limit(pool: PgPool) {
+        RoleRepository::create(&pool, "B排序角色", "ROLE_OPT_ORDER_B", None, 1, 1, &[])
+            .await
+            .unwrap();
+        let first_id =
+            RoleRepository::create(&pool, "A排序角色", "ROLE_OPT_ORDER_A", None, 1, 1, &[])
+                .await
+                .unwrap();
+
+        let options = RoleRepository::find_options(&pool, Some("排序角色"), Some(1)).await.unwrap();
+
+        assert_eq!(options.len(), 1);
+        assert_eq!(options[0].0, first_id);
+        assert_eq!(options[0].1, "A排序角色");
     }
 
     #[sqlx::test]
@@ -613,5 +682,13 @@ mod tests {
 
         let found = RoleRepository::find_by_id(&pool, id).await.unwrap();
         assert!(found.is_none(), "soft-deleted role should not be found");
+    }
+
+    #[sqlx::test]
+    async fn soft_delete_returns_false_when_role_is_already_deleted(pool: PgPool) {
+        let id = seed_role(&pool, "重复删除角色", "TO_DELETE_TWICE").await;
+
+        assert!(RoleRepository::soft_delete(&pool, id).await.unwrap());
+        assert!(!RoleRepository::soft_delete(&pool, id).await.unwrap());
     }
 }

@@ -460,8 +460,14 @@ mod tests {
     use super::*;
     use crate::{
         common::error::ServiceError,
-        features::system::menu::dto::{CreateMenuDto, MenuType, UpdateMenuPayload},
+        core::session::SessionStore,
+        features::system::{
+            menu::dto::{CreateMenuDto, MenuType, UpdateMenuPayload},
+            role::repo::RoleRepository,
+            user::{dto::CreateUserDto, service::UserService},
+        },
     };
+    use chrono::{Duration, Utc};
     use sqlx::PgPool;
 
     fn dir() -> i16 {
@@ -536,6 +542,17 @@ mod tests {
         let result =
             MenuService::create_menu(&pool, make_create_dto(2, "错误按钮", "dir:btn", btn())).await;
         assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn create_menu_returns_not_found_when_parent_missing(pool: PgPool) {
+        let result = MenuService::create_menu(
+            &pool,
+            make_create_dto(999_999, "缺失父菜单", "missing:parent", menu()),
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
     }
 
     // ── update_menu ──────────────────────────────────────────────────────
@@ -640,6 +657,116 @@ mod tests {
         );
     }
 
+    #[sqlx::test]
+    async fn update_menu_returns_not_found_when_parent_missing(pool: PgPool) {
+        let id = MenuService::create_menu(&pool, make_create_dto(0, "待更新目录", "upd:missing:parent", dir()))
+            .await
+            .unwrap();
+
+        let result = MenuService::update_menu(
+            &pool,
+            id,
+            UpdateMenuPayload {
+                parent_id: 999_999,
+                name: "待更新目录".to_string(),
+                code: "upd:missing:parent".to_string(),
+                menu_type: dir(),
+                sort_order: 1,
+                status: 1,
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    #[sqlx::test]
+    async fn update_menu_rejects_type_change_when_children_exist(pool: PgPool) {
+        let parent =
+            MenuService::create_menu(&pool, make_create_dto(0, "类型父菜单", "type:parent", dir()))
+                .await
+                .unwrap();
+        MenuService::create_menu(&pool, make_create_dto(parent, "类型子菜单", "type:child", menu()))
+            .await
+            .unwrap();
+
+        let result = MenuService::update_menu(
+            &pool,
+            parent,
+            UpdateMenuPayload {
+                parent_id: 0,
+                name: "类型父菜单".to_string(),
+                code: "type:parent".to_string(),
+                menu_type: menu(),
+                sort_order: 1,
+                status: 1,
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn update_menu_invalidates_sessions_for_affected_users(pool: PgPool) {
+        let menu_id = MenuService::create_menu(
+            &pool,
+            make_create_dto(2, "更新失效菜单", "menu:update:invalidate", menu()),
+        )
+        .await
+        .unwrap();
+        let role_id = RoleRepository::create(
+            &pool,
+            "菜单更新失效角色",
+            "MENU_UPDATE_INVALIDATE",
+            None,
+            1,
+            0,
+            &[2, menu_id],
+        )
+        .await
+        .unwrap();
+        let user_id = UserService::create_user(
+            &pool,
+            CreateUserDto {
+                username: "menu_update_user".to_string(),
+                email: "menu_update_user@example.com".to_string(),
+                password: "Menu@Test1".to_string(),
+                real_name: None,
+                status: None,
+                role_ids: vec![role_id],
+            },
+        )
+        .await
+        .unwrap();
+        let token = SessionStore::create(
+            &pool,
+            user_id,
+            Utc::now() + Duration::hours(1),
+            "127.0.0.1",
+            "test-agent",
+        )
+        .await
+        .unwrap();
+
+        MenuService::update_menu(
+            &pool,
+            menu_id,
+            UpdateMenuPayload {
+                parent_id: 2,
+                name: "更新失效菜单-改".to_string(),
+                code: "menu:update:invalidate".to_string(),
+                menu_type: menu(),
+                sort_order: 1,
+                status: 1,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(SessionStore::get_by_token(&pool, &token).await.unwrap().is_none());
+    }
+
     // ── delete_menu ──────────────────────────────────────────────────────
 
     #[sqlx::test]
@@ -678,6 +805,145 @@ mod tests {
         // The SQL filter `is_system = false` means rows_affected = 0 → NotFound.
         let result = MenuService::delete_menu(&pool, 4).await;
         assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    #[sqlx::test]
+    async fn delete_menu_invalidates_sessions_for_affected_users(pool: PgPool) {
+        let leaf_id = MenuService::create_menu(
+            &pool,
+            make_create_dto(2, "删除失效菜单", "menu:delete:invalidate", menu()),
+        )
+        .await
+        .unwrap();
+        let role_id = RoleRepository::create(
+            &pool,
+            "菜单删除失效角色",
+            "MENU_DELETE_INVALIDATE",
+            None,
+            1,
+            0,
+            &[2, leaf_id],
+        )
+        .await
+        .unwrap();
+        let user_id = UserService::create_user(
+            &pool,
+            CreateUserDto {
+                username: "menu_delete_user".to_string(),
+                email: "menu_delete_user@example.com".to_string(),
+                password: "MenuDel@Test1".to_string(),
+                real_name: None,
+                status: None,
+                role_ids: vec![role_id],
+            },
+        )
+        .await
+        .unwrap();
+        let token = SessionStore::create(
+            &pool,
+            user_id,
+            Utc::now() + Duration::hours(1),
+            "127.0.0.1",
+            "test-agent",
+        )
+        .await
+        .unwrap();
+
+        MenuService::delete_menu(&pool, leaf_id).await.unwrap();
+
+        assert!(SessionStore::get_by_token(&pool, &token).await.unwrap().is_none());
+    }
+
+    #[sqlx::test]
+    async fn get_menu_list_returns_tree_with_filters(pool: PgPool) {
+        let root = MenuService::create_menu(&pool, make_create_dto(0, "列表目录", "list:dir", dir()))
+            .await
+            .unwrap();
+        let child = MenuService::create_menu(&pool, make_create_dto(root, "列表菜单", "list:menu", menu()))
+            .await
+            .unwrap();
+        MenuService::create_menu(&pool, make_create_dto(child, "列表按钮", "list:button", btn()))
+            .await
+            .unwrap();
+
+        let tree = MenuService::get_menu_list(
+            &pool,
+            MenuQuery {
+                name: Some("列表".to_string()),
+                code: Some("list:".to_string()),
+                status: Some("1".to_string()),
+                menu_type: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(tree.len(), 1);
+        assert_eq!(tree[0].id, root);
+        let children = tree[0].children.as_ref().expect("root should have children");
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].id, child);
+        assert!(children[0].children.as_ref().is_some_and(|items| items.len() == 1));
+    }
+
+    #[sqlx::test]
+    async fn get_menu_options_returns_enabled_matches_only(pool: PgPool) {
+        let enabled_id =
+            MenuService::create_menu(&pool, make_create_dto(0, "选项目录启用", "opt:enabled", dir()))
+                .await
+                .unwrap();
+        let disabled_id =
+            MenuService::create_menu(&pool, make_create_dto(0, "选项目录禁用", "opt:disabled", dir()))
+                .await
+                .unwrap();
+
+        sqlx::query("UPDATE menus SET status = 2 WHERE id = $1")
+            .bind(disabled_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let options = MenuService::get_menu_options(
+            &pool,
+            OptionsQuery { q: Some("选项目录".to_string()), limit: Some(10) },
+        )
+        .await
+        .unwrap();
+
+        assert!(options.iter().any(|item| item.value == enabled_id && item.label == "选项目录启用"));
+        assert!(!options.iter().any(|item| item.value == disabled_id));
+    }
+
+    #[sqlx::test]
+    async fn get_menu_options_with_code_builds_tree_and_filters_buttons(pool: PgPool) {
+        let root = MenuService::create_menu(&pool, make_create_dto(0, "树目录", "tree:dir", dir()))
+            .await
+            .unwrap();
+        let menu_id = MenuService::create_menu(&pool, make_create_dto(root, "树菜单", "tree:menu", menu()))
+            .await
+            .unwrap();
+        MenuService::create_menu(&pool, make_create_dto(menu_id, "树按钮", "tree:button", btn()))
+            .await
+            .unwrap();
+
+        let tree = MenuService::get_menu_options_with_code(
+            &pool,
+            OptionsWithCodeQuery {
+                q: Some("树".to_string()),
+                limit: Some(10),
+                btn_filter: Some(true),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(tree.len(), 1);
+        assert_eq!(tree[0].value, root);
+        assert_eq!(tree[0].code, "tree:dir");
+        let children = tree[0].children.as_ref().expect("root should have children");
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].value, menu_id);
+        assert!(children[0].children.is_none());
     }
 
     // Directory parent
@@ -719,6 +985,11 @@ mod tests {
         assert!(MenuService::check_type_constraint(btn(), dir()).is_err());
         assert!(MenuService::check_type_constraint(btn(), menu()).is_err());
         assert!(MenuService::check_type_constraint(btn(), btn()).is_err());
+    }
+
+    #[test]
+    fn unknown_parent_type_returns_error() {
+        assert!(MenuService::check_type_constraint(99, dir()).is_err());
     }
 
     // Tree building
@@ -882,5 +1153,32 @@ mod tests {
         assert_eq!(tree.len(), 1);
         assert_eq!(tree[0].id, 1);
         assert!(tree[0].children.is_none());
+    }
+
+    #[test]
+    fn build_menu_tree_nests_children() {
+        let items = vec![
+            MenuTreeOption {
+                label: "Root".into(),
+                value: 1,
+                code: "root".into(),
+                parent_id: 0,
+                menu_type: dir(),
+                children: None,
+            },
+            MenuTreeOption {
+                label: "Child".into(),
+                value: 2,
+                code: "child".into(),
+                parent_id: 1,
+                menu_type: menu(),
+                children: None,
+            },
+        ];
+
+        let tree = MenuService::build_menu_tree(items);
+        assert_eq!(tree.len(), 1);
+        assert_eq!(tree[0].value, 1);
+        assert_eq!(tree[0].children.as_ref().unwrap()[0].value, 2);
     }
 }

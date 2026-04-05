@@ -586,6 +586,24 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn find_with_pagination_returns_empty_when_no_rows_match(pool: PgPool) {
+        let (users, total) = UserRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            UserListQuery {
+                username: Some("missing_user_for_pagination".to_string()),
+                ..empty_query()
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(total, 0);
+        assert!(users.is_empty());
+    }
+
+    #[sqlx::test]
     async fn find_with_pagination_uses_effective_status_for_locked_users(pool: PgPool) {
         let user_id =
             seed_user(&pool, "locked_filter_user", "locked_filter_user@example.com").await;
@@ -632,6 +650,31 @@ mod tests {
             UserRepository::find_options(&pool, Some(1), Some("用户"), Some(10)).await.unwrap();
 
         assert!(options.iter().any(|(id, name)| *id == enabled_id && name == "启用用户"));
+        assert!(!options.iter().any(|(id, _)| *id == disabled_id));
+    }
+
+    #[sqlx::test]
+    async fn find_options_ignores_blank_query(pool: PgPool) {
+        let enabled_id = seed_user(&pool, "blank_query_enabled", "blank_query_enabled@example.com").await;
+        let disabled_id = seed_user(&pool, "blank_query_disabled", "blank_query_disabled@example.com").await;
+
+        sqlx::query("UPDATE users SET real_name = $1 WHERE id = $2")
+            .bind("空白查询启用用户")
+            .bind(enabled_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE users SET real_name = $1, status = 2 WHERE id = $2")
+            .bind("空白查询禁用用户")
+            .bind(disabled_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let options =
+            UserRepository::find_options(&pool, Some(1), Some("   "), Some(10)).await.unwrap();
+
+        assert!(options.iter().any(|(id, name)| *id == enabled_id && name == "空白查询启用用户"));
         assert!(!options.iter().any(|(id, _)| *id == disabled_id));
     }
 

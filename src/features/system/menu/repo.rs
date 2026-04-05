@@ -2,7 +2,7 @@ use super::model::MenuEntity;
 use crate::common::{error::ServiceError, status::EnableStatus};
 
 use chrono::Utc;
-use sqlx::{PgPool, QueryBuilder, pool};
+use sqlx::{PgPool, QueryBuilder};
 
 /// Menu data access layer
 pub struct MenuRepository;

@@ -15,20 +15,12 @@ use axum::http::HeaderValue;
 /// Each `#[sqlx::test]` gets a fresh migrated DB (including seed data).
 /// The test server is built from the real router, so all middleware runs.
 use axum::http::header::AUTHORIZATION;
-use axum::middleware;
 use axum_test::TestServer;
+use axum_test::multipart::{MultipartForm, Part};
 use chrono::{Duration, Utc};
 use rustzen_admin::{
-    core::session::SessionStore,
-    features::{
-        auth::api::{protected_auth_routes, public_auth_routes},
-        dashboard::api::dashboard_routes,
-        system::{
-            system_routes,
-            user::repo::{CreateUserCommand, UserRepository},
-        },
-    },
-    middleware::{auth::auth_middleware, log::log_middleware},
+    core::{app::build_app, session::SessionStore},
+    features::system::user::repo::{CreateUserCommand, UserRepository},
 };
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -45,16 +37,7 @@ fn bearer(token: &str) -> HeaderValue {
 
 /// Build the full application router (identical to production setup).
 fn build_router(pool: PgPool) -> Router {
-    let protected = Router::new()
-        .nest("/auth", protected_auth_routes())
-        .nest("/dashboard", dashboard_routes())
-        .nest("/system", system_routes())
-        .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware))
-        .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware));
-
-    let public = Router::new().nest("/auth", public_auth_routes());
-
-    Router::new().nest("/api", public.merge(protected)).with_state(pool)
+    build_app(pool)
 }
 
 /// Create a `TestServer` with `ConnectInfo<SocketAddr>` support.
@@ -171,6 +154,25 @@ async fn get_me_invalid_token_returns_401(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::UNAUTHORIZED);
 }
 
+/// GET /api/auth/me — deleted user behind a still-valid session is rejected.
+#[sqlx::test]
+async fn deleted_user_token_rejected(pool: PgPool) {
+    let uid = seed_plain_user(&pool, "deleted_http_user", "Deleted@Pass1").await;
+    let expires_at = Utc::now() + Duration::hours(1);
+    let token =
+        SessionStore::create(&pool, uid, expires_at, "127.0.0.1", "test-agent").await.unwrap();
+
+    sqlx::query("UPDATE users SET deleted_at = NOW() WHERE id = $1")
+        .bind(uid)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let server = make_server(pool);
+    let resp = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
+    resp.assert_status(axum::http::StatusCode::UNAUTHORIZED);
+}
+
 /// GET /api/auth/logout — valid session is removed.
 #[sqlx::test]
 async fn logout_invalidates_session(pool: PgPool) {
@@ -240,6 +242,88 @@ async fn change_password_wrong_old_returns_400(pool: PgPool) {
     resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
 }
 
+#[sqlx::test]
+async fn upload_avatar_accepts_supported_image(pool: PgPool) {
+    let token = admin_token(&pool).await;
+    let server = make_server(pool.clone());
+    let png_bytes = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00];
+
+    let form = MultipartForm::new()
+        .add_part("file", Part::bytes(png_bytes).file_name("avatar.png").mime_type("image/png"));
+
+    let resp = server
+        .post("/api/auth/avatar")
+        .add_header(AUTHORIZATION, bearer(&token))
+        .multipart(form)
+        .await;
+
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let avatar_url = body["data"].as_str().expect("avatar url should be returned");
+    assert!(avatar_url.starts_with("/uploads/avatars/"));
+    assert!(avatar_url.ends_with(".png"));
+
+    let (stored_avatar_url,): (Option<String>,) =
+        sqlx::query_as("SELECT avatar_url FROM users WHERE username = 'superadmin'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(stored_avatar_url.as_deref(), Some(avatar_url));
+}
+
+#[sqlx::test]
+async fn upload_avatar_rejects_invalid_file_type(pool: PgPool) {
+    let token = admin_token(&pool).await;
+    let server = make_server(pool);
+
+    let form = MultipartForm::new().add_part(
+        "file",
+        Part::bytes("not-an-image".as_bytes()).file_name("avatar.txt").mime_type("text/plain"),
+    );
+
+    let resp = server
+        .post("/api/auth/avatar")
+        .add_header(AUTHORIZATION, bearer(&token))
+        .multipart(form)
+        .await;
+
+    resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test]
+async fn upload_avatar_rejects_oversized_file(pool: PgPool) {
+    let token = admin_token(&pool).await;
+    let server = make_server(pool);
+
+    let mut bytes = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+    bytes.resize(1024 * 1024 + 1, 0x00);
+
+    let form = MultipartForm::new()
+        .add_part("file", Part::bytes(bytes).file_name("too-large.png").mime_type("image/png"));
+
+    let resp = server
+        .post("/api/auth/avatar")
+        .add_header(AUTHORIZATION, bearer(&token))
+        .multipart(form)
+        .await;
+
+    resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test]
+async fn upload_avatar_rejects_missing_file(pool: PgPool) {
+    let token = admin_token(&pool).await;
+    let server = make_server(pool);
+
+    let resp = server
+        .post("/api/auth/avatar")
+        .add_header(AUTHORIZATION, bearer(&token))
+        .multipart(MultipartForm::new())
+        .await;
+
+    resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
+}
+
 // ─────────────────────────────────────────────────────────────────
 // Auth Middleware
 // ─────────────────────────────────────────────────────────────────
@@ -262,6 +346,26 @@ async fn disabled_user_token_rejected(pool: PgPool) {
         let expires_at = Utc::now() + Duration::hours(1);
         SessionStore::create(&pool, uid, expires_at, "127.0.0.1", "test").await.unwrap()
     };
+
+    let server = make_server(pool);
+    let resp = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
+    resp.assert_status(axum::http::StatusCode::UNAUTHORIZED);
+}
+
+/// Protected route accessed by a locked user → 401.
+#[sqlx::test]
+async fn locked_user_token_rejected(pool: PgPool) {
+    let uid = seed_plain_user(&pool, "locked_http_user", "Locked@Pass1").await;
+
+    sqlx::query("UPDATE users SET locked_until = NOW() + INTERVAL '30 minutes' WHERE id = $1")
+        .bind(uid)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let expires_at = Utc::now() + Duration::hours(1);
+    let token =
+        SessionStore::create(&pool, uid, expires_at, "127.0.0.1", "test-agent").await.unwrap();
 
     let server = make_server(pool);
     let resp = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
@@ -293,6 +397,29 @@ async fn expired_session_is_rejected(pool: PgPool) {
     let server = make_server(pool);
     let resp = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
     resp.assert_status(axum::http::StatusCode::UNAUTHORIZED);
+}
+
+#[sqlx::test]
+async fn root_health_returns_ok(pool: PgPool) {
+    let server = make_server(pool);
+    let resp = server.get("/api/health").await;
+
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert_eq!(body["code"], 0);
+    assert_eq!(body["data"]["status"], "ok");
+}
+
+#[sqlx::test]
+async fn root_summary_returns_api_description(pool: PgPool) {
+    let server = make_server(pool);
+    let resp = server.get("/api/summary").await;
+
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert_eq!(body["code"], 0);
+    assert_eq!(body["data"]["message"], "Welcome to rustzen-admin API");
+    assert!(body["data"]["github"].as_str().unwrap().contains("rustzen-admin"));
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -645,6 +772,42 @@ async fn get_role_list_returns_paginated_result(pool: PgPool) {
     assert_eq!(body["code"], 0);
     assert!(body["data"].is_array());
     assert!(body["total"].is_number());
+}
+
+#[sqlx::test]
+async fn get_role_list_honors_name_and_code_filters(pool: PgPool) {
+    let token = admin_token(&pool).await;
+
+    sqlx::query(
+        "INSERT INTO roles (name, code, status, sort_order, created_at) VALUES ($1, $2, 1, 0, NOW())",
+    )
+    .bind("API筛选角色")
+    .bind("API_ROLE_FILTER_MATCH")
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO roles (name, code, status, sort_order, created_at) VALUES ($1, $2, 1, 0, NOW())",
+    )
+    .bind("API其他角色")
+    .bind("API_ROLE_OTHER")
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let server = make_server(pool);
+    let resp = server
+        .get("/api/system/roles?roleName=API%E7%AD%9B%E9%80%89%E8%A7%92%E8%89%B2&roleCode=FILTER_MATCH&status=1")
+        .add_header(AUTHORIZATION, bearer(&token))
+        .await;
+
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let data = body["data"].as_array().expect("data should be array");
+    assert_eq!(body["total"], 1);
+    assert_eq!(data.len(), 1);
+    assert_eq!(data[0]["name"], "API筛选角色");
+    assert_eq!(data[0]["code"], "API_ROLE_FILTER_MATCH");
 }
 
 #[sqlx::test]

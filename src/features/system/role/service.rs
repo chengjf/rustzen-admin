@@ -281,11 +281,13 @@ mod tests {
     use super::*;
     use crate::{
         common::error::ServiceError,
+        core::session::SessionStore,
         features::system::{
             role::dto::{CreateRoleDto, UpdateRolePayload},
             user::{dto::CreateUserDto, service::UserService},
         },
     };
+    use chrono::{Duration, Utc};
     use sqlx::PgPool;
 
     fn make_role_dto(name: &str, code: &str, menu_ids: Vec<i64>) -> CreateRoleDto {
@@ -360,6 +362,61 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn get_role_list_returns_paginated_filtered_roles(pool: PgPool) {
+        let first_id =
+            RoleRepository::create(&pool, "分页角色一", "PAGE_ROLE_1", None, 1, 0, &[2, 3])
+            .await
+            .unwrap();
+        let second_id =
+            RoleRepository::create(&pool, "分页角色二", "PAGE_ROLE_2", None, 1, 0, &[2, 10])
+            .await
+            .unwrap();
+        RoleRepository::create(&pool, "分页角色禁用", "PAGE_ROLE_DISABLED", None, 2, 0, &[2, 3])
+            .await
+            .unwrap();
+
+        let (roles, total) = RoleService::get_role_list(
+            &pool,
+            RoleQuery {
+                current: Some(1),
+                page_size: Some(10),
+                role_name: None,
+                role_code: None,
+                status: Some("1".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(total >= 2);
+        assert!(!roles.is_empty());
+        assert!(roles.iter().all(|role| role.status == 1));
+        assert!(roles.iter().any(|role| role.id == first_id));
+        assert!(roles.iter().any(|role| role.id == second_id));
+    }
+
+    #[sqlx::test]
+    async fn get_role_options_returns_enabled_matches_only(pool: PgPool) {
+        let enabled_id = RoleRepository::create(&pool, "角色选项启用", "ROLE_OPT_ENABLED", None, 1, 0, &[2, 3])
+            .await
+            .unwrap();
+        let disabled_id =
+            RoleRepository::create(&pool, "角色选项禁用", "ROLE_OPT_DISABLED", None, 2, 0, &[2, 3])
+                .await
+                .unwrap();
+
+        let options = RoleService::get_role_options(
+            &pool,
+            OptionsQuery { q: Some("角色选项".to_string()), limit: Some(10) },
+        )
+        .await
+        .unwrap();
+
+        assert!(options.iter().any(|item| item.value == enabled_id && item.label == "角色选项启用"));
+        assert!(!options.iter().any(|item| item.value == disabled_id));
+    }
+
+    #[sqlx::test]
     async fn delete_role_blocked_when_assigned_to_users(pool: PgPool) {
         // Create role, assign to user, then try to delete
         let role_id = RoleRepository::create(&pool, "有用户角色", "ASSIGNED_R", None, 1, 0, &[])
@@ -422,5 +479,88 @@ mod tests {
         .await;
 
         assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+    }
+
+    #[sqlx::test]
+    async fn update_role_returns_not_found_for_missing(pool: PgPool) {
+        let result = RoleService::update_role(
+            &pool,
+            999_999,
+            UpdateRolePayload {
+                name: "缺失角色".to_string(),
+                code: "MISSING_ROLE".to_string(),
+                status: 1,
+                sort_order: None,
+                menu_ids: vec![],
+                description: None,
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    #[sqlx::test]
+    async fn delete_role_returns_not_found_for_missing(pool: PgPool) {
+        let result = RoleService::delete_role(&pool, 999_999).await;
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    #[sqlx::test]
+    async fn update_role_invalidates_sessions_for_assigned_users(pool: PgPool) {
+        let role_id = RoleRepository::create(
+            &pool,
+            "会话失效角色",
+            "ROLE_INVALIDATE_SESSION",
+            None,
+            1,
+            0,
+            &[2, 3, 4],
+        )
+        .await
+        .unwrap();
+
+        let user_id = UserService::create_user(
+            &pool,
+            CreateUserDto {
+                username: "role_session_user".to_string(),
+                email: "role_session_user@example.com".to_string(),
+                password: "Role@Test1".to_string(),
+                real_name: None,
+                status: None,
+                role_ids: vec![role_id],
+            },
+        )
+        .await
+        .unwrap();
+
+        let token = SessionStore::create(
+            &pool,
+            user_id,
+            Utc::now() + Duration::hours(1),
+            "127.0.0.1",
+            "test-agent",
+        )
+        .await
+        .unwrap();
+
+        assert!(SessionStore::get_by_token(&pool, &token).await.unwrap().is_some());
+
+        RoleService::update_role(
+            &pool,
+            role_id,
+            UpdateRolePayload {
+                name: "会话失效角色-更新".to_string(),
+                code: "ROLE_INVALIDATE_SESSION".to_string(),
+                status: 1,
+                sort_order: None,
+                menu_ids: vec![2, 10, 11],
+                description: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(SessionStore::get_by_token(&pool, &token).await.unwrap().is_none());
     }
 }

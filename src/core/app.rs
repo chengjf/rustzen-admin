@@ -24,6 +24,18 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
     let pool = create_default_pool().await?;
     test_connection(&pool).await?;
 
+    let app = build_app(pool);
+    let app = app.into_make_service_with_connect_info::<SocketAddr>();
+
+    let addr = format!("{}:{}", CONFIG.app_host, CONFIG.app_port);
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    tracing::info!("Server started, listening on http://{}", addr);
+
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+pub fn build_app(pool: sqlx::PgPool) -> Router {
     tracing::info!("Setting up API routes...");
     let protected_api = Router::new()
         .nest("/auth", protected_auth_routes())
@@ -37,22 +49,13 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
     let uploads_service = ServeDir::new("uploads")
         .not_found_service(ServeDir::new("uploads").append_index_html_on_directories(true));
 
-    let app = Router::new()
+    Router::new()
         .route("/api/summary", get(summary))
         .route("/api/health", get(health))
         .nest("/api", public_api.merge(protected_api))
         .nest_service("/uploads", uploads_service)
         .with_state(pool)
-        .fallback(crate::core::web_embed::web_embed_file_handler);
-
-    let app = app.into_make_service_with_connect_info::<SocketAddr>();
-
-    let addr = format!("{}:{}", CONFIG.app_host, CONFIG.app_port);
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
-    tracing::info!("Server started, listening on http://{}", addr);
-
-    axum::serve(listener, app).await?;
-    Ok(())
+        .fallback(crate::core::web_embed::web_embed_file_handler)
 }
 
 async fn health() -> AppResult<serde_json::Value> {

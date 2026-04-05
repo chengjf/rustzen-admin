@@ -73,3 +73,72 @@ async fn permission_middleware(
 
     Ok(next.run(request).await)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::extractor::CurrentUser;
+    use axum::{Json, middleware, response::IntoResponse, routing::get};
+    use axum_test::TestServer;
+    use serde_json::json;
+    use sqlx::PgPool;
+    use std::collections::HashSet;
+
+    async fn ok_handler() -> impl IntoResponse {
+        Json(json!({ "ok": true }))
+    }
+
+    fn user_with_permissions(codes: &[&str]) -> CurrentUser {
+        CurrentUser::new(
+            7,
+            "router-ext-user".to_string(),
+            codes.iter().map(|code| (*code).to_string()).collect::<HashSet<_>>(),
+        )
+    }
+
+    fn server_with_user(pool: PgPool, current_user: Option<CurrentUser>) -> TestServer {
+        let router = Router::new()
+            .route_with_permission(
+                "/protected",
+                get(ok_handler),
+                PermissionsCheck::Single("system:user:list"),
+            )
+            .layer(middleware::from_fn(move |mut req: Request, next: Next| {
+                let current_user = current_user.clone();
+                async move {
+                    if let Some(current_user) = current_user {
+                        req.extensions_mut().insert(current_user);
+                    }
+                    Ok::<_, AppError>(next.run(req).await)
+                }
+            }))
+            .with_state(pool);
+
+        TestServer::new(router).unwrap()
+    }
+
+    #[sqlx::test]
+    async fn route_with_permission_allows_user_with_required_permission(pool: PgPool) {
+        let server = server_with_user(pool, Some(user_with_permissions(&["system:user:list"])));
+
+        let response = server.get("/protected").await;
+        response.assert_status_ok();
+        assert_eq!(response.json::<serde_json::Value>()["ok"], true);
+    }
+
+    #[sqlx::test]
+    async fn route_with_permission_rejects_user_without_required_permission(pool: PgPool) {
+        let server = server_with_user(pool, Some(user_with_permissions(&["system:role:list"])));
+
+        let response = server.get("/protected").await;
+        response.assert_status(axum::http::StatusCode::FORBIDDEN);
+    }
+
+    #[sqlx::test]
+    async fn route_with_permission_rejects_when_current_user_missing(pool: PgPool) {
+        let server = server_with_user(pool, None);
+
+        let response = server.get("/protected").await;
+        response.assert_status(axum::http::StatusCode::UNAUTHORIZED);
+    }
+}

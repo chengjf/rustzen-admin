@@ -209,3 +209,159 @@ impl DashboardRepository {
         Ok(hourly_active)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::password::PasswordUtils;
+    use crate::features::system::user::repo::{CreateUserCommand, UserRepository};
+    use chrono::{Duration, Utc};
+    use sqlx::PgPool;
+
+    async fn seed_user(pool: &PgPool, username: &str, status: i16) -> i64 {
+        UserRepository::create_user(
+            pool,
+            &CreateUserCommand {
+                username: username.to_string(),
+                email: format!("{username}@example.com"),
+                password_hash: PasswordUtils::hash_password("Dash@Test1").unwrap(),
+                real_name: Some(username.to_string()),
+                status: Some(status),
+                role_ids: vec![],
+            },
+        )
+        .await
+        .expect("seed user should succeed")
+    }
+
+    async fn insert_log(
+        pool: &PgPool,
+        user_id: Option<i64>,
+        username: &str,
+        action: &str,
+        status: &str,
+        duration_ms: Option<i32>,
+        created_at: chrono::DateTime<Utc>,
+    ) {
+        sqlx::query(
+            "INSERT INTO operation_logs
+             (user_id, username, action, description, data, status, duration_ms, ip_address, user_agent, created_at)
+             VALUES ($1, $2, $3, 'test', '{}'::jsonb, $4, $5, '127.0.0.1', 'test-agent', $6)",
+        )
+        .bind(user_id)
+        .bind(username)
+        .bind(action)
+        .bind(status)
+        .bind(duration_ms)
+        .bind(created_at.naive_utc())
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    #[sqlx::test]
+    async fn get_stats_counts_recent_and_pending_users(pool: PgPool) {
+        let active_id = seed_user(&pool, "dash_active", 1).await;
+        let stale_id = seed_user(&pool, "dash_stale", 1).await;
+        let _pending_id = seed_user(&pool, "dash_pending", UserStatus::Pending as i16).await;
+
+        sqlx::query("UPDATE users SET last_login_at = NOW() - INTERVAL '2 hours' WHERE id = $1")
+            .bind(active_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE users SET last_login_at = NOW() - INTERVAL '10 days' WHERE id = $1")
+            .bind(stale_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let stats = DashboardRepository::get_stats(&pool).await.unwrap();
+
+        assert!(stats.total_users >= 4);
+        assert!(stats.active_users >= 1);
+        assert!(stats.today_logins >= 1);
+        assert!(stats.pending_users >= 1);
+        assert!(stats.system_uptime.contains('天') || stats.system_uptime.contains("小时"));
+    }
+
+    #[sqlx::test]
+    async fn get_metrics_returns_zeroes_without_recent_logs(pool: PgPool) {
+        let metrics = DashboardRepository::get_metrics(&pool).await.unwrap();
+
+        assert_eq!(metrics.total_requests, 0);
+        assert_eq!(metrics.avg_response_time, 0);
+        assert_eq!(metrics.error_rate, 0.0);
+    }
+
+    #[sqlx::test]
+    async fn get_metrics_calculates_error_rate_and_average_duration(pool: PgPool) {
+        let user_id = seed_user(&pool, "dash_metric_user", 1).await;
+        let now = Utc::now();
+
+        insert_log(
+            &pool,
+            Some(user_id),
+            "dash_metric_user",
+            "AUTH_LOGIN",
+            "SUCCESS",
+            Some(100),
+            now,
+        )
+        .await;
+        insert_log(
+            &pool,
+            Some(user_id),
+            "dash_metric_user",
+            "AUTH_LOGIN",
+            "FAILED",
+            Some(200),
+            now,
+        )
+        .await;
+        insert_log(&pool, Some(user_id), "dash_metric_user", "AUTH_LOGIN", "ERROR", Some(300), now)
+            .await;
+
+        let metrics = DashboardRepository::get_metrics(&pool).await.unwrap();
+
+        assert_eq!(metrics.total_requests, 3);
+        assert_eq!(metrics.avg_response_time, 200);
+        assert!((metrics.error_rate - 66.6666666667).abs() < 0.01);
+    }
+
+    #[sqlx::test]
+    async fn get_trends_returns_daily_login_and_hourly_activity(pool: PgPool) {
+        let user_id = seed_user(&pool, "dash_trend_user", 1).await;
+        let now = Utc::now();
+
+        insert_log(
+            &pool,
+            Some(user_id),
+            "dash_trend_user",
+            "AUTH_LOGIN",
+            "SUCCESS",
+            Some(120),
+            now - Duration::days(1),
+        )
+        .await;
+        insert_log(&pool, Some(user_id), "dash_trend_user", "AUTH_LOGIN", "SUCCESS", Some(80), now)
+            .await;
+        insert_log(
+            &pool,
+            Some(user_id),
+            "dash_trend_user",
+            "SYSTEM_VIEW",
+            "SUCCESS",
+            Some(30),
+            now,
+        )
+        .await;
+
+        let trends = DashboardRepository::get_trends(&pool).await.unwrap();
+
+        assert_eq!(trends.hourly_active.len(), 24);
+        assert!(trends.daily_logins.len() >= 2);
+        assert!(trends.daily_logins.iter().all(|item| item.count.unwrap_or(0) >= 1));
+        assert!(trends.hourly_active.iter().any(|item| item.count.unwrap_or(0) >= 1));
+    }
+}
