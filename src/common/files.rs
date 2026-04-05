@@ -1,7 +1,6 @@
 use crate::common::error::ServiceError;
 
 use axum::extract::Multipart;
-use std::{fs::File, io::Write};
 use uuid::Uuid;
 
 const USER_AVATAR_DIR: &str = "uploads/avatars";
@@ -64,10 +63,8 @@ fn validate_avatar_upload(data: &[u8]) -> Result<(ImageFormat, String), ServiceE
     Ok((image_format, build_avatar_file_path(image_format)))
 }
 
-fn write_avatar_file(file_path: &str, data: &[u8]) -> Result<(), ServiceError> {
-    let mut file = File::create(file_path).map_err(|_| ServiceError::CreateAvatarFileFailed)?;
-    file.write_all(data).map_err(|_| ServiceError::CreateAvatarFileFailed)?;
-    Ok(())
+async fn write_avatar_file(file_path: &str, data: Vec<u8>) -> Result<(), ServiceError> {
+    tokio::fs::write(file_path, data).await.map_err(|_| ServiceError::CreateAvatarFileFailed)
 }
 
 /// 保存头像
@@ -90,8 +87,8 @@ pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceErr
 
         let (_, file_path) = validate_avatar_upload(&data)?;
 
-        // 保存文件
-        write_avatar_file(&file_path, &data)?;
+        // 保存文件（async，非阻塞）
+        write_avatar_file(&file_path, data.to_vec()).await?;
 
         let avatar_url = format!("/{}", file_path);
         tracing::info!("Avatar uploaded successfully: {}", avatar_url);
@@ -152,13 +149,13 @@ mod tests {
         assert!(path.ends_with(".png"));
     }
 
-    #[test]
-    fn write_avatar_file_persists_bytes() {
+    #[tokio::test]
+    async fn write_avatar_file_persists_bytes() {
         let temp_path = std::env::temp_dir().join(format!("rustzen-avatar-{}.png", Uuid::new_v4()));
         let file_path = temp_path.to_string_lossy().to_string();
         let bytes = png_bytes();
 
-        write_avatar_file(&file_path, &bytes).expect("write should succeed");
+        write_avatar_file(&file_path, bytes.clone()).await.expect("write should succeed");
 
         let written = std::fs::read(&temp_path).expect("file should exist");
         assert_eq!(written, bytes);

@@ -128,6 +128,9 @@ impl LogRepository {
         Ok(log_id)
     }
 
+    /// Maximum rows returned by `find_all` (CSV export guard).
+    pub const EXPORT_MAX_ROWS: i64 = 10_000;
+
     pub async fn find_all(
         pool: &PgPool,
         query: LogListQuery,
@@ -137,8 +140,10 @@ impl LogRepository {
 
         Self::format_query(&query, &mut query_builder);
 
+        query_builder.push(" ORDER BY created_at DESC LIMIT ").push_bind(Self::EXPORT_MAX_ROWS);
+
         let logs = query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
-            tracing::error!("Database error in operation_logs pagination: {:?}", e);
+            tracing::error!("Database error in operation_logs find_all: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
 
