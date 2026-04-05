@@ -225,7 +225,8 @@ mod tests {
     async fn response_parts(err: impl Into<AppError>) -> (StatusCode, Value) {
         let response = Into::<AppError>::into(err).into_response();
         let status = response.status();
-        let body = to_bytes(response.into_body(), usize::MAX).await.expect("body should be readable");
+        let body =
+            to_bytes(response.into_body(), usize::MAX).await.expect("body should be readable");
         let body: Value = serde_json::from_slice(&body).expect("body should be valid json");
         (status, body)
     }
@@ -294,10 +295,25 @@ mod tests {
                 10010,
                 "登录失败次数过多，账号已被锁定，请 15 分钟后再试",
             ),
-            (ServiceError::TokenCreationFailed, StatusCode::INTERNAL_SERVER_ERROR, 10103, "令牌创建失败"),
+            (
+                ServiceError::TokenCreationFailed,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                10103,
+                "令牌创建失败",
+            ),
             (ServiceError::EmailConflict, StatusCode::CONFLICT, 10202, "邮箱已存在"),
-            (ServiceError::CreateAvatarFolderFailed, StatusCode::INTERNAL_SERVER_ERROR, 20002, "创建头像文件夹失败"),
-            (ServiceError::CreateAvatarFileFailed, StatusCode::INTERNAL_SERVER_ERROR, 20003, "创建头像文件失败"),
+            (
+                ServiceError::CreateAvatarFolderFailed,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                20002,
+                "创建头像文件夹失败",
+            ),
+            (
+                ServiceError::CreateAvatarFileFailed,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                20003,
+                "创建头像文件失败",
+            ),
         ];
 
         for (err, status, code, message) in cases {

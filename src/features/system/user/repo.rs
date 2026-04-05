@@ -655,8 +655,10 @@ mod tests {
 
     #[sqlx::test]
     async fn find_options_ignores_blank_query(pool: PgPool) {
-        let enabled_id = seed_user(&pool, "blank_query_enabled", "blank_query_enabled@example.com").await;
-        let disabled_id = seed_user(&pool, "blank_query_disabled", "blank_query_disabled@example.com").await;
+        let enabled_id =
+            seed_user(&pool, "blank_query_enabled", "blank_query_enabled@example.com").await;
+        let disabled_id =
+            seed_user(&pool, "blank_query_disabled", "blank_query_disabled@example.com").await;
 
         sqlx::query("UPDATE users SET real_name = $1 WHERE id = $2")
             .bind("空白查询启用用户")

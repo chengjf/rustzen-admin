@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; [[ \"$f\" == *.rs ]] && cargo fmt; } 2>/dev/null || true",
+            "statusMessage": "cargo fmt..."
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; [[ \"$f\" == *.ts || \"$f\" == *.tsx ]] && [[ \"$f\" == */web/* ]] && cd web && pnpm fmt; } 2>/dev/null || true",
+            "statusMessage": "pnpm fmt..."
+          }
+        ]
+      }
+    ]
+  }
+}

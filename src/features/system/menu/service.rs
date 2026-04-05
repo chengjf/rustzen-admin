@@ -659,9 +659,12 @@ mod tests {
 
     #[sqlx::test]
     async fn update_menu_returns_not_found_when_parent_missing(pool: PgPool) {
-        let id = MenuService::create_menu(&pool, make_create_dto(0, "待更新目录", "upd:missing:parent", dir()))
-            .await
-            .unwrap();
+        let id = MenuService::create_menu(
+            &pool,
+            make_create_dto(0, "待更新目录", "upd:missing:parent", dir()),
+        )
+        .await
+        .unwrap();
 
         let result = MenuService::update_menu(
             &pool,
@@ -686,9 +689,12 @@ mod tests {
             MenuService::create_menu(&pool, make_create_dto(0, "类型父菜单", "type:parent", dir()))
                 .await
                 .unwrap();
-        MenuService::create_menu(&pool, make_create_dto(parent, "类型子菜单", "type:child", menu()))
-            .await
-            .unwrap();
+        MenuService::create_menu(
+            &pool,
+            make_create_dto(parent, "类型子菜单", "type:child", menu()),
+        )
+        .await
+        .unwrap();
 
         let result = MenuService::update_menu(
             &pool,
@@ -856,12 +862,14 @@ mod tests {
 
     #[sqlx::test]
     async fn get_menu_list_returns_tree_with_filters(pool: PgPool) {
-        let root = MenuService::create_menu(&pool, make_create_dto(0, "列表目录", "list:dir", dir()))
-            .await
-            .unwrap();
-        let child = MenuService::create_menu(&pool, make_create_dto(root, "列表菜单", "list:menu", menu()))
-            .await
-            .unwrap();
+        let root =
+            MenuService::create_menu(&pool, make_create_dto(0, "列表目录", "list:dir", dir()))
+                .await
+                .unwrap();
+        let child =
+            MenuService::create_menu(&pool, make_create_dto(root, "列表菜单", "list:menu", menu()))
+                .await
+                .unwrap();
         MenuService::create_menu(&pool, make_create_dto(child, "列表按钮", "list:button", btn()))
             .await
             .unwrap();
@@ -888,14 +896,18 @@ mod tests {
 
     #[sqlx::test]
     async fn get_menu_options_returns_enabled_matches_only(pool: PgPool) {
-        let enabled_id =
-            MenuService::create_menu(&pool, make_create_dto(0, "选项目录启用", "opt:enabled", dir()))
-                .await
-                .unwrap();
-        let disabled_id =
-            MenuService::create_menu(&pool, make_create_dto(0, "选项目录禁用", "opt:disabled", dir()))
-                .await
-                .unwrap();
+        let enabled_id = MenuService::create_menu(
+            &pool,
+            make_create_dto(0, "选项目录启用", "opt:enabled", dir()),
+        )
+        .await
+        .unwrap();
+        let disabled_id = MenuService::create_menu(
+            &pool,
+            make_create_dto(0, "选项目录禁用", "opt:disabled", dir()),
+        )
+        .await
+        .unwrap();
 
         sqlx::query("UPDATE menus SET status = 2 WHERE id = $1")
             .bind(disabled_id)
@@ -910,7 +922,9 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(options.iter().any(|item| item.value == enabled_id && item.label == "选项目录启用"));
+        assert!(
+            options.iter().any(|item| item.value == enabled_id && item.label == "选项目录启用")
+        );
         assert!(!options.iter().any(|item| item.value == disabled_id));
     }
 
@@ -919,9 +933,10 @@ mod tests {
         let root = MenuService::create_menu(&pool, make_create_dto(0, "树目录", "tree:dir", dir()))
             .await
             .unwrap();
-        let menu_id = MenuService::create_menu(&pool, make_create_dto(root, "树菜单", "tree:menu", menu()))
-            .await
-            .unwrap();
+        let menu_id =
+            MenuService::create_menu(&pool, make_create_dto(root, "树菜单", "tree:menu", menu()))
+                .await
+                .unwrap();
         MenuService::create_menu(&pool, make_create_dto(menu_id, "树按钮", "tree:button", btn()))
             .await
             .unwrap();

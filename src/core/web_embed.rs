@@ -245,8 +245,9 @@ mod tests {
 
     #[tokio::test]
     async fn web_embed_file_handler_serves_static_files_from_uri() {
-        let response =
-            web_embed_file_handler(Uri::from_static("/assets/index-CJ57PzAY.js")).await.into_response();
+        let response = web_embed_file_handler(Uri::from_static("/assets/index-CJ57PzAY.js"))
+            .await
+            .into_response();
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
             response.headers().get("content-type").unwrap(),

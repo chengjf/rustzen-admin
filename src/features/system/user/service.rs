@@ -610,7 +610,9 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(options.iter().any(|item| item.value == enabled_id && item.label == "用户选项启用"));
+        assert!(
+            options.iter().any(|item| item.value == enabled_id && item.label == "用户选项启用")
+        );
         assert!(!options.iter().any(|item| item.value == disabled_id));
     }
 
@@ -644,13 +646,9 @@ mod tests {
         .await
         .unwrap();
 
-        let response = UserService::update_user_password(
-            &pool,
-            id,
-            UpdateUserPasswordPayload {},
-        )
-        .await
-        .unwrap();
+        let response = UserService::update_user_password(&pool, id, UpdateUserPasswordPayload {})
+            .await
+            .unwrap();
 
         assert_eq!(response.password.len(), 6);
         assert!(SessionStore::get_by_token(&pool, &token).await.unwrap().is_none());
@@ -720,7 +718,7 @@ mod tests {
             .bind(id)
             .fetch_one(&pool)
             .await
-        .unwrap();
+            .unwrap();
         assert_eq!(status, UserStatus::Disabled as i16);
     }
 

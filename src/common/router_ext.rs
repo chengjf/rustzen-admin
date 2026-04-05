@@ -147,8 +147,7 @@ mod tests {
     /// Single: no CurrentUser extension at all → 401.
     #[sqlx::test]
     async fn route_with_permission_rejects_when_current_user_missing(pool: PgPool) {
-        let server =
-            server_with_check(pool, PermissionsCheck::Single("system:user:list"), None);
+        let server = server_with_check(pool, PermissionsCheck::Single("system:user:list"), None);
         let response = server.get("/protected").await;
         response.assert_status(axum::http::StatusCode::UNAUTHORIZED);
     }

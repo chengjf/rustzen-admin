@@ -294,16 +294,16 @@ The frontend proxies API requests to the backend in development via Vite config 
 ### Rust
 
 - **Edition**: 2024
-- **Formatting**: `cargo fmt` (rustfmt.toml present)
-- **Linting**: Consider adding `cargo clippy` (not configured yet)
+- **Formatting**: `cargo fmt` (rustfmt.toml present) — auto-runs via Claude Code hook on `.rs` edits
+- **Linting**: `cargo clippy` (not yet wired into CI, run manually)
 - **Error handling**: Use `thiserror` for custom errors; propagate via `?` operator
 - **Async**: All I/O should be async using `tokio`; prefer `.await` on async calls
 
 ### TypeScript/React
 
 - **Build tool**: Vite 8 + TanStack Router plugin
-- **Linting**: Oxlint (`.oxlintrc.json` present)
-- **Formatting**: `pnpm fmt` (via `vite-plus`)
+- **Linting**: Oxlint (`.oxlintrc.json` present), run via `cd web && pnpm lint`
+- **Formatting**: `pnpm fmt` (via `vite-plus`) — auto-runs via Claude Code hook on `.ts`/`.tsx` edits
 - **Components**: Functional components with hooks; prefer named exports
 
 ### Naming Conventions (Rust)
@@ -314,6 +314,54 @@ See `docs/architecture.md` (in Chinese) for detailed conventions. Key points:
 - `dto.rs`: `CreateXxxDto`, `UpdateXxxDto`, `XxxQuery`, `XxxResp`, `XxxVo`
 - `repo.rs`: Functions: `find_by_*`, `get_by_id` (returns error if not found), `insert`, `update_by_id`, `delete_by_id`
 - `service.rs`: Functions: `create`, `get`, `list`, `update`, `delete`
+
+### API Query Parameter Naming Convention
+
+**`XxxQuery` filter field names must match the corresponding `XxxItemResp` field names.**
+
+```rust
+// ✓ Correct: query field `name` matches response field `name`
+pub struct RoleQuery {
+    pub name: Option<String>,   // matches RoleItemResp.name
+    pub code: Option<String>,   // matches RoleItemResp.code
+}
+
+// ✗ Wrong: redundant resource-name prefix (the route /roles already provides context)
+pub struct RoleQuery {
+    pub role_name: Option<String>,  // mismatch with RoleItemResp.name
+    pub role_code: Option<String>,  // mismatch with RoleItemResp.code
+}
+```
+
+**Why:** ProTable uses column `dataIndex` (which mirrors response field names) as search parameter keys. When query param names match response field names, the two layers align automatically without needing `search.transform` adapters.
+
+### Frontend API Table Params Convention
+
+Each API module that serves a ProTable must export an explicit `XxxTableParams` type instead of using `Partial<XxxQuery>`:
+
+```ts
+// web/src/api/system/role/index.ts
+export type RoleTableParams = {
+    current?: number;
+    pageSize?: number;
+    name?: string;   // matches column dataIndex AND backend RoleQuery.name
+    code?: string;
+    status?: string;
+};
+
+export const roleAPI = {
+    getTableData: (params?: RoleTableParams) => proTableRequest(...),
+};
+```
+
+And the ProTable component must bind the Params generic:
+
+```tsx
+<ProTable<RoleItemResp, RoleTableParams>
+    request={roleAPI.getTableData}
+```
+
+**Why:** `Partial<XxxQuery>` is too loose — TypeScript won't catch mismatches between what ProTable sends (from `dataIndex`) and what the API expects. The explicit `XxxTableParams` type documents the contract and surfaces mistakes at compile time.
 
 ---
 
@@ -427,13 +475,15 @@ When working on this codebase:
 3. **Permissions**: Use `route_with_permission` for all protected routes; choose the appropriate `PermissionsCheck` variant
 4. **Error handling**: Return `ServiceError`/`AppError` types; avoid panics or unwrap in production code
 5. **Minimalism**: Follow the principle of "sufficient but not excessive" design as stated in architecture.md
+6. **Query param naming**: `XxxQuery` filter fields must match `XxxItemResp` fields — see "API Query Parameter Naming Convention" above
 
 For frontend changes:
 1. Keep API calls in `web/src/api/`, UI in `components/`, pages in `routes/`
 2. Use TanStack Query for server state; Zustand for client UI state
 3. Follow existing component patterns (Ant Design + TailwindCSS)
+4. **ProTable API contract**: Use explicit `XxxTableParams` type (not `Partial<XxxQuery>`) and bind `<ProTable<Row, Params>>` — see "Frontend API Table Params Convention" above
 
 ---
 
-*Last analyzed: 2026-04-05*
+*Last updated: 2026-04-05*
 *Claude Code: claude.ai/code*

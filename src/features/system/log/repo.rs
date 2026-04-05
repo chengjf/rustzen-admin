@@ -341,28 +341,26 @@ mod tests {
             seed_log(&pool, &format!("user{}", i), "ACT").await;
         }
 
-        let (page1, total) =
-            LogRepository::find_with_pagination(
-                &pool,
-                0,
-                2,
-                LogListQuery { username: None, action: None, description: None, ip_address: None },
-            )
-            .await
-            .unwrap();
+        let (page1, total) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            2,
+            LogListQuery { username: None, action: None, description: None, ip_address: None },
+        )
+        .await
+        .unwrap();
 
         assert_eq!(total, 5);
         assert_eq!(page1.len(), 2);
 
-        let (page2, _) =
-            LogRepository::find_with_pagination(
-                &pool,
-                2,
-                2,
-                LogListQuery { username: None, action: None, description: None, ip_address: None },
-            )
-            .await
-            .unwrap();
+        let (page2, _) = LogRepository::find_with_pagination(
+            &pool,
+            2,
+            2,
+            LogListQuery { username: None, action: None, description: None, ip_address: None },
+        )
+        .await
+        .unwrap();
 
         assert_eq!(page2.len(), 2);
         // Pages must not overlap

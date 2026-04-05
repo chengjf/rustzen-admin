@@ -20,5 +20,6 @@
 
 # Cursor / AI
 # .cursor/
-*.ai.md# Environment variables
+*.ai.md
+.claude/settings.local.json# Environment variables
 node_modules
