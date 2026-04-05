@@ -78,6 +78,9 @@ cargo test -- --nocapture
 # Run only the RBAC end-to-end integration tests
 cargo test --test integration_rbac_flow
 
+# Run only the HTTP API integration tests (axum-test)
+cargo test --test api_http_tests
+
 # Run frontend type checking
 cd web && pnpm build:prod
 
@@ -365,8 +368,9 @@ Tests are organized in three layers, all using `#[sqlx::test]` which auto-create
 | **Repo** | `#[sqlx::test]` at end of each `repo.rs` | SQL correctness: CRUD, uniqueness queries, soft delete, filters |
 | **Service** | `#[sqlx::test]` at end of each `service.rs` | Business validation: uniqueness guards, role/menu path integrity, lockout flow, status transitions |
 | **Integration** | `tests/integration_rbac_flow.rs` | End-to-end RBAC lifecycle: role creation → user creation → login lockout → admin unlock → permission verification |
+| **HTTP** | `tests/api_http_tests.rs` | Full HTTP-layer coverage via axum-test: all API handlers, auth middleware, permission enforcement |
 
-Current line coverage: **~44%** (business logic layers ~60%, API handlers 0% — not yet covered by HTTP-level tests).
+Current line coverage: **~74%** (API handlers ~90–100%, middleware ~73–95%, business logic ~70–87%).
 
 ### Frontend
 

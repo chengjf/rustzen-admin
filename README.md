@@ -152,6 +152,9 @@ cargo test
 # 仅运行 RBAC 端到端集成测试
 cargo test --test integration_rbac_flow
 
+# 仅运行 HTTP API 集成测试（axum-test）
+cargo test --test api_http_tests
+
 # 带输出运行
 cargo test -- --nocapture
 ```
@@ -165,12 +168,13 @@ just coverage        # 终端摘要（按文件显示覆盖率 %）
 just coverage-html   # 生成 HTML 报告并打开浏览器
 ```
 
-当前行覆盖率约 **44%**，覆盖：
+当前行覆盖率约 **74%**，覆盖：
 
 - 核心工具层（pagination、permission、password）**~100%**
-- Service 业务逻辑层（验证、锁定流程、RBAC 闭环）**~60%**
-- Repo 数据层（CRUD、软删除、唯一性检测）**~55%**
-- API Handler 层（0%，暂未覆盖）
+- API Handler 层（axum-test HTTP 集成测试）**~90–100%**
+- 中间件（auth、log）**~73–95%**
+- Service 业务逻辑层（验证、锁定流程、RBAC 闭环）**~70–87%**
+- Repo 数据层（CRUD、软删除、唯一性检测）**~65–72%**
 
 ### 前端
 
