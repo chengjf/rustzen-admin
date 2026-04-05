@@ -36,6 +36,10 @@ export const useTabStore = create<TabState>((set, get) => ({
 
     removeTab: (path) => {
         const { tabs, activeKey } = get();
+        if (path === "/") {
+            return { tabs, newActiveKey: activeKey };
+        }
+
         const idx = tabs.findIndex((t) => t.path === path);
         const newTabs = tabs.filter((t) => t.path !== path);
 

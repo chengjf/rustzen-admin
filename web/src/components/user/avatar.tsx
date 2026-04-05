@@ -10,7 +10,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 //     reader.readAsDataURL(img.originFileObj as Blob);
 // };
 
-const beforeUpload = async (file: UploadFile) => {
+export const beforeUpload = async (file: UploadFile) => {
     if (!file.size) {
         return false;
     }

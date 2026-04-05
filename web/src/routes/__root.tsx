@@ -10,48 +10,51 @@ import { TanStackDevtoolsLayout } from "@/integrations/tanstack-query/layout";
 import { BasicLayout } from "@/layouts/BasicLayout";
 import { useAuthStore } from "@/stores/useAuthStore";
 
+export const rootBeforeLoad = (ctx: { location: { pathname: string } }) => {
+    const curPath = ctx.location.pathname;
+    const { token, checkMenuPermissions } = useAuthStore.getState();
+
+    // Redirect to login if no token
+    if (!token) {
+        if (curPath !== "/login") {
+            throw redirect({ to: "/login" });
+        }
+        return null;
+    }
+
+    // Redirect to home if already logged in
+    if (curPath === "/login") {
+        console.log("Redirect to home");
+        throw redirect({ to: "/" });
+    }
+
+    // Skip permissions check for these pages
+    const skipPaths = ["/", "/403", "/404", "/login"];
+    if (skipPaths.includes(curPath)) {
+        return null;
+    }
+
+    // Check menu permissions
+    const isPermission = checkMenuPermissions(curPath);
+
+    // Redirect to 403 if no permission
+    if (!isPermission) {
+        throw redirect({ to: "/403" });
+    }
+};
+
 export const Route = createRootRoute({
-    beforeLoad: (ctx) => {
-        const curPath = ctx.location.pathname;
-        const { token, checkMenuPermissions } = useAuthStore.getState();
-
-        // Redirect to login if no token
-        if (!token) {
-            if (curPath !== "/login") {
-                throw redirect({ to: "/login" });
-            }
-            return null;
-        }
-
-        // Redirect to home if already logged in
-        if (curPath === "/login") {
-            console.log("Redirect to home");
-            throw redirect({ to: "/" });
-        }
-
-        // Skip permissions check for these pages
-        const skipPaths = ["/", "/403", "/404", "/login"];
-        if (skipPaths.includes(curPath)) {
-            return null;
-        }
-
-        // Check menu permissions
-        const isPermission = checkMenuPermissions(curPath);
-
-        // Redirect to 403 if no permission
-        if (!isPermission) {
-            throw redirect({ to: "/403" });
-        }
-    },
+    beforeLoad: rootBeforeLoad,
     component: RootLayout,
     notFoundComponent: () => <Navigate to="/404" />,
 });
 
-function RootLayout() {
+export function RootLayout() {
     const { token, updateUserInfo } = useAuthStore();
     const { data: userInfo, error: userInfoError } = useQuery({
         queryKey: ["auth-userInfo"],
         queryFn: authAPI.getUserInfo,
+        enabled: !!token,
     });
 
     useEffect(() => {

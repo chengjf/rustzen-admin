@@ -46,6 +46,15 @@ describe("useTabStore – addTab", () => {
 });
 
 describe("useTabStore – removeTab", () => {
+    it("does not remove the home tab", () => {
+        const { newActiveKey, tabs } = useTabStore.getState().removeTab("/");
+
+        expect(newActiveKey).toBe("/");
+        expect(tabs).toHaveLength(1);
+        expect(tabs[0].path).toBe("/");
+        expect(useTabStore.getState().tabs).toHaveLength(1);
+    });
+
     it("removes a tab and activates the previous one", () => {
         useTabStore.getState().addTab("/system/user", "用户管理");
         useTabStore.getState().addTab("/system/role", "角色管理");

@@ -53,7 +53,7 @@ const calculateFinalIds = (checkedIds: number[], flatMap: Map<number, MenuTreeOp
 };
 
 // --- 页面主组件 ---
-function RolePage() {
+export function RolePage() {
     const actionRef = useRef<ActionType>(null);
 
     const handleReload = useCallback(() => {
@@ -145,7 +145,12 @@ interface PermissionManagerProps {
     loading: boolean;
 }
 
-const PermissionManager = ({ value = [], onChange, menuTree, loading }: PermissionManagerProps) => {
+export const PermissionManager = ({
+    value = [],
+    onChange,
+    menuTree,
+    loading,
+}: PermissionManagerProps) => {
     const [selectedKey, setSelectedKey] = useState<number | null>(null);
 
     const { filteredTree, buttonMap, flatMap } = useMemo(() => {

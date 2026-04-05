@@ -32,8 +32,8 @@ export const handlers = [
         });
     }),
 
-    // DELETE /api/auth/logout
-    http.delete("/api/auth/logout", () => {
+    // GET /api/auth/logout
+    http.get("/api/auth/logout", () => {
         return HttpResponse.json({ code: 0, message: "操作成功", data: null });
     }),
 ];

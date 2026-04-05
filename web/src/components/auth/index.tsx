@@ -18,7 +18,7 @@ export const AuthWrap: React.FC<AuthWrapProps> = ({
     hidden = false,
     fallback = null,
 }) => {
-    const isPermission = useAuthStore.getState().checkPermissions(code);
+    const isPermission = useAuthStore((state) => state.checkPermissions(code));
     if (isPermission && !hidden) {
         return children;
     }

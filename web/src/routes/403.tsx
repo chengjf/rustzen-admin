@@ -4,7 +4,7 @@ export const Route = createFileRoute("/403")({
     component: RouteComponent,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
     return (
         // 使用 flexbox 将内容垂直和水平居中，占满全屏高度
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-gray-900 px-4">

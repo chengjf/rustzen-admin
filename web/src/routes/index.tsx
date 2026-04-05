@@ -31,7 +31,7 @@ export const Route = createFileRoute("/")({
 // 2. 页面主组件
 // =============================================================================
 
-function DashboardPage() {
+export function DashboardPage() {
     return (
         <div className="flex flex-col gap-4 p-1">
             {/* 统计指标行 */}

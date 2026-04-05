@@ -152,7 +152,7 @@ const coreRequest = async <T, P>(options: RequestOptions<P>): Promise<Api.ApiRes
         }
         const result = await response.json();
         if (result.code !== 0) {
-            return Promise.reject(result);
+            throw result;
         }
         const isMutation = ["post", "put", "delete", "patch"].includes(
             config.method?.toLowerCase() || "",
@@ -219,16 +219,7 @@ const handleError = async (
     options?: RequestOptions<any>,
     signal?: AbortSignal | null,
 ): Promise<never> => {
-    // 1. Business logic errors from backend (result.code !== 0)
-    if (error && typeof error === "object" && "code" in error && "message" in error) {
-        const businessError = error as { code: number; message: string };
-        if (!options?.silent) {
-            appMessage.error(businessError.message || "操作失败");
-        }
-        return Promise.reject(error);
-    }
-
-    // 2. Abort / cancellation (request cancellation, timeout, or auth-expiry mass abort)
+    // 1. Abort / cancellation (request cancellation, timeout, or auth-expiry mass abort)
     if (isAbortLikeError(error, signal)) {
         console.debug("Request aborted");
         return Promise.reject(error);
@@ -239,6 +230,15 @@ const handleError = async (
             appMessage.error("请求被取消");
         }
         console.warn("Request cancelled:", error);
+        return Promise.reject(error);
+    }
+
+    // 2. Business logic errors from backend (result.code !== 0)
+    if (error && typeof error === "object" && "code" in error && "message" in error) {
+        const businessError = error as { code: number; message: string };
+        if (!options?.silent) {
+            appMessage.error(businessError.message || "操作失败");
+        }
         return Promise.reject(error);
     }
 

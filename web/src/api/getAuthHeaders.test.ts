@@ -66,8 +66,8 @@ describe("MSW handler interception (fetch-level)", () => {
         expect(data.data.permissions).toContain("*");
     });
 
-    it("intercepts DELETE /api/auth/logout", async () => {
-        const response = await fetch("/api/auth/logout", { method: "DELETE" });
+    it("intercepts GET /api/auth/logout", async () => {
+        const response = await fetch("/api/auth/logout");
         const data = await response.json();
 
         expect(response.ok).toBe(true);

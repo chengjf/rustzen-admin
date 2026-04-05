@@ -11,7 +11,10 @@ export default defineConfig({
         "*": "vp check --fix",
     },
     plugins: [
-        tanstackRouter({ autoCodeSplitting: true }),
+        tanstackRouter({
+            autoCodeSplitting: true,
+            routeFileIgnorePattern: "\\.(test|spec)\\.(ts|tsx)$",
+        }),
         viteReact({ jsxImportSource: "@emotion/react" }),
         tailwindcss(),
     ],

@@ -126,7 +126,7 @@ export const Route = createFileRoute("/system/user")({
     component: UserPage,
 });
 
-function UserPage() {
+export function UserPage() {
     const actionRef = useRef<ActionType>(null);
     const userInfo = useAuthStore((state) => state.userInfo);
 

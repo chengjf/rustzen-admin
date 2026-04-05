@@ -20,7 +20,7 @@ export const Route = createFileRoute("/login")({
 // 2. 页面主组件
 // =============================================================================
 
-function LoginPage() {
+export function LoginPage() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const { handleLogin } = useAuthStore();

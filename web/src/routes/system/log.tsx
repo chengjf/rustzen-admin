@@ -43,7 +43,7 @@ const ACTION_COLOR_MAP: Record<string, string> = {
 // 3. 页面主组件 (Main Component)
 // =============================================================================
 
-function LogPage() {
+export function LogPage() {
     const actionRef = useRef<ActionType>(null);
     const [exportLoading, setExportLoading] = useState(false);
 

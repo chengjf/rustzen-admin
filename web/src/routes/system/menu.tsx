@@ -176,7 +176,7 @@ const MenuModalForm = ({
 // 4. 页面主组件 (Main Component)
 // =============================================================================
 
-function MenuPage() {
+export function MenuPage() {
     const actionRef = useRef<ActionType>(null);
 
     const handleReload = useCallback(() => {

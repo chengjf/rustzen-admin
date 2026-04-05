@@ -97,4 +97,27 @@ describe("useAuthStore – checkMenuPermissions", () => {
         });
         expect(useAuthStore.getState().checkMenuPermissions("/system/user")).toBe(true);
     });
+
+    it("keeps create pages as create permissions", () => {
+        useAuthStore.setState({
+            userInfo: { ...mockUserInfo, permissions: ["system:user:create"] },
+        });
+        expect(useAuthStore.getState().checkMenuPermissions("/system/user/create")).toBe(true);
+    });
+
+    it("normalizes edit pages with numeric ids", () => {
+        useAuthStore.setState({
+            userInfo: { ...mockUserInfo, permissions: ["system:user:edit"] },
+        });
+        expect(useAuthStore.getState().checkMenuPermissions("/system/user/42/edit")).toBe(true);
+    });
+
+    it("normalizes detail pages with numeric ids", () => {
+        useAuthStore.setState({
+            userInfo: { ...mockUserInfo, permissions: ["system:user:detail"] },
+        });
+        expect(useAuthStore.getState().checkMenuPermissions("/system/user/42/detail")).toBe(
+            true,
+        );
+    });
 });

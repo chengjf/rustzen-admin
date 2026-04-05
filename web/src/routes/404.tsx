@@ -4,7 +4,7 @@ export const Route = createFileRoute("/404")({
     component: RouteComponent,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
     return (
         // 保持与 403 一致的 Flex 居中布局
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-gray-900 px-4">
