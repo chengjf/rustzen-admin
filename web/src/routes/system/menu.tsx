@@ -219,6 +219,7 @@ export function MenuPage() {
                 key: "action",
                 width: 160,
                 fixed: "right",
+                search: false,
                 render: (_, entity) => (
                     <Space size="small">
                         <AuthWrap code="system:menu:update">
