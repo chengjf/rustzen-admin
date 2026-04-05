@@ -53,3 +53,36 @@ impl From<LogEntity> for LogItemResp {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr};
+
+    #[test]
+    fn log_entity_converts_to_response() {
+        let now = chrono::Utc::now().naive_utc();
+        let entity = LogEntity {
+            id: 1,
+            user_id: 2,
+            username: "tester".to_string(),
+            action: "LOGIN".to_string(),
+            description: Some("user login".to_string()),
+            data: Some(serde_json::json!({"ok": true})),
+            status: "SUCCESS".to_string(),
+            duration_ms: 42,
+            ip_address: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            user_agent: "test-agent".to_string(),
+            created_at: now,
+        };
+
+        let response = LogItemResp::from(entity);
+        assert_eq!(response.id, 1);
+        assert_eq!(response.user_id, 2);
+        assert_eq!(response.username, "tester");
+        assert_eq!(response.ip_address, "127.0.0.1");
+        assert_eq!(response.duration_ms, 42);
+        assert_eq!(response.status, "SUCCESS");
+        assert_eq!(response.created_at, now);
+    }
+}

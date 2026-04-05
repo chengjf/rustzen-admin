@@ -128,7 +128,10 @@ impl LogRepository {
         Ok(log_id)
     }
 
-    pub async fn find_all(pool: &PgPool, query: LogListQuery) -> Result<Vec<LogEntity>, ServiceError> {
+    pub async fn find_all(
+        pool: &PgPool,
+        query: LogListQuery,
+    ) -> Result<Vec<LogEntity>, ServiceError> {
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
             QueryBuilder::new("SELECT * FROM operation_logs WHERE 1=1");
 

@@ -1,4 +1,7 @@
-use super::{dto::{LogItemResp, LogQuery}, service::LogService};
+use super::{
+    dto::{LogItemResp, LogQuery},
+    service::LogService,
+};
 use crate::{
     common::{
         api::{ApiResponse, AppResult},

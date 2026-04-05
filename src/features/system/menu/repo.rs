@@ -341,6 +341,10 @@ mod tests {
     use super::*;
     use sqlx::PgPool;
 
+    fn sample_query() -> MenuListQuery {
+        MenuListQuery { name: None, code: None, status: None, menu_type: None }
+    }
+
     /// Seed data (0105_seed.sql) provides:
     /// id=2 (Directory: 系统管理, parent_id=0)
     /// id=3 (Menu: 用户管理, parent_id=2)
@@ -368,6 +372,37 @@ mod tests {
         assert!(!children.is_empty());
         let codes: Vec<&str> = children.iter().map(|m| m.code.as_str()).collect();
         assert!(codes.contains(&"system:user:list"));
+    }
+
+    #[sqlx::test]
+    async fn find_all_filters_by_name_code_status_and_type(pool: PgPool) {
+        let mut query = sample_query();
+        query.name = Some("用户".to_string());
+        query.code = Some("system:user".to_string());
+        query.status = Some("1".to_string());
+        query.menu_type = Some(2);
+
+        let menus = MenuRepository::find_all(&pool, query).await.unwrap();
+
+        assert!(!menus.is_empty());
+        assert!(menus.iter().all(|menu| menu.name.contains("用户")));
+        assert!(menus.iter().all(|menu| menu.code.contains("system:user")));
+        assert!(menus.iter().all(|menu| menu.status == 1));
+        assert!(menus.iter().all(|menu| menu.menu_type == 2));
+    }
+
+    #[sqlx::test]
+    async fn find_all_ignores_blank_and_invalid_filters(pool: PgPool) {
+        let query = MenuListQuery {
+            name: Some("   ".to_string()),
+            code: Some(String::new()),
+            status: Some("not-a-number".to_string()),
+            menu_type: None,
+        };
+
+        let menus = MenuRepository::find_all(&pool, query).await.unwrap();
+        assert!(!menus.is_empty());
+        assert!(menus.iter().any(|menu| menu.id == 2));
     }
 
     #[sqlx::test]
@@ -400,6 +435,30 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn update_existing_menu_persists_changes(pool: PgPool) {
+        let id = MenuRepository::create(&pool, 0, "原目录", "repo:update", 1, 1, 1).await.unwrap();
+
+        let updated_id = MenuRepository::update(&pool, id, 2, "新目录", "repo:update:new", 2, 9, 2)
+            .await
+            .unwrap();
+        assert_eq!(updated_id, id);
+
+        let updated = MenuRepository::find_by_id(&pool, id).await.unwrap().unwrap();
+        assert_eq!(updated.parent_id, 2);
+        assert_eq!(updated.name, "新目录");
+        assert_eq!(updated.code, "repo:update:new");
+        assert_eq!(updated.menu_type, 2);
+        assert_eq!(updated.sort_order, 9);
+        assert_eq!(updated.status, 2);
+    }
+
+    #[sqlx::test]
+    async fn update_missing_menu_returns_not_found(pool: PgPool) {
+        let result = MenuRepository::update(&pool, 999_999, 0, "missing", "missing", 1, 1, 1).await;
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    #[sqlx::test]
     async fn soft_delete_non_system_menu(pool: PgPool) {
         let id = MenuRepository::create(&pool, 0, "待删目录", "test:del", 1, 1, 1).await.unwrap();
 
@@ -419,5 +478,73 @@ mod tests {
         // Verify it still exists
         let found = MenuRepository::find_by_id(&pool, 2).await.unwrap();
         assert!(found.is_some());
+    }
+
+    #[sqlx::test]
+    async fn find_options_returns_enabled_menus_only_and_honors_search_and_limit(pool: PgPool) {
+        let options = MenuRepository::find_options(&pool, Some("系统"), Some(3)).await.unwrap();
+
+        assert!(!options.is_empty());
+        assert!(options.len() <= 3);
+        assert!(options.iter().all(|(_, name)| name.contains("系统")));
+        assert!(options.iter().any(|(_, name)| name == "系统管理"));
+        assert!(!options.iter().any(|(_, name)| name == "系统超级管理员"));
+    }
+
+    #[sqlx::test]
+    async fn find_options_escapes_quotes_in_search_query(pool: PgPool) {
+        let options = MenuRepository::find_options(&pool, Some("系'统"), None).await.unwrap();
+        assert!(options.is_empty());
+    }
+
+    #[sqlx::test]
+    async fn find_options_with_code_can_exclude_buttons(pool: PgPool) {
+        let options = MenuRepository::find_options_with_code(&pool, Some("用户"), None, Some(true))
+            .await
+            .unwrap();
+
+        assert!(!options.is_empty());
+        assert!(
+            options
+                .iter()
+                .all(|(_, name, _, _, menu_type)| { name.contains("用户") && *menu_type != 3 })
+        );
+        assert!(
+            options.iter().any(|(_, _, code, _, _)| code.as_deref() == Some("system:user:list"))
+        );
+    }
+
+    #[sqlx::test]
+    async fn find_options_with_code_includes_buttons_when_not_filtered(pool: PgPool) {
+        let options =
+            MenuRepository::find_options_with_code(&pool, Some("用户"), None, None).await.unwrap();
+
+        assert!(options.iter().any(|(_, _, code, _, menu_type)| {
+            *menu_type == 3 && code.as_deref() == Some("system:user:create")
+        }));
+    }
+
+    #[sqlx::test]
+    async fn name_and_code_exists_exclude_self_work_as_expected(pool: PgPool) {
+        let id = MenuRepository::create(&pool, 0, "排除自己", "repo:self", 1, 1, 1).await.unwrap();
+        let other_id =
+            MenuRepository::create(&pool, 0, "其他菜单", "repo:other", 1, 1, 1).await.unwrap();
+
+        let own_name =
+            MenuRepository::name_exists_exclude_self(&pool, "排除自己", id).await.unwrap();
+        let own_code =
+            MenuRepository::code_exists_exclude_self(&pool, "repo:self", id).await.unwrap();
+        let other_name =
+            MenuRepository::name_exists_exclude_self(&pool, "其他菜单", id).await.unwrap();
+        let other_code =
+            MenuRepository::code_exists_exclude_self(&pool, "repo:other", id).await.unwrap();
+        let missing_name =
+            MenuRepository::name_exists_exclude_self(&pool, "不存在", other_id).await.unwrap();
+
+        assert!(!own_name);
+        assert!(!own_code);
+        assert!(other_name);
+        assert!(other_code);
+        assert!(!missing_name);
     }
 }

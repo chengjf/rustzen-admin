@@ -165,7 +165,14 @@ mod tests {
     use sqlx::PgPool;
 
     fn empty_query() -> LogQuery {
-        LogQuery { current: None, page_size: None, username: None, action: None, description: None, ip_address: None }
+        LogQuery {
+            current: None,
+            page_size: None,
+            username: None,
+            action: None,
+            description: None,
+            ip_address: None,
+        }
     }
 
     // ── DB-level service tests ────────────────────────────────────────────
@@ -173,21 +180,32 @@ mod tests {
     #[sqlx::test]
     async fn log_http_request_writes_success_log(pool: PgPool) {
         LogService::log_http_request(
-            &pool, "GET", "/api/users", Some(1), Some("admin"),
-            "127.0.0.1", "test-agent", 200, 15,
+            &pool,
+            "GET",
+            "/api/users",
+            Some(1),
+            Some("admin"),
+            "127.0.0.1",
+            "test-agent",
+            200,
+            15,
         )
         .await
         .expect("should succeed");
 
-        let (logs, total) =
-            LogRepository::find_with_pagination(&pool, 0, 10, crate::features::system::log::repo::LogListQuery {
+        let (logs, total) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            crate::features::system::log::repo::LogListQuery {
                 username: Some("admin".to_string()),
                 action: None,
                 description: None,
                 ip_address: None,
-            })
-            .await
-            .unwrap();
+            },
+        )
+        .await
+        .unwrap();
 
         assert_eq!(total, 1);
         assert_eq!(logs[0].action, "HTTP_GET");
@@ -197,21 +215,32 @@ mod tests {
     #[sqlx::test]
     async fn log_http_request_marks_error_for_4xx(pool: PgPool) {
         LogService::log_http_request(
-            &pool, "POST", "/api/auth/login", None, None,
-            "10.0.0.1", "curl/7.0", 401, 5,
+            &pool,
+            "POST",
+            "/api/auth/login",
+            None,
+            None,
+            "10.0.0.1",
+            "curl/7.0",
+            401,
+            5,
         )
         .await
         .unwrap();
 
-        let (logs, _) =
-            LogRepository::find_with_pagination(&pool, 0, 10, crate::features::system::log::repo::LogListQuery {
+        let (logs, _) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            crate::features::system::log::repo::LogListQuery {
                 username: Some("anonymous".to_string()),
                 action: None,
                 description: None,
                 ip_address: None,
-            })
-            .await
-            .unwrap();
+            },
+        )
+        .await
+        .unwrap();
 
         assert_eq!(logs[0].status, "ERROR");
         assert_eq!(logs[0].action, "HTTP_POST");
@@ -220,21 +249,33 @@ mod tests {
     #[sqlx::test]
     async fn log_business_operation_writes_to_db(pool: PgPool) {
         LogService::log_business_operation(
-            &pool, 1, "admin", "CREATE_USER", "创建用户 testuser",
-            serde_json::json!({"user_id": 42}), "SUCCESS", 30, "192.168.1.1", "AdminUI/1.0",
+            &pool,
+            1,
+            "admin",
+            "CREATE_USER",
+            "创建用户 testuser",
+            serde_json::json!({"user_id": 42}),
+            "SUCCESS",
+            30,
+            "192.168.1.1",
+            "AdminUI/1.0",
         )
         .await
         .expect("should succeed");
 
-        let (logs, total) =
-            LogRepository::find_with_pagination(&pool, 0, 10, crate::features::system::log::repo::LogListQuery {
+        let (logs, total) = LogRepository::find_with_pagination(
+            &pool,
+            0,
+            10,
+            crate::features::system::log::repo::LogListQuery {
                 username: None,
                 action: Some("CREATE_USER".to_string()),
                 description: None,
                 ip_address: None,
-            })
-            .await
-            .unwrap();
+            },
+        )
+        .await
+        .unwrap();
 
         assert_eq!(total, 1);
         assert_eq!(logs[0].username, "admin");
@@ -243,8 +284,16 @@ mod tests {
     #[sqlx::test]
     async fn get_all_log_csv_contains_header_and_rows(pool: PgPool) {
         LogService::log_business_operation(
-            &pool, 1, "csvuser", "EXPORT", "导出日志",
-            serde_json::json!({}), "SUCCESS", 10, "127.0.0.1", "agent",
+            &pool,
+            1,
+            "csvuser",
+            "EXPORT",
+            "导出日志",
+            serde_json::json!({}),
+            "SUCCESS",
+            10,
+            "127.0.0.1",
+            "agent",
         )
         .await
         .unwrap();

@@ -5,11 +5,7 @@ use super::{
 };
 use crate::{
     common::error::ServiceError,
-    core::{
-        config::CONFIG,
-        password::PasswordUtils,
-        session::SessionStore,
-    },
+    core::{config::CONFIG, password::PasswordUtils, session::SessionStore},
     features::{auth::dto::ChangePasswordPayload, system::user::repo::UserRepository},
 };
 

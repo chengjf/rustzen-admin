@@ -8,10 +8,7 @@ use crate::{
         files::save_avatar,
     },
     core::{extractor::CurrentUser, session::SessionStore},
-    features::{
-        auth::dto::ChangePasswordPayload,
-        system::log::service::LogService,
-    },
+    features::{auth::dto::ChangePasswordPayload, system::log::service::LogService},
 };
 
 use axum::{
@@ -104,18 +101,11 @@ async fn get_login_info_handler(
 }
 
 #[tracing::instrument(name = "logout", skip(pool, current_user))]
-async fn logout_handler(
-    State(pool): State<PgPool>,
-    current_user: CurrentUser,
-) -> AppResult<()> {
+async fn logout_handler(State(pool): State<PgPool>, current_user: CurrentUser) -> AppResult<()> {
     tracing::info!("Logout for user_id={}", current_user.user_id);
 
     if let Err(e) = SessionStore::delete_by_user_id(&pool, current_user.user_id).await {
-        tracing::error!(
-            "Failed to delete session for user_id={}: {:?}",
-            current_user.user_id,
-            e
-        );
+        tracing::error!("Failed to delete session for user_id={}: {:?}", current_user.user_id, e);
     }
 
     Ok(ApiResponse::success(()))

@@ -242,10 +242,7 @@ mod tests {
 
     #[test]
     fn database_error_maps_to_500() {
-        assert_eq!(
-            status_of(ServiceError::DatabaseQueryFailed),
-            StatusCode::INTERNAL_SERVER_ERROR
-        );
+        assert_eq!(status_of(ServiceError::DatabaseQueryFailed), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     #[test]

@@ -13,3 +13,18 @@ impl From<EnableStatus> for i16 {
         s as i16
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn enabled_status_maps_to_one() {
+        assert_eq!(i16::from(EnableStatus::Enabled), 1);
+    }
+
+    #[test]
+    fn disabled_status_maps_to_two() {
+        assert_eq!(i16::from(EnableStatus::Disabled), 2);
+    }
+}

@@ -158,12 +158,20 @@ impl MenuService {
             Ok(user_ids) => {
                 for uid in user_ids {
                     if let Err(e) = SessionStore::delete_by_user_id(pool, uid).await {
-                        tracing::error!("Failed to delete session for user_id={} after menu update: {:?}", uid, e);
+                        tracing::error!(
+                            "Failed to delete session for user_id={} after menu update: {:?}",
+                            uid,
+                            e
+                        );
                     }
                 }
             }
             Err(e) => {
-                tracing::error!("Failed to fetch users for menu_id={} during cache invalidation: {:?}", id, e);
+                tracing::error!(
+                    "Failed to fetch users for menu_id={} during cache invalidation: {:?}",
+                    id,
+                    e
+                );
             }
         }
 
@@ -181,10 +189,15 @@ impl MenuService {
         }
 
         // Collect affected users before role_menus are deleted inside the transaction
-        let affected_users = UserRepository::find_user_ids_by_menu_id(pool, id).await.unwrap_or_else(|e| {
-            tracing::error!("Failed to fetch users for menu_id={} during cache invalidation: {:?}", id, e);
-            vec![]
-        });
+        let affected_users =
+            UserRepository::find_user_ids_by_menu_id(pool, id).await.unwrap_or_else(|e| {
+                tracing::error!(
+                    "Failed to fetch users for menu_id={} during cache invalidation: {:?}",
+                    id,
+                    e
+                );
+                vec![]
+            });
 
         let mut tx = pool.begin().await.map_err(|e| {
             tracing::error!("Database error starting transaction for menu deletion: {:?}", e);
@@ -226,7 +239,11 @@ impl MenuService {
         // Invalidate permission caches for affected users
         for uid in affected_users {
             if let Err(e) = SessionStore::delete_by_user_id(pool, uid).await {
-                tracing::error!("Failed to delete session for user_id={} after menu deletion: {:?}", uid, e);
+                tracing::error!(
+                    "Failed to delete session for user_id={} after menu deletion: {:?}",
+                    uid,
+                    e
+                );
             }
         }
 
@@ -458,16 +475,24 @@ mod tests {
     }
 
     fn make_create_dto(parent_id: i64, name: &str, code: &str, menu_type: i16) -> CreateMenuDto {
-        CreateMenuDto { parent_id, name: name.to_string(), code: code.to_string(), menu_type, sort_order: 1, status: 1 }
+        CreateMenuDto {
+            parent_id,
+            name: name.to_string(),
+            code: code.to_string(),
+            menu_type,
+            sort_order: 1,
+            status: 1,
+        }
     }
 
     // ── create_menu ──────────────────────────────────────────────────────
 
     #[sqlx::test]
     async fn create_directory_at_root_succeeds(pool: PgPool) {
-        let id = MenuService::create_menu(&pool, make_create_dto(0, "测试目录", "test:root", dir()))
-            .await
-            .expect("should succeed");
+        let id =
+            MenuService::create_menu(&pool, make_create_dto(0, "测试目录", "test:root", dir()))
+                .await
+                .expect("should succeed");
         assert!(id > 0);
     }
 
@@ -482,7 +507,8 @@ mod tests {
     async fn create_menu_duplicate_name_returns_error(pool: PgPool) {
         // id=2 name="系统管理" already exists in seed data
         let result =
-            MenuService::create_menu(&pool, make_create_dto(0, "系统管理", "new:code", dir())).await;
+            MenuService::create_menu(&pool, make_create_dto(0, "系统管理", "new:code", dir()))
+                .await;
         assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
     }
 
@@ -583,10 +609,12 @@ mod tests {
     #[sqlx::test]
     async fn update_menu_cycle_detection_returns_error(pool: PgPool) {
         // Create: root → child1 → child2
-        let root =
-            MenuService::create_menu(&pool, make_create_dto(0, "根", "cyc:root", dir())).await.unwrap();
-        let child1 =
-            MenuService::create_menu(&pool, make_create_dto(root, "子1", "cyc:c1", dir())).await.unwrap();
+        let root = MenuService::create_menu(&pool, make_create_dto(0, "根", "cyc:root", dir()))
+            .await
+            .unwrap();
+        let child1 = MenuService::create_menu(&pool, make_create_dto(root, "子1", "cyc:c1", dir()))
+            .await
+            .unwrap();
         let child2 =
             MenuService::create_menu(&pool, make_create_dto(child1, "子2", "cyc:c2", dir()))
                 .await
@@ -630,7 +658,9 @@ mod tests {
     async fn delete_menu_with_children_returns_error(pool: PgPool) {
         // id=2 (系统管理) has children — this is non-system so we create our own tree
         let parent =
-            MenuService::create_menu(&pool, make_create_dto(0, "父目录", "par:dir", dir())).await.unwrap();
+            MenuService::create_menu(&pool, make_create_dto(0, "父目录", "par:dir", dir()))
+                .await
+                .unwrap();
         MenuService::create_menu(&pool, make_create_dto(parent, "子菜单", "child:menu", menu()))
             .await
             .unwrap();
@@ -732,5 +762,125 @@ mod tests {
         let children = root.children.as_ref().expect("root should have children");
         assert_eq!(children.len(), 1);
         assert_eq!(children[0].id, 2);
+    }
+
+    #[test]
+    fn build_response_tree_supports_multiple_levels_and_roots() {
+        use crate::features::system::menu::dto::MenuItemResp;
+        let now = chrono::Utc::now().naive_utc();
+        let items = vec![
+            MenuItemResp {
+                id: 10,
+                parent_id: 0,
+                name: "Root A".into(),
+                code: "root:a".into(),
+                menu_type: dir(),
+                status: 1,
+                is_system: false,
+                sort_order: 1,
+                created_at: now,
+                updated_at: now,
+                children: None,
+            },
+            MenuItemResp {
+                id: 11,
+                parent_id: 10,
+                name: "Child A".into(),
+                code: "child:a".into(),
+                menu_type: menu(),
+                status: 1,
+                is_system: false,
+                sort_order: 1,
+                created_at: now,
+                updated_at: now,
+                children: None,
+            },
+            MenuItemResp {
+                id: 12,
+                parent_id: 11,
+                name: "Grandchild A".into(),
+                code: "grandchild:a".into(),
+                menu_type: btn(),
+                status: 1,
+                is_system: false,
+                sort_order: 1,
+                created_at: now,
+                updated_at: now,
+                children: None,
+            },
+            MenuItemResp {
+                id: 20,
+                parent_id: 0,
+                name: "Root B".into(),
+                code: "root:b".into(),
+                menu_type: dir(),
+                status: 1,
+                is_system: false,
+                sort_order: 2,
+                created_at: now,
+                updated_at: now,
+                children: None,
+            },
+        ];
+
+        let tree = MenuService::build_response_tree(items);
+
+        assert_eq!(tree.len(), 2);
+        assert_eq!(tree[0].id, 10);
+        assert_eq!(tree[1].id, 20);
+        assert_eq!(
+            tree[0].children.as_ref().and_then(|children| children.first()).map(|child| child.id),
+            Some(11)
+        );
+        assert_eq!(
+            tree[0]
+                .children
+                .as_ref()
+                .and_then(|children| children.first())
+                .and_then(|child| child.children.as_ref())
+                .and_then(|children| children.first())
+                .map(|child| child.id),
+            Some(12)
+        );
+        assert!(tree[1].children.is_none());
+    }
+
+    #[test]
+    fn build_response_tree_ignores_orphans_without_root_path() {
+        use crate::features::system::menu::dto::MenuItemResp;
+        let now = chrono::Utc::now().naive_utc();
+        let items = vec![
+            MenuItemResp {
+                id: 99,
+                parent_id: 42,
+                name: "Orphan".into(),
+                code: "orphan".into(),
+                menu_type: menu(),
+                status: 1,
+                is_system: false,
+                sort_order: 1,
+                created_at: now,
+                updated_at: now,
+                children: None,
+            },
+            MenuItemResp {
+                id: 1,
+                parent_id: 0,
+                name: "Root".into(),
+                code: "root".into(),
+                menu_type: dir(),
+                status: 1,
+                is_system: false,
+                sort_order: 1,
+                created_at: now,
+                updated_at: now,
+                children: None,
+            },
+        ];
+
+        let tree = MenuService::build_response_tree(items);
+        assert_eq!(tree.len(), 1);
+        assert_eq!(tree[0].id, 1);
+        assert!(tree[0].children.is_none());
     }
 }

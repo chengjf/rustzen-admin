@@ -1,9 +1,6 @@
 use crate::{
     common::error::{AppError, ServiceError},
-    core::{
-        extractor::CurrentUser,
-        permission::PermissionsCheck,
-    },
+    core::{extractor::CurrentUser, permission::PermissionsCheck},
 };
 
 use axum::{Router, extract::Request, middleware::Next, response::Response, routing::MethodRouter};

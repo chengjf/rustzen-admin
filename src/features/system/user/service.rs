@@ -98,11 +98,8 @@ impl UserService {
         }
         let found = RoleRepository::find_existing_role_ids(pool, role_ids).await?;
         if found.len() != role_ids.len() {
-            let missing: Vec<String> = role_ids
-                .iter()
-                .filter(|id| !found.contains(id))
-                .map(|id| id.to_string())
-                .collect();
+            let missing: Vec<String> =
+                role_ids.iter().filter(|id| !found.contains(id)).map(|id| id.to_string()).collect();
             return Err(ServiceError::InvalidOperation(format!(
                 "角色ID {} 不存在或已禁用",
                 missing.join(",")
@@ -139,7 +136,11 @@ impl UserService {
 
         // Delete session so the next login picks up updated role assignments.
         if let Err(e) = SessionStore::delete_by_user_id(pool, id).await {
-            tracing::error!("Failed to delete session for user_id={} after role update: {:?}", id, e);
+            tracing::error!(
+                "Failed to delete session for user_id={} after role update: {:?}",
+                id,
+                e
+            );
         }
 
         Ok(user_id)
@@ -212,9 +213,13 @@ impl UserService {
     ) -> Result<Vec<UserOptionResp>, ServiceError> {
         tracing::debug!("Getting user options with query: {:?}", query);
 
-        let options =
-            UserRepository::find_options(pool, query.status.map(i16::from), query.q.as_deref(), query.limit)
-                .await?;
+        let options = UserRepository::find_options(
+            pool,
+            query.status.map(i16::from),
+            query.q.as_deref(),
+            query.limit,
+        )
+        .await?;
 
         let user_options =
             options.into_iter().map(|(value, label)| UserOptionResp { label, value }).collect();
@@ -239,7 +244,11 @@ impl UserService {
 
         // Revoke session so the user must re-login with the new password.
         if let Err(e) = SessionStore::delete_by_user_id(pool, id).await {
-            tracing::error!("Failed to delete session after password reset for user_id={}: {:?}", id, e);
+            tracing::error!(
+                "Failed to delete session after password reset for user_id={}: {:?}",
+                id,
+                e
+            );
         }
         tracing::info!("Session revoked for user_id={} after admin password reset", id);
 
@@ -273,11 +282,23 @@ impl UserService {
         }
 
         // Revoke active session immediately when disabling, pending, or locking an account
-        if dto.status == UserStatus::Disabled || dto.status == UserStatus::Locked || dto.status == UserStatus::Pending {
+        if dto.status == UserStatus::Disabled
+            || dto.status == UserStatus::Locked
+            || dto.status == UserStatus::Pending
+        {
             if let Err(e) = SessionStore::delete_by_user_id(pool, id).await {
-                tracing::error!("Failed to delete session for user_id={} on status change to {:?}: {:?}", id, dto.status, e);
+                tracing::error!(
+                    "Failed to delete session for user_id={} on status change to {:?}: {:?}",
+                    id,
+                    dto.status,
+                    e
+                );
             }
-            tracing::info!("Session revoked for user_id={} due to status change to {:?}", id, dto.status);
+            tracing::info!(
+                "Session revoked for user_id={} due to status change to {:?}",
+                id,
+                dto.status
+            );
         }
 
         Ok(true)
@@ -312,24 +333,36 @@ mod tests {
 
     #[sqlx::test]
     async fn create_user_with_no_roles_succeeds(pool: PgPool) {
-        let id = UserService::create_user(&pool, make_create_dto("newuser1", "newuser1@test.com", vec![])).await;
+        let id = UserService::create_user(
+            &pool,
+            make_create_dto("newuser1", "newuser1@test.com", vec![]),
+        )
+        .await;
         assert!(id.is_ok());
         assert!(id.unwrap() > 0);
     }
 
     #[sqlx::test]
     async fn create_user_duplicate_username_returns_conflict(pool: PgPool) {
-        UserService::create_user(&pool, make_create_dto("dupuser", "dup1@test.com", vec![])).await.unwrap();
+        UserService::create_user(&pool, make_create_dto("dupuser", "dup1@test.com", vec![]))
+            .await
+            .unwrap();
 
-        let result = UserService::create_user(&pool, make_create_dto("dupuser", "dup2@test.com", vec![])).await;
+        let result =
+            UserService::create_user(&pool, make_create_dto("dupuser", "dup2@test.com", vec![]))
+                .await;
         assert!(matches!(result, Err(ServiceError::UsernameConflict)));
     }
 
     #[sqlx::test]
     async fn create_user_duplicate_email_returns_conflict(pool: PgPool) {
-        UserService::create_user(&pool, make_create_dto("emailuser1", "same@test.com", vec![])).await.unwrap();
+        UserService::create_user(&pool, make_create_dto("emailuser1", "same@test.com", vec![]))
+            .await
+            .unwrap();
 
-        let result = UserService::create_user(&pool, make_create_dto("emailuser2", "same@test.com", vec![])).await;
+        let result =
+            UserService::create_user(&pool, make_create_dto("emailuser2", "same@test.com", vec![]))
+                .await;
         assert!(matches!(result, Err(ServiceError::EmailConflict)));
     }
 
@@ -360,7 +393,9 @@ mod tests {
     #[sqlx::test]
     async fn create_user_with_disabled_role_returns_error(pool: PgPool) {
         let disabled_role_id =
-            RoleRepository::create(&pool, "禁用角色", "DISABLED_R2", None, 2, 0, &[]).await.unwrap();
+            RoleRepository::create(&pool, "禁用角色", "DISABLED_R2", None, 2, 0, &[])
+                .await
+                .unwrap();
 
         let result = UserService::create_user(
             &pool,
@@ -399,9 +434,10 @@ mod tests {
 
     #[sqlx::test]
     async fn update_user_changes_email_and_real_name(pool: PgPool) {
-        let id = UserService::create_user(&pool, make_create_dto("upd_user", "upd@test.com", vec![]))
-            .await
-            .unwrap();
+        let id =
+            UserService::create_user(&pool, make_create_dto("upd_user", "upd@test.com", vec![]))
+                .await
+                .unwrap();
 
         let result = UserService::update_user(
             &pool,
@@ -423,12 +459,14 @@ mod tests {
 
     #[sqlx::test]
     async fn update_user_duplicate_email_returns_conflict(pool: PgPool) {
-        let _id1 = UserService::create_user(&pool, make_create_dto("upd_u1", "taken@test.com", vec![]))
-            .await
-            .unwrap();
-        let id2 = UserService::create_user(&pool, make_create_dto("upd_u2", "own@test.com", vec![]))
-            .await
-            .unwrap();
+        let _id1 =
+            UserService::create_user(&pool, make_create_dto("upd_u1", "taken@test.com", vec![]))
+                .await
+                .unwrap();
+        let id2 =
+            UserService::create_user(&pool, make_create_dto("upd_u2", "own@test.com", vec![]))
+                .await
+                .unwrap();
 
         let result = UserService::update_user(
             &pool,
@@ -464,9 +502,10 @@ mod tests {
 
     #[sqlx::test]
     async fn delete_user_removes_user(pool: PgPool) {
-        let id = UserService::create_user(&pool, make_create_dto("del_user", "del@test.com", vec![]))
-            .await
-            .unwrap();
+        let id =
+            UserService::create_user(&pool, make_create_dto("del_user", "del@test.com", vec![]))
+                .await
+                .unwrap();
 
         UserService::delete_user(&pool, id).await.expect("delete should succeed");
 

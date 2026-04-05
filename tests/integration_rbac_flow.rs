@@ -5,20 +5,13 @@
 ///
 /// Each `#[sqlx::test]` spins up a fresh migrated database (including seed data
 /// from 0105_seed.sql) and tears it down after the test.
-
 use rustzen_admin::{
     common::error::ServiceError,
     features::{
         auth::service::AuthService,
         system::{
-            role::{
-                dto::CreateRoleDto,
-                service::RoleService,
-            },
-            user::{
-                dto::CreateUserDto,
-                service::UserService,
-            },
+            role::{dto::CreateRoleDto, service::RoleService},
+            user::{dto::CreateUserDto, service::UserService},
         },
     },
 };
@@ -52,7 +45,8 @@ fn user_dto(username: &str, password: &str, role_ids: Vec<i64>) -> CreateUserDto
 
 async fn simulate_failed_logins(pool: &PgPool, username: &str, n: usize) {
     for _ in 0..n {
-        let _ = AuthService::verify_login(pool, username, "intentionally_wrong_password_xyz!!").await;
+        let _ =
+            AuthService::verify_login(pool, username, "intentionally_wrong_password_xyz!!").await;
     }
 }
 
@@ -72,21 +66,24 @@ async fn test_role_creation_with_validation(pool: PgPool) {
         .expect("first creation should succeed");
 
     // 2. Duplicate name should fail
-    let dup_name = RoleService::create_role(&pool, role_dto("验证角色", "OTHER_CODE", vec![])).await;
+    let dup_name =
+        RoleService::create_role(&pool, role_dto("验证角色", "OTHER_CODE", vec![])).await;
     assert!(
         matches!(dup_name, Err(ServiceError::InvalidOperation(_))),
         "duplicate name should be rejected"
     );
 
     // 3. Duplicate code should fail
-    let dup_code = RoleService::create_role(&pool, role_dto("不同名称", "VALIDATION_R", vec![])).await;
+    let dup_code =
+        RoleService::create_role(&pool, role_dto("不同名称", "VALIDATION_R", vec![])).await;
     assert!(
         matches!(dup_code, Err(ServiceError::InvalidOperation(_))),
         "duplicate code should be rejected"
     );
 
     // 4. Incomplete menu path: providing [3, 4] without parent [2]
-    let broken = RoleService::create_role(&pool, role_dto("路径残缺角色", "BROKEN_R", vec![3, 4])).await;
+    let broken =
+        RoleService::create_role(&pool, role_dto("路径残缺角色", "BROKEN_R", vec![3, 4])).await;
     assert!(
         matches!(broken, Err(ServiceError::InvalidOperation(_))),
         "incomplete menu path should be rejected"
@@ -113,9 +110,7 @@ async fn test_user_creation_with_validation(pool: PgPool) {
     // Create a valid role first
     let role_id = {
         use rustzen_admin::features::system::role::repo::RoleRepository;
-        RoleRepository::create(&pool, "用户测试角色", "USER_TEST_R", None, 1, 0, &[])
-            .await
-            .unwrap()
+        RoleRepository::create(&pool, "用户测试角色", "USER_TEST_R", None, 1, 0, &[]).await.unwrap()
     };
 
     // 1. Create user with valid role → success
@@ -215,8 +210,8 @@ async fn test_full_rbac_lifecycle(pool: PgPool) {
     //   → id=4 (按钮:user:create), id=7 (按钮:user:delete)
     // We use the seeded menus to avoid relying on auto-increment IDs.
 
-    let dir_id: i64 = 2;   // 系统管理 (Directory)
-    let menu_id: i64 = 3;  // 用户管理 (Menu)
+    let dir_id: i64 = 2; // 系统管理 (Directory)
+    let menu_id: i64 = 3; // 用户管理 (Menu)
     let btn_create: i64 = 4; // 用户创建 (Button)
     let btn_delete: i64 = 7; // 用户删除 (Button)
 
@@ -228,11 +223,10 @@ async fn test_full_rbac_lifecycle(pool: PgPool) {
     .await
     .expect("role creation should succeed");
 
-    let (role_id,): (i64,) =
-        sqlx::query_as("SELECT id FROM roles WHERE code = 'RBAC_TEST'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let (role_id,): (i64,) = sqlx::query_as("SELECT id FROM roles WHERE code = 'RBAC_TEST'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
     // ── Step 3: Create user with that role ────────────────────────────────
     let username = "rbac_test_user";
@@ -261,7 +255,8 @@ async fn test_full_rbac_lifecycle(pool: PgPool) {
         .expect("login should succeed after unlock");
 
     // ── Step 7: Verify permissions ────────────────────────────────────────
-    let info = AuthService::get_login_info(&pool, uid).await.expect("get_login_info should succeed");
+    let info =
+        AuthService::get_login_info(&pool, uid).await.expect("get_login_info should succeed");
 
     // Should contain the button permission codes from the assigned role
     assert!(

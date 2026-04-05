@@ -364,16 +364,18 @@ impl UserRepository {
         id: i64,
         status: i16,
     ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET status = $1, updated_at = $2 WHERE id = $3 AND deleted_at IS NULL")
-            .bind(status)
-            .bind(Utc::now().naive_utc())
-            .bind(id)
-            .execute(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error updating user status for ID {}: {:?}", id, e);
-                ServiceError::DatabaseQueryFailed
-            })?;
+        let result = sqlx::query(
+            "UPDATE users SET status = $1, updated_at = $2 WHERE id = $3 AND deleted_at IS NULL",
+        )
+        .bind(status)
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error updating user status for ID {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -443,6 +445,10 @@ mod tests {
     use crate::core::password::PasswordUtils;
     use sqlx::PgPool;
 
+    fn empty_query() -> UserListQuery {
+        UserListQuery { username: None, status: None, real_name: None, email: None }
+    }
+
     async fn seed_user(pool: &PgPool, username: &str, email: &str) -> i64 {
         let hash = PasswordUtils::hash_password("Test@12345").unwrap();
         UserRepository::create_user(
@@ -494,6 +500,31 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn email_exists_exclude_self_detects_other_users_only(pool: PgPool) {
+        let first_id = seed_user(&pool, "email_excl_1", "email_excl_1@example.com").await;
+        let second_id = seed_user(&pool, "email_excl_2", "email_excl_2@example.com").await;
+
+        let own_email =
+            UserRepository::email_exists_exclude_self(&pool, "email_excl_1@example.com", first_id)
+                .await
+                .unwrap();
+        let other_email =
+            UserRepository::email_exists_exclude_self(&pool, "email_excl_1@example.com", second_id)
+                .await
+                .unwrap();
+
+        assert!(!own_email);
+        assert!(other_email);
+    }
+
+    #[sqlx::test]
+    async fn username_exists_is_true_after_create(pool: PgPool) {
+        seed_user(&pool, "existing_username", "existing_username@example.com").await;
+        let exists = UserRepository::username_exists(&pool, "existing_username").await.unwrap();
+        assert!(exists);
+    }
+
+    #[sqlx::test]
     async fn username_exists_is_false_for_new(pool: PgPool) {
         let exists =
             UserRepository::username_exists(&pool, "definitely_not_seeded_xyz").await.unwrap();
@@ -527,5 +558,196 @@ mod tests {
             UserRepository::find_with_pagination(&pool, 0, 10, query).await.unwrap();
         assert_eq!(total, 2);
         assert_eq!(users.len(), 2);
+    }
+
+    #[sqlx::test]
+    async fn find_with_pagination_filters_by_real_name_email_and_status(pool: PgPool) {
+        let user_id = seed_user(&pool, "filter_user", "filter_user@example.com").await;
+
+        sqlx::query("UPDATE users SET real_name = $1 WHERE id = $2")
+            .bind("筛选用户")
+            .bind(user_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let query = UserListQuery {
+            username: Some("filter_".to_string()),
+            status: Some(1),
+            real_name: Some("筛选".to_string()),
+            email: Some("filter_user@".to_string()),
+        };
+
+        let (users, total) =
+            UserRepository::find_with_pagination(&pool, 0, 10, query).await.unwrap();
+        assert_eq!(total, 1);
+        assert_eq!(users.len(), 1);
+        assert_eq!(users[0].id, user_id);
+    }
+
+    #[sqlx::test]
+    async fn find_with_pagination_uses_effective_status_for_locked_users(pool: PgPool) {
+        let user_id =
+            seed_user(&pool, "locked_filter_user", "locked_filter_user@example.com").await;
+
+        sqlx::query("UPDATE users SET locked_until = NOW() + INTERVAL '30 minutes' WHERE id = $1")
+            .bind(user_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let query = UserListQuery {
+            username: Some("locked_filter_user".to_string()),
+            status: Some(4),
+            real_name: None,
+            email: None,
+        };
+
+        let (users, total) =
+            UserRepository::find_with_pagination(&pool, 0, 10, query).await.unwrap();
+        assert_eq!(total, 1);
+        assert_eq!(users.len(), 1);
+        assert_eq!(users[0].effective_status, 4);
+    }
+
+    #[sqlx::test]
+    async fn find_options_filters_by_status_query_and_limit(pool: PgPool) {
+        let enabled_id = seed_user(&pool, "option_enabled", "option_enabled@example.com").await;
+        let disabled_id = seed_user(&pool, "option_disabled", "option_disabled@example.com").await;
+
+        sqlx::query("UPDATE users SET real_name = $1 WHERE id = $2")
+            .bind("启用用户")
+            .bind(enabled_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE users SET real_name = $1, status = 2 WHERE id = $2")
+            .bind("禁用用户")
+            .bind(disabled_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let options =
+            UserRepository::find_options(&pool, Some(1), Some("用户"), Some(10)).await.unwrap();
+
+        assert!(options.iter().any(|(id, name)| *id == enabled_id && name == "启用用户"));
+        assert!(!options.iter().any(|(id, _)| *id == disabled_id));
+    }
+
+    #[sqlx::test]
+    async fn update_user_persists_email_real_name_and_roles(pool: PgPool) {
+        let user_id = seed_user(&pool, "update_user_repo", "update_user_repo@example.com").await;
+        let (role_id,): (i64,) = sqlx::query_as("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        let updated_id = UserRepository::update_user(
+            &pool,
+            user_id,
+            "updated_user_repo@example.com",
+            Some("Updated User"),
+            &[role_id],
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated_id, user_id);
+
+        let updated = UserRepository::find_by_id(&pool, user_id).await.unwrap().unwrap();
+        assert_eq!(updated.email, "updated_user_repo@example.com");
+        assert_eq!(updated.real_name.as_deref(), Some("Updated User"));
+
+        let role_ids: Vec<i64> = sqlx::query_scalar(
+            "SELECT role_id FROM user_roles WHERE user_id = $1 ORDER BY role_id",
+        )
+        .bind(user_id)
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(role_ids, vec![role_id]);
+    }
+
+    #[sqlx::test]
+    async fn update_user_returns_not_found_for_missing(pool: PgPool) {
+        let result =
+            UserRepository::update_user(&pool, 999_999, "missing@example.com", None, &[]).await;
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
+    }
+
+    #[sqlx::test]
+    async fn update_user_password_and_status_return_true_for_existing_user(pool: PgPool) {
+        let user_id = seed_user(&pool, "update_user_flags", "update_user_flags@example.com").await;
+
+        let password_updated =
+            UserRepository::update_user_password(&pool, user_id, "new_hash_value").await.unwrap();
+        let status_updated = UserRepository::update_user_status(&pool, user_id, 2).await.unwrap();
+
+        assert!(password_updated);
+        assert!(status_updated);
+
+        let (password_hash, status): (String, i16) =
+            sqlx::query_as("SELECT password_hash, status FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(password_hash, "new_hash_value");
+        assert_eq!(status, 2);
+    }
+
+    #[sqlx::test]
+    async fn update_user_password_status_and_unlock_return_false_for_missing_user(pool: PgPool) {
+        assert!(!UserRepository::update_user_password(&pool, 999_999, "x").await.unwrap());
+        assert!(!UserRepository::update_user_status(&pool, 999_999, 2).await.unwrap());
+        assert!(!UserRepository::unlock_user(&pool, 999_999).await.unwrap());
+    }
+
+    #[sqlx::test]
+    async fn find_user_ids_by_role_id_and_menu_id_return_assigned_user(pool: PgPool) {
+        let user_id = seed_user(&pool, "relation_user", "relation_user@example.com").await;
+        let role_id =
+            sqlx::query_scalar::<_, i64>("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        sqlx::query("INSERT INTO user_roles (user_id, role_id, created_at) VALUES ($1, $2, NOW())")
+            .bind(user_id)
+            .bind(role_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let role_user_ids = UserRepository::find_user_ids_by_role_id(&pool, role_id).await.unwrap();
+        let menu_user_ids = UserRepository::find_user_ids_by_menu_id(&pool, 1).await.unwrap();
+
+        assert!(role_user_ids.contains(&user_id));
+        assert!(menu_user_ids.contains(&user_id));
+    }
+
+    #[sqlx::test]
+    async fn unlock_user_clears_failed_attempts_and_locked_until(pool: PgPool) {
+        let user_id = seed_user(&pool, "unlock_user_repo", "unlock_user_repo@example.com").await;
+
+        sqlx::query(
+            "UPDATE users SET failed_login_attempts = 5, locked_until = NOW() + INTERVAL '30 minutes' WHERE id = $1",
+        )
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let unlocked = UserRepository::unlock_user(&pool, user_id).await.unwrap();
+        assert!(unlocked);
+
+        let (attempts, locked_until): (i16, Option<chrono::DateTime<chrono::Utc>>) =
+            sqlx::query_as("SELECT failed_login_attempts, locked_until FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(attempts, 0);
+        assert!(locked_until.is_none());
     }
 }

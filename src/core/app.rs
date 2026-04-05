@@ -12,11 +12,7 @@ use crate::{
     middleware::{auth::auth_middleware, log::log_middleware},
 };
 
-use axum::{
-    Router,
-    middleware,
-    routing::get,
-};
+use axum::{Router, middleware, routing::get};
 use serde_json::json;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;

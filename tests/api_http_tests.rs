@@ -1,3 +1,5 @@
+use axum::Router;
+use axum::http::HeaderValue;
 /// HTTP-level integration tests using axum-test.
 ///
 /// Covers all API handlers that had 0% coverage:
@@ -12,11 +14,8 @@
 ///
 /// Each `#[sqlx::test]` gets a fresh migrated DB (including seed data).
 /// The test server is built from the real router, so all middleware runs.
-
 use axum::http::header::AUTHORIZATION;
-use axum::http::HeaderValue;
 use axum::middleware;
-use axum::Router;
 use axum_test::TestServer;
 use chrono::{Duration, Utc};
 use rustzen_admin::{
@@ -145,10 +144,7 @@ async fn get_me_with_valid_token_returns_user_info(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/auth/me")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -182,24 +178,15 @@ async fn logout_invalidates_session(pool: PgPool) {
     let server = make_server(pool);
 
     // First confirm the token is valid
-    let before = server
-        .get("/api/auth/me")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let before = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
     before.assert_status_ok();
 
     // Logout
-    let logout = server
-        .get("/api/auth/logout")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let logout = server.get("/api/auth/logout").add_header(AUTHORIZATION, bearer(&token)).await;
     logout.assert_status_ok();
 
     // The same token must now be rejected
-    let after = server
-        .get("/api/auth/me")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let after = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
     after.assert_status(axum::http::StatusCode::UNAUTHORIZED);
 }
 
@@ -228,10 +215,7 @@ async fn change_password_invalidates_session(pool: PgPool) {
     change.assert_status_ok();
 
     // Old token must be rejected after password change
-    let after = server
-        .get("/api/auth/me")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let after = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
     after.assert_status(axum::http::StatusCode::UNAUTHORIZED);
 }
 
@@ -276,16 +260,11 @@ async fn disabled_user_token_rejected(pool: PgPool) {
     // Create a session while user was still valid (simulate stale session)
     let token = {
         let expires_at = Utc::now() + Duration::hours(1);
-        SessionStore::create(&pool, uid, expires_at, "127.0.0.1", "test")
-            .await
-            .unwrap()
+        SessionStore::create(&pool, uid, expires_at, "127.0.0.1", "test").await.unwrap()
     };
 
     let server = make_server(pool);
-    let resp = server
-        .get("/api/auth/me")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
     resp.assert_status(axum::http::StatusCode::UNAUTHORIZED);
 }
 
@@ -312,10 +291,7 @@ async fn expired_session_is_rejected(pool: PgPool) {
     .unwrap();
 
     let server = make_server(pool);
-    let resp = server
-        .get("/api/auth/me")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/auth/me").add_header(AUTHORIZATION, bearer(&token)).await;
     resp.assert_status(axum::http::StatusCode::UNAUTHORIZED);
 }
 
@@ -328,10 +304,7 @@ async fn get_stats_returns_ok(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/dashboard/stats")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/dashboard/stats").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -343,16 +316,17 @@ async fn get_health_returns_ok(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/dashboard/health")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/dashboard/health").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
     assert_eq!(body["code"], 0);
     // SystemInfo has cpu_usage and memory_total fields
-    assert!(body["data"]["cpuUsage"].is_number() || body["data"]["cpu_usage"].is_number() || body["data"].is_object());
+    assert!(
+        body["data"]["cpuUsage"].is_number()
+            || body["data"]["cpu_usage"].is_number()
+            || body["data"].is_object()
+    );
 }
 
 #[sqlx::test]
@@ -360,10 +334,7 @@ async fn get_metrics_returns_ok(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/dashboard/metrics")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/dashboard/metrics").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -375,10 +346,7 @@ async fn get_trends_returns_ok(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/dashboard/trends")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/dashboard/trends").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -402,10 +370,7 @@ async fn get_user_list_returns_paginated_result(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/system/users")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/system/users").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -486,8 +451,7 @@ async fn update_user_via_api_succeeds(pool: PgPool) {
             "roleIds": []
         }))
         .await;
-    let user_id: i64 =
-        create_resp.json::<Value>()["data"].as_i64().expect("should return user id");
+    let user_id: i64 = create_resp.json::<Value>()["data"].as_i64().expect("should return user id");
 
     // Update the user
     let resp = server
@@ -579,10 +543,8 @@ async fn get_user_options_returns_list(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/system/users/options")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp =
+        server.get("/api/system/users/options").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -676,10 +638,7 @@ async fn get_role_list_returns_paginated_result(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/system/roles")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/system/roles").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -818,10 +777,8 @@ async fn get_role_options_returns_list(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/system/roles/options")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp =
+        server.get("/api/system/roles/options").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -838,10 +795,7 @@ async fn get_menu_list_returns_tree(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/system/menus")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/system/menus").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -999,10 +953,7 @@ async fn delete_system_menu_returns_404(pool: PgPool) {
     let server = make_server(pool);
 
     // Menu id=1 is seeded as a system menu with no children (leaf) → expect 404
-    let resp = server
-        .delete("/api/system/menus/1")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.delete("/api/system/menus/1").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status(axum::http::StatusCode::NOT_FOUND);
 }
@@ -1012,10 +963,8 @@ async fn get_menu_options_returns_list(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/system/menus/options")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp =
+        server.get("/api/system/menus/options").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -1032,10 +981,7 @@ async fn get_log_list_returns_paginated_result(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/system/logs")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/system/logs").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     let body: Value = resp.json();
@@ -1049,18 +995,13 @@ async fn export_log_list_returns_csv(pool: PgPool) {
     let token = admin_token(&pool).await;
     let server = make_server(pool);
 
-    let resp = server
-        .get("/api/system/logs/export")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp =
+        server.get("/api/system/logs/export").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status_ok();
     // CSV response; content-disposition header should be set
-    let disposition = resp
-        .headers()
-        .get("content-disposition")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
+    let disposition =
+        resp.headers().get("content-disposition").and_then(|v| v.to_str().ok()).unwrap_or("");
     assert!(disposition.contains("attachment"), "should be a file download");
 }
 
@@ -1082,10 +1023,7 @@ async fn user_without_permissions_gets_403(pool: PgPool) {
     let token = login_resp.json::<Value>()["data"]["token"].as_str().unwrap().to_string();
 
     // This route requires system:user:list permission
-    let resp = server
-        .get("/api/system/users")
-        .add_header(AUTHORIZATION, bearer(&token))
-        .await;
+    let resp = server.get("/api/system/users").add_header(AUTHORIZATION, bearer(&token)).await;
 
     resp.assert_status(axum::http::StatusCode::FORBIDDEN);
 }

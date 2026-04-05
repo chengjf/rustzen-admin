@@ -81,7 +81,10 @@ impl AuthRepository {
     /// Increment failed login attempts for a user.
     /// When the count reaches 5, the account is automatically locked for 30 minutes.
     /// Note: does not change `status` — auto-lockout is tracked via `locked_until` only.
-    pub async fn increment_failed_attempts(pool: &PgPool, user_id: i64) -> Result<(), ServiceError> {
+    pub async fn increment_failed_attempts(
+        pool: &PgPool,
+        user_id: i64,
+    ) -> Result<(), ServiceError> {
         sqlx::query(
             r#"
             UPDATE users
@@ -231,5 +234,95 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(cleared, 0);
+    }
+
+    #[sqlx::test]
+    async fn get_user_permissions_excludes_disabled_wildcard_menu_for_superadmin(pool: PgPool) {
+        let (user_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM users WHERE username = 'superadmin'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        let permissions = AuthRepository::get_user_permissions(&pool, user_id)
+            .await
+            .expect("permissions query should succeed");
+
+        assert!(permissions.is_empty());
+    }
+
+    #[sqlx::test]
+    async fn update_last_login_sets_timestamp(pool: PgPool) {
+        let (user_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM users WHERE username = 'superadmin'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        sqlx::query("UPDATE users SET last_login_at = NULL WHERE id = $1")
+            .bind(user_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        AuthRepository::update_last_login(&pool, user_id).await.expect("update should succeed");
+
+        let (last_login_at,): (Option<chrono::NaiveDateTime>,) =
+            sqlx::query_as("SELECT last_login_at FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert!(last_login_at.is_some());
+    }
+
+    #[sqlx::test]
+    async fn increment_failed_attempts_locks_user_after_five_attempts(pool: PgPool) {
+        let (user_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM users WHERE username = 'superadmin'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        AuthRepository::reset_failed_attempts(&pool, user_id).await.unwrap();
+
+        for _ in 0..5 {
+            AuthRepository::increment_failed_attempts(&pool, user_id)
+                .await
+                .expect("increment should succeed");
+        }
+
+        let (attempts, locked_until): (i16, Option<chrono::DateTime<chrono::Utc>>) =
+            sqlx::query_as("SELECT failed_login_attempts, locked_until FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        assert_eq!(attempts, 5);
+        assert!(locked_until.is_some());
+        assert!(locked_until.unwrap() > chrono::Utc::now());
+    }
+
+    #[sqlx::test]
+    async fn update_avatar_persists_avatar_url(pool: PgPool) {
+        let (user_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM users WHERE username = 'superadmin'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        let avatar_url = "/uploads/avatars/test-avatar.png";
+        AuthRepository::update_avatar(&pool, user_id, avatar_url)
+            .await
+            .expect("avatar update should succeed");
+
+        let (stored_avatar_url,): (Option<String>,) =
+            sqlx::query_as("SELECT avatar_url FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(stored_avatar_url.as_deref(), Some(avatar_url));
     }
 }

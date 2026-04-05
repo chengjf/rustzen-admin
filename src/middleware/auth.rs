@@ -41,12 +41,10 @@ pub async fn auth_middleware(
         })?;
 
     // Look up session by token.
-    let session = SessionStore::get_by_token(&pool, token)
-        .await?
-        .ok_or_else(|| {
-            tracing::debug!("No active session for token on {}", parts.uri.path());
-            AppError::from(ServiceError::InvalidToken)
-        })?;
+    let session = SessionStore::get_by_token(&pool, token).await?.ok_or_else(|| {
+        tracing::debug!("No active session for token on {}", parts.uri.path());
+        AppError::from(ServiceError::InvalidToken)
+    })?;
 
     let user_id = session.user_id;
 
@@ -95,11 +93,7 @@ pub async fn auth_middleware(
             .fetch_one(&pool)
             .await
             .map_err(|e| {
-                tracing::error!(
-                    "Failed to load permissions for user_id={}: {:?}",
-                    user_id,
-                    e
-                );
+                tracing::error!("Failed to load permissions for user_id={}: {:?}", user_id, e);
                 AppError::from(ServiceError::DatabaseQueryFailed)
             })?;
         perms.into_iter().collect()

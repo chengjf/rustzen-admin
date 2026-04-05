@@ -61,10 +61,9 @@ impl SessionStore {
         // Opportunistically remove expired sessions on each login.
         let pool_clone = pool.clone();
         tokio::spawn(async move {
-            if let Err(e) =
-                sqlx::query("DELETE FROM user_sessions WHERE expires_at < NOW()")
-                    .execute(&pool_clone)
-                    .await
+            if let Err(e) = sqlx::query("DELETE FROM user_sessions WHERE expires_at < NOW()")
+                .execute(&pool_clone)
+                .await
             {
                 tracing::warn!("Failed to clean up expired sessions: {:?}", e);
             }
@@ -101,7 +100,11 @@ impl SessionStore {
             .execute(pool)
             .await
             .map_err(|e| {
-                tracing::error!("SessionStore::delete_by_user_id failed for user_id={}: {:?}", user_id, e);
+                tracing::error!(
+                    "SessionStore::delete_by_user_id failed for user_id={}: {:?}",
+                    user_id,
+                    e
+                );
                 ServiceError::DatabaseQueryFailed
             })?;
 

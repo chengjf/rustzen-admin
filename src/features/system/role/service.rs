@@ -129,12 +129,20 @@ impl RoleService {
             Ok(user_ids) => {
                 for uid in user_ids {
                     if let Err(e) = SessionStore::delete_by_user_id(pool, uid).await {
-                        tracing::error!("Failed to delete session for user_id={} after role update: {:?}", uid, e);
+                        tracing::error!(
+                            "Failed to delete session for user_id={} after role update: {:?}",
+                            uid,
+                            e
+                        );
                     }
                 }
             }
             Err(e) => {
-                tracing::error!("Failed to fetch users for role_id={} during cache invalidation: {:?}", id, e);
+                tracing::error!(
+                    "Failed to fetch users for role_id={} during cache invalidation: {:?}",
+                    id,
+                    e
+                );
             }
         }
 
@@ -294,15 +302,20 @@ mod tests {
     #[sqlx::test]
     async fn create_role_succeeds(pool: PgPool) {
         // Use seed menus: 目录(2) -> 菜单(3) -> 按钮(4) — complete path
-        let result = RoleService::create_role(&pool, make_role_dto("新角色", "NEW_ROLE", vec![2, 3, 4])).await;
+        let result =
+            RoleService::create_role(&pool, make_role_dto("新角色", "NEW_ROLE", vec![2, 3, 4]))
+                .await;
         assert!(result.is_ok());
     }
 
     #[sqlx::test]
     async fn create_role_duplicate_name_returns_error(pool: PgPool) {
-        RoleService::create_role(&pool, make_role_dto("重复名称", "UNIQ_CODE1", vec![])).await.unwrap();
+        RoleService::create_role(&pool, make_role_dto("重复名称", "UNIQ_CODE1", vec![]))
+            .await
+            .unwrap();
 
-        let result = RoleService::create_role(&pool, make_role_dto("重复名称", "UNIQ_CODE2", vec![])).await;
+        let result =
+            RoleService::create_role(&pool, make_role_dto("重复名称", "UNIQ_CODE2", vec![])).await;
         assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
     }
 
@@ -310,14 +323,17 @@ mod tests {
     async fn create_role_duplicate_code_returns_error(pool: PgPool) {
         RoleService::create_role(&pool, make_role_dto("角色A", "SAME_CODE", vec![])).await.unwrap();
 
-        let result = RoleService::create_role(&pool, make_role_dto("角色B", "SAME_CODE", vec![])).await;
+        let result =
+            RoleService::create_role(&pool, make_role_dto("角色B", "SAME_CODE", vec![])).await;
         assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
     }
 
     #[sqlx::test]
     async fn create_role_missing_parent_menu_returns_error(pool: PgPool) {
         // id=3 (菜单) has parent id=2 (目录). Providing only [3] is incomplete.
-        let result = RoleService::create_role(&pool, make_role_dto("路径不全角色", "BROKEN_PATH", vec![3])).await;
+        let result =
+            RoleService::create_role(&pool, make_role_dto("路径不全角色", "BROKEN_PATH", vec![3]))
+                .await;
         assert!(
             matches!(result, Err(ServiceError::InvalidOperation(_))),
             "incomplete menu path should fail"
@@ -326,8 +342,11 @@ mod tests {
 
     #[sqlx::test]
     async fn create_role_with_nonexistent_menu_returns_error(pool: PgPool) {
-        let result =
-            RoleService::create_role(&pool, make_role_dto("无效菜单角色", "BAD_MENU", vec![999_999])).await;
+        let result = RoleService::create_role(
+            &pool,
+            make_role_dto("无效菜单角色", "BAD_MENU", vec![999_999]),
+        )
+        .await;
         assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
     }
 
@@ -335,7 +354,8 @@ mod tests {
     async fn create_role_with_duplicate_menu_ids_returns_error(pool: PgPool) {
         // id=2 duplicated
         let result =
-            RoleService::create_role(&pool, make_role_dto("重复菜单角色", "DUP_MENU", vec![2, 2])).await;
+            RoleService::create_role(&pool, make_role_dto("重复菜单角色", "DUP_MENU", vec![2, 2]))
+                .await;
         assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
     }
 
