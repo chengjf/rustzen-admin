@@ -1,13 +1,14 @@
 -- ============================================================================
 -- Module: Core seed data
 -- Description: Seed initial users, roles, menus, and relation data.
+-- Note: superadmin password is initialized by app startup bootstrap logic.
 -- ============================================================================
 
 INSERT INTO users (username, email, password_hash, real_name, status, is_system)
 VALUES (
     'superadmin',
     'superadmin@example.com',
-    '$argon2id$v=19$m=19456,t=2,p=1$i2SSaoqEMMwYzJQPXhVHfg$k1Y5bZ/k5SxEoEroG+UFzCW8aKzK1o/DWKKDU34FiPI',
+    '__BOOTSTRAP_PASSWORD_REQUIRED__',
     '超级管理员',
     1,
     TRUE

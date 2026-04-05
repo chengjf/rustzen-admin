@@ -41,6 +41,7 @@ async fn login_handler(
     headers: HeaderMap,
     Json(request): Json<LoginRequest>,
 ) -> AppResult<LoginResp> {
+    request.validate()?;
     let start_time = Instant::now();
     tracing::info!("Login attempt from {}", addr.ip());
 
@@ -128,6 +129,7 @@ pub async fn change_password_self(
     current_user: CurrentUser,
     Json(dto): Json<ChangePasswordPayload>,
 ) -> AppResult<()> {
+    dto.validate()?;
     AuthService::change_password(&pool, current_user.user_id, dto).await?;
     Ok(ApiResponse::success(()))
 }

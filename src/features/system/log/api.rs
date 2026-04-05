@@ -23,15 +23,11 @@ use sqlx::PgPool;
 /// Defines the routes for log management
 pub fn log_routes() -> Router<PgPool> {
     Router::new()
-        .route_with_permission(
-            "/",
-            get(get_log_list),
-            PermissionsCheck::Any(vec!["system:*", "system:log:*", "system:log:list"]),
-        )
+        .route_with_permission("/", get(get_log_list), PermissionsCheck::Single("system:log:list"))
         .route_with_permission(
             "/export",
             get(export_log_list),
-            PermissionsCheck::Any(vec!["system:*", "system:log:*", "system:log:export"]),
+            PermissionsCheck::Single("system:log:export"),
         )
 }
 
@@ -40,6 +36,7 @@ pub async fn get_log_list(
     State(pool): State<PgPool>,
     Query(query): Query<LogQuery>,
 ) -> AppResult<Vec<LogItemResp>> {
+    query.validate()?;
     let (logs, total) = LogService::get_log_list(&pool, query).await?;
     Ok(ApiResponse::page(logs, total))
 }
@@ -48,6 +45,7 @@ pub async fn export_log_list(
     State(pool): State<PgPool>,
     Query(query): Query<LogQuery>,
 ) -> Result<Response, (StatusCode, String)> {
+    query.validate().map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     let content = LogService::get_all_log_csv(&pool, query)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;

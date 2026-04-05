@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::common::{error::ServiceError, validation::*};
+
 /// Request payload for user authentication.
 #[derive(Deserialize, TS)]
 #[ts(export)]
@@ -49,4 +51,27 @@ pub struct UserInfoResp {
 pub struct ChangePasswordPayload {
     pub old_password: String,
     pub new_password: String,
+}
+
+impl LoginRequest {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_non_empty("用户名", &self.username, 100)?;
+        if self.password.is_empty() {
+            return Err(ServiceError::InvalidOperation("密码不能为空".into()));
+        }
+        Ok(())
+    }
+}
+
+impl ChangePasswordPayload {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        if self.old_password.is_empty() {
+            return Err(ServiceError::InvalidOperation("旧密码不能为空".into()));
+        }
+        validate_password("新密码", &self.new_password)?;
+        if self.old_password == self.new_password {
+            return Err(ServiceError::InvalidOperation("新密码不能与旧密码相同".into()));
+        }
+        Ok(())
+    }
 }

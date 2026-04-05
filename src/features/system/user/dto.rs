@@ -4,7 +4,10 @@ use ts_rs::TS;
 
 use chrono::Utc;
 
-use crate::{common::api::OptionItem, features::auth::model::UserStatus};
+use crate::{
+    common::{api::OptionItem, error::ServiceError, validation::*},
+    features::auth::model::UserStatus,
+};
 
 use super::model::UserWithRolesEntity;
 
@@ -84,6 +87,36 @@ pub struct ResetPasswordResp {
 #[ts(export)]
 pub struct UpdateUserStatusPayload {
     pub status: UserStatus,
+}
+
+impl CreateUserDto {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_non_empty("用户名", &self.username, 50)?;
+        validate_email("邮箱", &self.email, 100)?;
+        validate_password("密码", &self.password)?;
+        validate_optional_text("姓名", &self.real_name, 50)?;
+        Ok(())
+    }
+}
+
+impl UpdateUserPayload {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_email("邮箱", &self.email, 100)?;
+        validate_optional_text("姓名", &self.real_name, 50)?;
+        Ok(())
+    }
+}
+
+impl UserQuery {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_pagination(self.current, self.page_size)
+    }
+}
+
+impl UserOptionsQuery {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_limit(self.limit, 100)
+    }
 }
 
 /// User item for list display

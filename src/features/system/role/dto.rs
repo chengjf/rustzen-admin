@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::common::api::OptionItem;
+use crate::common::{api::OptionItem, error::ServiceError, validation::*};
 
 use super::model::RoleWithMenuEntity;
 
@@ -63,6 +63,39 @@ pub struct RoleItemResp {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub menus: Vec<OptionItem<i64>>,
+}
+
+impl CreateRoleDto {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_non_empty("角色名称", &self.name, 50)?;
+        validate_non_empty("角色编码", &self.code, 50)?;
+        validate_optional_text("角色描述", &self.description, 500)?;
+        validate_i16_in("角色状态", self.status, &[1, 2])?;
+        Ok(())
+    }
+}
+
+impl UpdateRolePayload {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_non_empty("角色名称", &self.name, 50)?;
+        validate_non_empty("角色编码", &self.code, 50)?;
+        validate_optional_text("角色描述", &self.description, 500)?;
+        validate_i16_in("角色状态", self.status, &[1, 2])?;
+        Ok(())
+    }
+}
+
+impl RoleQuery {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_pagination(self.current, self.page_size)?;
+        if let Some(status) = &self.status {
+            match status.as_str() {
+                "1" | "2" => {}
+                _ => return Err(ServiceError::InvalidOperation("角色状态取值非法".into())),
+            }
+        }
+        Ok(())
+    }
 }
 
 impl From<RoleWithMenuEntity> for RoleItemResp {

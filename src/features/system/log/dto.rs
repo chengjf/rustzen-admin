@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use ts_rs::TS;
 
+use crate::common::{error::ServiceError, validation::validate_pagination};
+
 use super::model::LogEntity;
 
 /// Log query parameters
@@ -34,6 +36,12 @@ pub struct LogItemResp {
     pub ip_address: String,
     pub user_agent: String,
     pub created_at: NaiveDateTime,
+}
+
+impl LogQuery {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_pagination(self.current, self.page_size)
+    }
 }
 
 impl From<LogEntity> for LogItemResp {

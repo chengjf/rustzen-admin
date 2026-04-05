@@ -29,47 +29,47 @@ pub fn user_routes() -> Router<sqlx::PgPool> {
         .route_with_permission(
             "/",
             get(get_user_list),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:list"]),
+            PermissionsCheck::Single("system:user:list"),
         )
         .route_with_permission(
             "/",
             post(create_user),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:create"]),
+            PermissionsCheck::Single("system:user:create"),
         )
         .route_with_permission(
             "/{id}",
             put(update_user),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:update"]),
+            PermissionsCheck::Single("system:user:update"),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_user),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:delete"]),
+            PermissionsCheck::Single("system:user:delete"),
         )
         .route_with_permission(
             "/options",
             get(get_user_options),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:list"]),
+            PermissionsCheck::Single("system:user:list"),
         )
         .route_with_permission(
             "/status-options",
             get(get_user_status_options),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:list"]),
+            PermissionsCheck::Single("system:user:list"),
         )
         .route_with_permission(
             "/{id}/password",
             put(update_user_password),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:password"]),
+            PermissionsCheck::Single("system:user:password"),
         )
         .route_with_permission(
             "/{id}/status",
             put(update_user_status),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:status"]),
+            PermissionsCheck::Single("system:user:status"),
         )
         .route_with_permission(
             "/{id}/unlock",
             put(unlock_user),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:unlock"]),
+            PermissionsCheck::Single("system:user:unlock"),
         )
 }
 
@@ -79,6 +79,7 @@ pub async fn get_user_list(
     State(pool): State<PgPool>,
     Query(query): Query<UserQuery>,
 ) -> AppResult<Vec<UserItemResp>> {
+    query.validate()?;
     tracing::info!("Getting user list");
 
     let (users, total) = UserService::get_user_list(&pool, query).await?;
@@ -93,6 +94,7 @@ pub async fn create_user(
     State(pool): State<PgPool>,
     Json(dto): Json<CreateUserDto>,
 ) -> AppResult<i64> {
+    dto.validate()?;
     tracing::info!("Creating user: {}", dto.username);
 
     let user_id = UserService::create_user(&pool, dto).await?;
@@ -109,6 +111,7 @@ pub async fn update_user(
     current_user: CurrentUser,
     Json(dto): Json<UpdateUserPayload>,
 ) -> AppResult<i64> {
+    dto.validate()?;
     tracing::info!("Updating user ID: {}", id);
 
     if id == current_user.user_id {
@@ -161,6 +164,7 @@ pub async fn get_user_options(
     State(pool): State<PgPool>,
     Query(query): Query<UserOptionsQuery>,
 ) -> AppResult<Vec<UserOptionResp>> {
+    query.validate()?;
     tracing::info!("Getting user options");
 
     let result = UserService::get_user_options(&pool, query).await?;
@@ -214,7 +218,7 @@ pub async fn update_user_status(
     Path(id): Path<i64>,
     current_user: CurrentUser,
     Json(dto): Json<UpdateUserStatusPayload>,
-) -> AppResult<bool> {
+) -> AppResult<()> {
     tracing::info!("Updating user status for user: {}", id);
 
     if id == current_user.user_id {
@@ -223,8 +227,8 @@ pub async fn update_user_status(
 
     UserService::ensure_not_system(&pool, id).await?;
 
-    let result = UserService::update_user_status(&pool, id, dto).await?;
+    UserService::update_user_status(&pool, id, dto).await?;
 
     tracing::info!("Successfully updated user status");
-    Ok(ApiResponse::success(result))
+    Ok(ApiResponse::success(()))
 }

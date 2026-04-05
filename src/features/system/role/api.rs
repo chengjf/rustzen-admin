@@ -23,27 +23,27 @@ pub fn role_routes() -> Router<PgPool> {
         .route_with_permission(
             "/",
             get(get_role_list),
-            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:list"]),
+            PermissionsCheck::Single("system:role:list"),
         )
         .route_with_permission(
             "/",
             post(create_role),
-            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:create"]),
+            PermissionsCheck::Single("system:role:create"),
         )
         .route_with_permission(
             "/{id}",
             put(update_role),
-            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:update"]),
+            PermissionsCheck::Single("system:role:update"),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_role),
-            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:delete"]),
+            PermissionsCheck::Single("system:role:delete"),
         )
         .route_with_permission(
             "/options",
             get(get_role_options),
-            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:options"]),
+            PermissionsCheck::Single("system:role:options"),
         )
 }
 
@@ -52,6 +52,7 @@ async fn get_role_list(
     State(pool): State<PgPool>,
     Query(query): Query<RoleQuery>,
 ) -> AppResult<Vec<RoleItemResp>> {
+    query.validate()?;
     tracing::info!("Role list request: query={:?}", query);
 
     let (role_list, total) = RoleService::get_role_list(&pool, query).await?;
@@ -66,6 +67,7 @@ async fn create_role(
     State(pool): State<PgPool>,
     Json(request): Json<CreateRoleDto>,
 ) -> AppResult<()> {
+    request.validate()?;
     tracing::info!("Create role: name={}, menus={}", request.name, request.menu_ids.len());
 
     RoleService::create_role(&pool, request).await?;
@@ -81,6 +83,7 @@ async fn update_role(
     Path(id): Path<i64>,
     Json(request): Json<UpdateRolePayload>,
 ) -> AppResult<()> {
+    request.validate()?;
     tracing::info!("Update role {}: name={:?}, menus={:?}", id, request.name, request.menu_ids);
 
     RoleService::update_role(&pool, id, request).await?;

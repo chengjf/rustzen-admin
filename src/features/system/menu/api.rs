@@ -23,34 +23,32 @@ pub fn menu_routes() -> Router<PgPool> {
         .route_with_permission(
             "/",
             get(get_menu_list),
-            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:list"]),
+            PermissionsCheck::Single("system:menu:list"),
         )
         .route_with_permission(
             "/",
             post(create_menu),
-            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:create"]),
+            PermissionsCheck::Single("system:menu:create"),
         )
         .route_with_permission(
             "/{id}",
             put(update_menu),
-            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:update"]),
+            PermissionsCheck::Single("system:menu:update"),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_menu),
-            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:delete"]),
+            PermissionsCheck::Single("system:menu:delete"),
         )
         .route_with_permission(
             "/options",
             get(get_menu_options),
-            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:options"]),
+            PermissionsCheck::Single("system:menu:options"),
         )
         .route_with_permission(
             "/options-with-code",
             get(get_menu_options_with_code),
             PermissionsCheck::Any(vec![
-                "system:*",
-                "system:menu:*",
                 "system:menu:create",
                 "system:menu:update",
                 "system:role:create",
@@ -66,6 +64,7 @@ async fn get_menu_list(
     State(pool): State<PgPool>,
     Query(params): Query<MenuQuery>,
 ) -> AppResult<Vec<MenuItemResp>> {
+    params.validate()?;
     tracing::info!("Menu list request: {:?}", params);
 
     let menu_tree = MenuService::get_menu_list(&pool, params).await?;
@@ -81,6 +80,7 @@ async fn create_menu(
     State(pool): State<PgPool>,
     Json(request): Json<CreateMenuDto>,
 ) -> AppResult<i64> {
+    request.validate()?;
     let menu_id = MenuService::create_menu(&pool, request).await?;
     Ok(ApiResponse::success(menu_id))
 }
@@ -92,6 +92,7 @@ async fn update_menu(
     Path(id): Path<i64>,
     Json(request): Json<UpdateMenuPayload>,
 ) -> AppResult<i64> {
+    request.validate()?;
     let menu_id = MenuService::update_menu(&pool, id, request).await?;
     Ok(ApiResponse::success(menu_id))
 }

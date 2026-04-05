@@ -2,6 +2,8 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::common::{error::ServiceError, validation::*};
+
 use super::model::MenuEntity;
 
 /// Menu type enum constants
@@ -77,6 +79,41 @@ pub struct MenuItemResp {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub children: Option<Vec<MenuItemResp>>,
+}
+
+impl CreateMenuDto {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_non_empty("菜单名称", &self.name, 100)?;
+        validate_non_empty("菜单编码", &self.code, 100)?;
+        validate_i16_in("菜单类型", self.menu_type, &[1, 2, 3])?;
+        validate_i16_in("菜单状态", self.status, &[1, 2])?;
+        Ok(())
+    }
+}
+
+impl UpdateMenuPayload {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        validate_non_empty("菜单名称", &self.name, 100)?;
+        validate_non_empty("菜单编码", &self.code, 100)?;
+        validate_i16_in("菜单类型", self.menu_type, &[1, 2, 3])?;
+        validate_i16_in("菜单状态", self.status, &[1, 2])?;
+        Ok(())
+    }
+}
+
+impl MenuQuery {
+    pub fn validate(&self) -> Result<(), ServiceError> {
+        if let Some(status) = &self.status {
+            match status.as_str() {
+                "1" | "2" => {}
+                _ => return Err(ServiceError::InvalidOperation("菜单状态取值非法".into())),
+            }
+        }
+        if let Some(menu_type) = self.menu_type {
+            validate_i16_in("菜单类型", menu_type, &[1, 2, 3])?;
+        }
+        Ok(())
+    }
 }
 
 impl From<MenuEntity> for MenuItemResp {

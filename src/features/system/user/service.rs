@@ -12,7 +12,6 @@ use crate::{
 };
 use std::collections::HashSet;
 
-use chrono::Utc;
 use sqlx::PgPool;
 
 /// User service for business operations
@@ -150,45 +149,9 @@ impl UserService {
     pub async fn delete_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         tracing::debug!("Deleting user ID: {}", id);
 
-        // Ensure user exists (get_by_id returns NotFound if missing)
-        let _ = UserRepository::get_by_id(pool, id).await?;
-
-        let mut tx = pool.begin().await.map_err(|e| {
-            tracing::error!("Database error starting transaction for user deletion: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        // Clean up user-role associations
-        sqlx::query("DELETE FROM user_roles WHERE user_id = $1")
-            .bind(id)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| {
-            tracing::error!("Database error deleting user_roles for user {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        // Soft delete user
-        let result = sqlx::query(
-            "UPDATE users SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL"
-        )
-        .bind(Utc::now().naive_utc())
-        .bind(id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error soft deleting user ID {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        if result.rows_affected() == 0 {
+        if !UserRepository::soft_delete(pool, id).await? {
             return Err(ServiceError::NotFound(format!("User id: {}", id)));
         }
-
-        tx.commit().await.map_err(|e| {
-            tracing::error!("Database error committing user deletion transaction: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
 
         // Revoke active session immediately after deletion.
         if let Err(e) = SessionStore::delete_by_user_id(pool, id).await {
@@ -273,7 +236,7 @@ impl UserService {
         pool: &PgPool,
         id: i64,
         dto: UpdateUserStatusPayload,
-    ) -> Result<bool, ServiceError> {
+    ) -> Result<(), ServiceError> {
         tracing::debug!("Updating user status for user ID: {}", id);
 
         let updated = UserRepository::update_user_status(pool, id, dto.status.into()).await?;
@@ -301,7 +264,7 @@ impl UserService {
             );
         }
 
-        Ok(true)
+        Ok(())
     }
 }
 
@@ -747,7 +710,7 @@ mod tests {
         )
         .await;
 
-        assert_eq!(result.unwrap(), true);
+        assert!(result.is_ok());
         assert!(SessionStore::get_by_token(&pool, &token).await.unwrap().is_some());
     }
 

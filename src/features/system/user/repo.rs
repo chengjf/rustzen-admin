@@ -237,16 +237,37 @@ impl UserRepository {
 
     /// Soft delete user
     pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
-        let result =
-            sqlx::query("UPDATE users SET deleted_at = $1 WHERE id = $2 AND deleted_at IS NULL")
-                .bind(Utc::now().naive_utc())
-                .bind(id)
-                .execute(pool)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Database error soft deleting user ID {}: {:?}", id, e);
-                    ServiceError::DatabaseQueryFailed
-                })?;
+        let mut tx = pool.begin().await.map_err(|e| {
+            tracing::error!("Database error starting transaction for user deletion: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        sqlx::query("DELETE FROM user_roles WHERE user_id = $1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| {
+            tracing::error!("Database error deleting user_roles for user {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        let now = Utc::now().naive_utc();
+        let result = sqlx::query(
+            "UPDATE users SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL",
+        )
+        .bind(now)
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error soft deleting user ID {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        tx.commit().await.map_err(|e| {
+            tracing::error!("Database error committing user deletion transaction: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(result.rows_affected() > 0)
     }
