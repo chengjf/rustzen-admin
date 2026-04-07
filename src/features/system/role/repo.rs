@@ -663,14 +663,20 @@ mod tests {
         let count = RoleRepository::get_role_user_count(&pool, role_id).await.unwrap();
         assert_eq!(count, 0);
 
-        // Seed system admin role - it has 1 user (superadmin)
-        let (sys_role_id,): (i64,) =
-            sqlx::query_as("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
+        // Assign superadmin to this role and verify count becomes 1
+        let (superadmin_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM users WHERE username = 'superadmin'")
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        let sys_count = RoleRepository::get_role_user_count(&pool, sys_role_id).await.unwrap();
-        assert_eq!(sys_count, 1);
+        sqlx::query("INSERT INTO user_roles (user_id, role_id, created_at) VALUES ($1, $2, NOW())")
+            .bind(superadmin_id)
+            .bind(role_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let count_after = RoleRepository::get_role_user_count(&pool, role_id).await.unwrap();
+        assert_eq!(count_after, 1);
     }
 
     #[sqlx::test]

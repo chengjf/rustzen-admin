@@ -145,17 +145,6 @@ async fn bootstrap_superadmin(pool: &sqlx::PgPool) -> Result<(), Box<dyn std::er
     .fetch_optional(pool)
     .await?;
 
-    let role_id: Option<i64> = sqlx::query_scalar(
-        "SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN' AND deleted_at IS NULL",
-    )
-    .fetch_optional(pool)
-    .await?;
-
-    let Some(role_id) = role_id else {
-        tracing::warn!("SYSTEM_ADMIN role not found during superadmin bootstrap");
-        return Ok(());
-    };
-
     let superadmin_id = match existing {
         Some((user_id, password_hash)) => {
             if password_hash == SUPERADMIN_PASSWORD_PLACEHOLDER {
@@ -205,15 +194,6 @@ async fn bootstrap_superadmin(pool: &sqlx::PgPool) -> Result<(), Box<dyn std::er
         }
     };
 
-    sqlx::query(
-        "INSERT INTO user_roles (user_id, role_id, created_at)
-         VALUES ($1, $2, NOW())
-         ON CONFLICT (user_id, role_id) DO NOTHING",
-    )
-    .bind(superadmin_id)
-    .bind(role_id)
-    .execute(pool)
-    .await?;
-
+    let _ = superadmin_id;
     Ok(())
 }

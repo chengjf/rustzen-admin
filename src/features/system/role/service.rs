@@ -445,11 +445,13 @@ mod tests {
 
     #[sqlx::test]
     async fn delete_system_role_returns_error(pool: PgPool) {
-        let (sys_role_id,): (i64,) =
-            sqlx::query_as("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let sys_role_id: i64 = sqlx::query_scalar(
+            "INSERT INTO roles (name, code, status, is_system, sort_order, created_at)
+             VALUES ('系统角色', 'SYS_TEST_DEL', 1, TRUE, 99, NOW()) RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
         let result = RoleService::delete_role(&pool, sys_role_id).await;
         assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
@@ -457,11 +459,13 @@ mod tests {
 
     #[sqlx::test]
     async fn update_system_role_returns_error(pool: PgPool) {
-        let (sys_role_id,): (i64,) =
-            sqlx::query_as("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let sys_role_id: i64 = sqlx::query_scalar(
+            "INSERT INTO roles (name, code, status, is_system, sort_order, created_at)
+             VALUES ('系统角色', 'SYS_TEST_UPD', 1, TRUE, 99, NOW()) RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
         let result = RoleService::update_role(
             &pool,

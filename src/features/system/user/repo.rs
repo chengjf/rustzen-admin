@@ -704,10 +704,13 @@ mod tests {
     #[sqlx::test]
     async fn update_user_persists_email_real_name_and_roles(pool: PgPool) {
         let user_id = seed_user(&pool, "update_user_repo", "update_user_repo@example.com").await;
-        let (role_id,): (i64,) = sqlx::query_as("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let role_id: i64 = sqlx::query_scalar(
+            "INSERT INTO roles (name, code, status, is_system, sort_order, created_at)
+             VALUES ('更新测试角色', 'UPDATE_USER_ROLE', 1, FALSE, 99, NOW()) RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
         let updated_id = UserRepository::update_user(
             &pool,
@@ -772,11 +775,22 @@ mod tests {
     #[sqlx::test]
     async fn find_user_ids_by_role_id_and_menu_id_return_assigned_user(pool: PgPool) {
         let user_id = seed_user(&pool, "relation_user", "relation_user@example.com").await;
-        let role_id =
-            sqlx::query_scalar::<_, i64>("SELECT id FROM roles WHERE code = 'SYSTEM_ADMIN'")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        // Use menu id=2 (系统管理, enabled) seeded by 0105_seed.sql
+        let menu_id: i64 = 2;
+        let role_id: i64 = sqlx::query_scalar(
+            "INSERT INTO roles (name, code, status, is_system, sort_order, created_at)
+             VALUES ('关联测试角色', 'RELATION_ROLE', 1, FALSE, 99, NOW()) RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query("INSERT INTO role_menus (role_id, menu_id, created_at) VALUES ($1, $2, NOW())")
+            .bind(role_id)
+            .bind(menu_id)
+            .execute(&pool)
+            .await
+            .unwrap();
 
         sqlx::query("INSERT INTO user_roles (user_id, role_id, created_at) VALUES ($1, $2, NOW())")
             .bind(user_id)
@@ -786,7 +800,7 @@ mod tests {
             .unwrap();
 
         let role_user_ids = UserRepository::find_user_ids_by_role_id(&pool, role_id).await.unwrap();
-        let menu_user_ids = UserRepository::find_user_ids_by_menu_id(&pool, 1).await.unwrap();
+        let menu_user_ids = UserRepository::find_user_ids_by_menu_id(&pool, menu_id).await.unwrap();
 
         assert!(role_user_ids.contains(&user_id));
         assert!(menu_user_ids.contains(&user_id));

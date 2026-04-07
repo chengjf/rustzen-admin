@@ -43,7 +43,7 @@ pub fn role_routes() -> Router<PgPool> {
         .route_with_permission(
             "/options",
             get(get_role_options),
-            PermissionsCheck::Single("system:role:options"),
+            PermissionsCheck::Any(vec!["system:user:create","system:user:update"]),
         )
 }
 

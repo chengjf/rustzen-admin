@@ -16,15 +16,8 @@ VALUES (
 ON CONFLICT (username) WHERE deleted_at IS NULL DO NOTHING;
 
 
-INSERT INTO roles (name, code, description, status, is_system, sort_order)
-VALUES
-    ('系统管理员', 'SYSTEM_ADMIN', '系统管理员，具有所有系统功能的完全访问权限', 1, TRUE, 1)
-ON CONFLICT (code) WHERE deleted_at IS NULL DO NOTHING;
-
-
 INSERT INTO menus (id, parent_id, name, code, menu_type, sort_order, status, is_system)
 VALUES
-    (1, 0, '系统超级管理员', '*', 1, 1, 2, TRUE),
     (2, 0, '系统管理', 'system', 1, 1, 1, TRUE),
     (3, 2, '用户管理', 'system:user:list', 2, 1, 1, TRUE),
     (4, 3, '用户创建', 'system:user:create', 3, 1, 1, TRUE),
@@ -56,20 +49,6 @@ ON CONFLICT (id) DO UPDATE SET
     status = EXCLUDED.status,
     is_system = EXCLUDED.is_system;
 
-
-INSERT INTO role_menus (role_id, menu_id, created_at)
-SELECT r.id, m.id, NOW()
-FROM roles r, menus m
-WHERE r.code = 'SYSTEM_ADMIN' AND m.code = '*'
-ON CONFLICT (role_id, menu_id) DO NOTHING;
-
-
-INSERT INTO user_roles (user_id, role_id, created_at)
-SELECT u.id, r.id, NOW()
-FROM users u, roles r
-WHERE u.username = 'superadmin' AND u.deleted_at IS NULL
-  AND r.code = 'SYSTEM_ADMIN' AND r.deleted_at IS NULL
-ON CONFLICT (user_id, role_id) DO NOTHING;
 
 
 SELECT setval(pg_get_serial_sequence('menus', 'id'), (SELECT MAX(id) FROM menus));

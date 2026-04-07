@@ -31,7 +31,9 @@ interface UserModalFormProps {
 const UserModalForm = React.memo(
     ({ open, onOpenChange, initialValues, mode = "create", onSuccess }: UserModalFormProps) => {
         const [form] = Form.useForm();
-        const { data: roleOptions } = useApiQuery("system/roles/options", roleAPI.getOptions);
+        const { data: roleOptions } = useApiQuery("system/roles/options", roleAPI.getOptions, {
+            enabled: open,
+        });
 
         useEffect(() => {
             if (open) {
@@ -45,7 +47,9 @@ const UserModalForm = React.memo(
                         roleIds,
                     });
                 } else {
-                    form.setFieldsValue({ status: "Normal" satisfies UserStatus });
+                    form.setFieldsValue({
+                        status: "Normal" satisfies UserStatus,
+                    });
                 }
             }
         }, [open, mode, initialValues, form]);
@@ -130,7 +134,10 @@ export function UserPage() {
     const actionRef = useRef<ActionType>(null);
     const userInfo = useAuthStore((state) => state.userInfo);
 
-    const [passwordModal, setPasswordModal] = useState({ open: false, password: "" });
+    const [passwordModal, setPasswordModal] = useState({
+        open: false,
+        password: "",
+    });
     const [modalState, setModalState] = useState<{
         open: boolean;
         mode: "create" | "edit";
@@ -285,7 +292,10 @@ export function UserPage() {
                                     title="确定要重置此用户的密码吗？"
                                     onConfirm={async () => {
                                         const res = await userAPI.resetPassword(entity.id);
-                                        setPasswordModal({ open: true, password: res.password });
+                                        setPasswordModal({
+                                            open: true,
+                                            password: res.password,
+                                        });
                                         // 修复：移除重置密码后无意义的 reload
                                     }}
                                 >

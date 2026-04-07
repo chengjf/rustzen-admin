@@ -2,6 +2,9 @@ use rustzen_admin::core::app::create_server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // load env
+    dotenvy::dotenv().ok();
+
     // init log — level controlled by RUST_LOG env var (default: info)
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -12,8 +15,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .compact()
         .init();
 
-    // load env
-    dotenvy::dotenv().ok();
 
     // create server
     create_server().await?;
