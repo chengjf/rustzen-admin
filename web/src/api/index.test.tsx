@@ -131,7 +131,7 @@ describe("apiRequest error handling", () => {
         useAuthStore.setState({ token: "expired-token", userInfo: mockUserInfo });
 
         mocks.fetchMock
-            .mockImplementationOnce((_url, init) =>
+            .mockImplementationOnce(() =>
                 Promise.resolve(
                     new Response(JSON.stringify({ message: "会话已过期" }), {
                         status: 401,

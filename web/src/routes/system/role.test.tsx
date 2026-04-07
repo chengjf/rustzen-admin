@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -19,6 +19,12 @@ const mocks = vi.hoisted(() => ({
     updateRole: vi.fn(),
 }));
 
+type TreeNode = {
+    title?: React.ReactNode;
+    key?: React.Key;
+    children?: TreeNode[];
+};
+
 vi.mock("@tanstack/react-router", () => ({
     createFileRoute: () => () => ({}),
 }));
@@ -31,7 +37,11 @@ vi.mock("@ant-design/pro-components", () => ({
     }: {
         headerTitle?: React.ReactNode;
         toolBarRender?: () => React.ReactNode[];
-        columns?: Array<{ key?: string; render?: (_: unknown, entity: any) => React.ReactNode }>;
+        columns?: Array<{
+            dataIndex?: string;
+            key?: string;
+            render?: (_: unknown, entity: any) => React.ReactNode;
+        }>;
     }) => (
         <div>
             <div>{headerTitle}</div>
@@ -118,32 +128,45 @@ vi.mock("antd", () => ({
         onCheck,
         onSelect,
     }: {
-        treeData?: Array<{ title?: React.ReactNode; key?: React.Key; children?: any[] }>;
+        treeData?: TreeNode[];
         onCheck?: (info: { checked: React.Key[] }) => void;
         onSelect?: (keys: React.Key[]) => void;
     }) => {
-        const flatten = (
-            nodes: Array<{ title?: React.ReactNode; key?: React.Key; children?: any[] }>,
-        ) => nodes.flatMap((node) => [node, ...(node.children ? flatten(node.children) : [])]);
+        const flatten = (nodes: TreeNode[]): TreeNode[] =>
+            nodes.flatMap((node): TreeNode[] => [
+                node,
+                ...(node.children ? flatten(node.children) : []),
+            ]);
         const items = flatten(treeData ?? []);
 
         return (
             <div>
-                {items.map((node) => (
+                {items.map((node: TreeNode) => (
                     <div key={`tree-${String(node.key)}`}>
                         <span>{node.title}</span>
+                        {(() => {
+                            const label =
+                                typeof node.title === "string"
+                                    ? node.title
+                                    : `node-${String(node.key)}`;
+
+                            return (
+                                <>
                         <button
-                            aria-label={`select-${String(node.title)}`}
+                            aria-label={`select-${label}`}
                             onClick={() => onSelect?.([node.key as React.Key])}
                         >
                             select-{node.title}
                         </button>
                         <button
-                            aria-label={`check-${String(node.title)}`}
+                            aria-label={`check-${label}`}
                             onClick={() => onCheck?.({ checked: [node.key as React.Key] })}
                         >
                             check-{node.title}
                         </button>
+                                </>
+                            );
+                        })()}
                     </div>
                 ))}
             </div>

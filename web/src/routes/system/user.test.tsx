@@ -32,7 +32,11 @@ vi.mock("@ant-design/pro-components", () => ({
     }: {
         headerTitle?: React.ReactNode;
         toolBarRender?: () => React.ReactNode[];
-        columns?: Array<{ key?: string; render?: (_: unknown, entity: any) => React.ReactNode }>;
+        columns?: Array<{
+            dataIndex?: string;
+            key?: string;
+            render?: (_: unknown, entity: any) => React.ReactNode;
+        }>;
     }) => (
         <div>
             <div>{headerTitle}</div>
@@ -118,7 +122,7 @@ vi.mock("@ant-design/pro-components", () => ({
         onFinish,
     }: {
         children?: React.ReactNode;
-        title?: React.ReactNode;
+        title?: string;
         open?: boolean;
         onOpenChange?: (open: boolean) => void;
         onFinish?: (values: Record<string, unknown>) => Promise<boolean>;

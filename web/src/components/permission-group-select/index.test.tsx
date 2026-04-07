@@ -52,10 +52,10 @@ vi.mock("antd", () => ({
 import { PermissionGroupSelect } from ".";
 
 const options = [
-    { value: 1, label: "用户列表", code: "system:user:list" },
-    { value: 2, label: "用户创建", code: "system:user:create" },
-    { value: 3, label: "角色列表", code: "system:role:list" },
-];
+    { value: 1, label: "用户列表", code: "system:user:list", parentId: 10, menuType: 3 },
+    { value: 2, label: "用户创建", code: "system:user:create", parentId: 10, menuType: 3 },
+    { value: 3, label: "角色列表", code: "system:role:list", parentId: 11, menuType: 3 },
+] satisfies Api.MenuOptionItem[];
 
 describe("PermissionGroupSelect", () => {
     it("groups permissions and filters them by search text", () => {

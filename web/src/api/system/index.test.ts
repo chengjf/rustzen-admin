@@ -19,8 +19,8 @@ import { userAPI } from "./user";
 
 describe("system API wrappers", () => {
     it("wraps log endpoints with the correct helpers", () => {
-        logAPI.getTableData({ action: "AUTH_LOGIN" });
-        logAPI.exportLogList();
+        void logAPI.getTableData({ action: "AUTH_LOGIN" });
+        void logAPI.exportLogList();
 
         expect(mocks.proTableRequest).toHaveBeenCalledWith({
             url: "/api/system/logs",
@@ -35,10 +35,10 @@ describe("system API wrappers", () => {
         mocks.apiRequest.mockReturnValueOnce(Promise.resolve([{ label: "菜单", value: 1 }]));
 
         const optionsPromise = menuAPI.getOptions();
-        menuAPI.create({ name: "菜单" } as any);
-        menuAPI.update(7, { name: "编辑" } as any);
-        menuAPI.delete(8);
-        menuAPI.getOptionsWithCode({ btn_filter: true });
+        void menuAPI.create({ name: "菜单" } as any);
+        void menuAPI.update(7, { name: "编辑" } as any);
+        void menuAPI.delete(8);
+        void menuAPI.getOptionsWithCode({ btn_filter: true });
 
         expect(mocks.apiRequest).toHaveBeenCalledWith(
             expect.objectContaining({ url: "/api/system/menus", method: "POST" }),
@@ -60,11 +60,11 @@ describe("system API wrappers", () => {
     });
 
     it("wraps role endpoints with expected methods and urls", () => {
-        roleAPI.getTableData({ name: "admin" });
-        roleAPI.create({ name: "管理员" } as any);
-        roleAPI.update(3, { name: "更新" } as any);
-        roleAPI.delete(4);
-        roleAPI.getOptions();
+        void roleAPI.getTableData({ name: "admin" });
+        void roleAPI.create({ name: "管理员" } as any);
+        void roleAPI.update(3, { name: "更新" } as any);
+        void roleAPI.delete(4);
+        void roleAPI.getOptions();
 
         expect(mocks.proTableRequest).toHaveBeenCalledWith({
             url: "/api/system/roles",
@@ -85,14 +85,14 @@ describe("system API wrappers", () => {
     });
 
     it("wraps user endpoints with expected methods and urls", () => {
-        userAPI.getTableData({ username: "alice" });
-        userAPI.create({ username: "alice" } as any);
-        userAPI.update(10, { email: "a@test.dev" } as any);
-        userAPI.delete(11);
-        userAPI.updateStatus(12, { status: "Disabled" } as any);
-        userAPI.resetPassword(13);
-        userAPI.unlock(14);
-        userAPI.getStatusOptions();
+        void userAPI.getTableData({ username: "alice" });
+        void userAPI.create({ username: "alice" } as any);
+        void userAPI.update(10, { email: "a@test.dev" } as any);
+        void userAPI.delete(11);
+        void userAPI.updateStatus(12, { status: "Disabled" } as any);
+        void userAPI.resetPassword(13);
+        void userAPI.unlock(14);
+        void userAPI.getStatusOptions();
 
         expect(mocks.proTableRequest).toHaveBeenCalledWith({
             url: "/api/system/users",

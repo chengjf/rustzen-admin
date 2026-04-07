@@ -1,15 +1,24 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-    queryClientProvider: vi.fn(),
-}));
-
 vi.mock("@tanstack/react-query", () => ({
     QueryClient: class QueryClient {
-        options: any;
-        constructor(options: any) {
-            this.options = options;
+        private defaultOptions: {
+            queries?: { retry?: number };
+            mutations?: { retry?: boolean };
+        };
+
+        constructor(options: {
+            defaultOptions: {
+                queries?: { retry?: number };
+                mutations?: { retry?: boolean };
+            };
+        }) {
+            this.defaultOptions = options.defaultOptions;
+        }
+
+        getDefaultOptions() {
+            return this.defaultOptions;
         }
     },
     QueryClientProvider: ({
@@ -17,10 +26,10 @@ vi.mock("@tanstack/react-query", () => ({
         client,
     }: {
         children?: React.ReactNode;
-        client: { options?: any };
+        client: { getDefaultOptions: () => { queries?: { retry?: number } } };
     }) => (
         <div>
-            <div>{String(client.options?.defaultOptions?.queries?.retry)}</div>
+            <div>{String(client.getDefaultOptions().queries?.retry)}</div>
             {children}
         </div>
     ),
@@ -32,8 +41,8 @@ describe("tanstack query root provider", () => {
     it("creates a query client with the expected default options", () => {
         const context = getContext();
 
-        expect(context.queryClient.options.defaultOptions.queries.retry).toBe(0);
-        expect(context.queryClient.options.defaultOptions.mutations.retry).toBe(false);
+        expect(context.queryClient.getDefaultOptions().queries?.retry).toBe(0);
+        expect(context.queryClient.getDefaultOptions().mutations?.retry).toBe(false);
     });
 
     it("renders children through QueryClientProvider", () => {

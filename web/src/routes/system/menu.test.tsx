@@ -31,7 +31,11 @@ vi.mock("@ant-design/pro-components", () => ({
     }: {
         headerTitle?: React.ReactNode;
         toolBarRender?: () => React.ReactNode[];
-        columns?: Array<{ key?: string; render?: (_: unknown, entity: any) => React.ReactNode }>;
+        columns?: Array<{
+            dataIndex?: string;
+            key?: string;
+            render?: (_: unknown, entity: any) => React.ReactNode;
+        }>;
     }) => (
         <div>
             <div>{headerTitle}</div>

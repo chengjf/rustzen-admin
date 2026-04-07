@@ -12,13 +12,12 @@ import { authAPI } from "./index";
 
 describe("authAPI", () => {
     it("wraps login/logout/me/change-password endpoints with expected options", () => {
-        authAPI.login({ username: "admin", password: "secret" });
-        authAPI.logout();
-        authAPI.getUserInfo();
-        authAPI.changePassword({
+        void authAPI.login({ username: "admin", password: "secret" });
+        void authAPI.logout();
+        void authAPI.getUserInfo();
+        void authAPI.changePassword({
             oldPassword: "old-secret",
             newPassword: "new-secret",
-            confirmPassword: "new-secret",
         });
 
         expect(mocks.apiRequest).toHaveBeenCalledWith({
@@ -35,7 +34,6 @@ describe("authAPI", () => {
             params: {
                 oldPassword: "old-secret",
                 newPassword: "new-secret",
-                confirmPassword: "new-secret",
             },
             skipSuccessMsg: true,
         });
