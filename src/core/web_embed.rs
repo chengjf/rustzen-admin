@@ -2,12 +2,12 @@ use axum::{
     http::{StatusCode, Uri},
     response::{Html, IntoResponse, Response},
 };
-use include_dir::{Dir, include_dir};
+use rust_embed::RustEmbed;
 use tracing::{debug, warn};
 
-// embed dist directory into the binary file
-// path is relative to the Cargo.toml file location
-static WEB_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/web/dist");
+#[derive(RustEmbed)]
+#[folder = "web/dist/"]
+struct WebAssets;
 
 /// Serve embedded frontend static files (single-binary deployment).
 pub async fn web_embed_file_handler(uri: Uri) -> impl IntoResponse {
@@ -52,10 +52,10 @@ async fn serve_embedded_files(path: &str) -> Response {
 
     if is_static {
         // try to get the static resource file
-        if let Some(file) = WEB_DIR.get_file(path) {
+        if let Some(file) = WebAssets::get(path) {
             // set Content-Type based on the file extension
             let content_type = get_content_type(path);
-            let contents = file.contents();
+            let contents = file.data;
 
             debug!(
                 "[static file] find embedded file: {}, Content-Type: {}, size: {} bytes",
@@ -68,7 +68,7 @@ async fn serve_embedded_files(path: &str) -> Response {
                 .status(StatusCode::OK)
                 .header("content-type", content_type)
                 .header("cache-control", "public, max-age=604800") // static resource cache 1 week
-                .body(axum::body::Body::from(contents))
+                .body(axum::body::Body::from(contents.into_owned()))
                 .unwrap();
         } else {
             // static resource file not found
@@ -89,9 +89,9 @@ async fn serve_embedded_files(path: &str) -> Response {
 
 /// serve embedded index.html file
 async fn serve_embedded_index_html() -> Response {
-    if let Some(index_file) = WEB_DIR.get_file("index.html") {
+    if let Some(index_file) = WebAssets::get("index.html") {
         debug!("[static file] serve embedded index.html");
-        Html(std::str::from_utf8(index_file.contents()).unwrap_or("")).into_response()
+        Html(String::from_utf8_lossy(&index_file.data).into_owned()).into_response()
     } else {
         warn!("[static file] embedded index.html file not found");
 
@@ -222,7 +222,10 @@ mod tests {
 
     #[tokio::test]
     async fn embedded_static_asset_is_served_with_cache_headers() {
-        let response = serve_embedded_files("assets/index-Gt1c3vwm.css").await;
+        let css_path = WebAssets::iter()
+            .find(|p| p.ends_with(".css"))
+            .expect("no CSS asset found in web/dist");
+        let response = serve_embedded_files(&css_path).await;
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.headers().get("content-type").unwrap(), "text/css; charset=utf-8");
         assert_eq!(response.headers().get("cache-control").unwrap(), "public, max-age=604800");
@@ -245,9 +248,11 @@ mod tests {
 
     #[tokio::test]
     async fn web_embed_file_handler_serves_static_files_from_uri() {
-        let response = web_embed_file_handler(Uri::from_static("/assets/index-CJ57PzAY.js"))
-            .await
-            .into_response();
+        let js_path =
+            WebAssets::iter().find(|p| p.ends_with(".js")).expect("no JS asset found in web/dist");
+        let uri_str = format!("/{}", js_path);
+        let uri = uri_str.parse::<Uri>().expect("valid URI");
+        let response = web_embed_file_handler(uri).await.into_response();
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
             response.headers().get("content-type").unwrap(),
