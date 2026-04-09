@@ -12,9 +12,7 @@ const TestAction = ({
     children: React.ReactNode;
     code?: string;
     hidden?: boolean;
-}) => (
-    <button hidden={hidden}>{children}</button>
-);
+}) => <button hidden={hidden}>{children}</button>;
 
 vi.mock("antd", () => ({
     Dropdown: ({

@@ -43,11 +43,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-    createFileRoute: () => () => ({}),
+    createFileRoute: () => (options: Record<string, unknown>) => ({ options }),
     createRootRoute: () => ({}),
     Navigate: () => null,
     Outlet: () => null,
     redirect: vi.fn(),
+    lazyRouteComponent: vi.fn(),
 }));
 
 vi.mock("@/routeTree.gen", () => ({
@@ -112,7 +113,7 @@ vi.mock("@/api/dashboard", () => ({
     },
 }));
 
-import { DashboardPage } from "./index";
+import { DashboardPage } from "@/components/dashboard/DashboardPage";
 
 beforeEach(() => {
     mocks.queryState["dashboard/stats"] = {
@@ -153,7 +154,7 @@ beforeEach(() => {
 });
 
 describe("DashboardPage", () => {
-    it("renders dashboard stats, health, metrics, and trend sections", () => {
+    it("renders dashboard stats, health, metrics, and trend sections", async () => {
         render(<DashboardPage />);
 
         expect(screen.getByText("总用户数")).toBeInTheDocument();
@@ -164,15 +165,27 @@ describe("DashboardPage", () => {
         expect(screen.getByText("7天性能指标")).toBeInTheDocument();
         expect(screen.getByText("120ms")).toBeInTheDocument();
         expect(screen.getByText("30天用户登录趋势图")).toBeInTheDocument();
-        expect(screen.getByText("line-chart")).toBeInTheDocument();
-        expect(screen.getByText("column-chart")).toBeInTheDocument();
+        expect(await screen.findByText("line-chart")).toBeInTheDocument();
+        expect(await screen.findByText("column-chart")).toBeInTheDocument();
     });
 
     it("renders loading skeletons and default zero values", () => {
-        mocks.queryState["dashboard/stats"] = { data: undefined, isLoading: true };
-        mocks.queryState["dashboard/health"] = { data: undefined, isLoading: true };
-        mocks.queryState["dashboard/metrics"] = { data: undefined, isLoading: true };
-        mocks.queryState["dashboard/trends"] = { data: undefined, isLoading: true };
+        mocks.queryState["dashboard/stats"] = {
+            data: undefined,
+            isLoading: true,
+        };
+        mocks.queryState["dashboard/health"] = {
+            data: undefined,
+            isLoading: true,
+        };
+        mocks.queryState["dashboard/metrics"] = {
+            data: undefined,
+            isLoading: true,
+        };
+        mocks.queryState["dashboard/trends"] = {
+            data: undefined,
+            isLoading: true,
+        };
 
         render(<DashboardPage />);
 

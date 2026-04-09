@@ -152,18 +152,20 @@ vi.mock("antd", () => ({
 
                             return (
                                 <>
-                        <button
-                            aria-label={`select-${label}`}
-                            onClick={() => onSelect?.([node.key as React.Key])}
-                        >
-                            select-{node.title}
-                        </button>
-                        <button
-                            aria-label={`check-${label}`}
-                            onClick={() => onCheck?.({ checked: [node.key as React.Key] })}
-                        >
-                            check-{node.title}
-                        </button>
+                                    <button
+                                        aria-label={`select-${label}`}
+                                        onClick={() => onSelect?.([node.key as React.Key])}
+                                    >
+                                        select-{node.title}
+                                    </button>
+                                    <button
+                                        aria-label={`check-${label}`}
+                                        onClick={() =>
+                                            onCheck?.({ checked: [node.key as React.Key] })
+                                        }
+                                    >
+                                        check-{node.title}
+                                    </button>
                                 </>
                             );
                         })()}

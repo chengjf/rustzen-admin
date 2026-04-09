@@ -2,6 +2,7 @@ use axum::{
     http::{StatusCode, Uri},
     response::{Html, IntoResponse, Response},
 };
+use percent_encoding::percent_decode_str;
 use rust_embed::RustEmbed;
 use tracing::{debug, warn};
 
@@ -11,8 +12,13 @@ struct WebAssets;
 
 /// Serve embedded frontend static files (single-binary deployment).
 pub async fn web_embed_file_handler(uri: Uri) -> impl IntoResponse {
-    let path = uri.path().trim_start_matches('/');
-    serve_embedded_files(path).await
+    let raw_path = uri.path().trim_start_matches('/');
+    let decoded_path = decode_uri_path(raw_path);
+    serve_embedded_files(&decoded_path).await
+}
+
+fn decode_uri_path(path: &str) -> String {
+    percent_decode_str(path).decode_utf8_lossy().into_owned()
 }
 /// check if the path is a static resource path
 fn is_static_resource_path(path: &str) -> bool {
@@ -28,6 +34,7 @@ fn is_static_resource_path(path: &str) -> bool {
         || path.starts_with("images/")
         || path.starts_with("css/")
         || path.starts_with("js/")
+        || path.starts_with("doc/")
     {
         return true;
     }
@@ -174,6 +181,18 @@ mod tests {
     }
 
     #[test]
+    fn uri_path_is_percent_decoded_before_asset_lookup() {
+        let encoded =
+            "doc/by/%E6%AF%8F%2024000%20%E4%B8%AA%E5%B7%A5%E4%BD%9C%E5%B0%8F%E6%97%B6%E6%88%96%E6%AF%8F%203%20%E5%B9%B4/%E6%AF%8F%2024000%20%E4%B8%AA%E5%B7%A5%E4%BD%9C%E5%B0%8F%E6%97%B6%E6%88%96%E6%AF%8F%203%20%E5%B9%B4(1).html";
+        let decoded = decode_uri_path(encoded);
+
+        assert_eq!(
+            decoded,
+            "doc/by/每 24000 个工作小时或每 3 年/每 24000 个工作小时或每 3 年(1).html"
+        );
+    }
+
+    #[test]
     fn content_type_detection_covers_common_extensions() {
         assert_eq!(get_content_type("app.js"), "application/javascript; charset=utf-8");
         assert_eq!(get_content_type("styles.css"), "text/css; charset=utf-8");
@@ -258,6 +277,19 @@ mod tests {
             response.headers().get("content-type").unwrap(),
             "application/javascript; charset=utf-8"
         );
+        assert_eq!(response.headers().get("cache-control").unwrap(), "public, max-age=604800");
+    }
+
+    #[tokio::test]
+    async fn web_embed_file_handler_serves_percent_encoded_doc_paths() {
+        let uri = Uri::from_static(
+            "/doc/by/%E6%AF%8F%2024000%20%E4%B8%AA%E5%B7%A5%E4%BD%9C%E5%B0%8F%E6%97%B6%E6%88%96%E6%AF%8F%203%20%E5%B9%B4/%E6%AF%8F%2024000%20%E4%B8%AA%E5%B7%A5%E4%BD%9C%E5%B0%8F%E6%97%B6%E6%88%96%E6%AF%8F%203%20%E5%B9%B4(1).html",
+        );
+
+        let response = web_embed_file_handler(uri).await.into_response();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers().get("content-type").unwrap(), "text/html; charset=utf-8");
         assert_eq!(response.headers().get("cache-control").unwrap(), "public, max-age=604800");
     }
 }
